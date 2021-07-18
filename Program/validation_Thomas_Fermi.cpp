@@ -45,6 +45,7 @@ int validation_Thomas_Fermi(){
 		}
 	}else{
 		// actual mode
+		// Initial_diff_(min, max) are necessary
 		sprintf(sprintf_buffer, "%32s = %-8.3f", "Initial_diff_min", Initial_diff_min);
 		write_log(sprintf_buffer);
 		sprintf(sprintf_buffer, "%32s = %-8.3f", "Initial_diff_max", Initial_diff_max);
@@ -60,7 +61,14 @@ int validation_Thomas_Fermi(){
 			status=0; goto FINALIZATION;
 		}
 	}
-
+	///solution: RK1 or RK4
+	if(strcmp(TF_solution, "RK1")==0 || strcmp(TF_solution, "RK4")==0){
+		sprintf(sprintf_buffer, "%32s = %s", "Solution", TF_solution);
+		write_log(sprintf_buffer);
+	}else{
+		write_log((char*)"Error: Solution should be 'RK1' or 'RK4'");
+		status=0; goto FINALIZATION;
+	}
 	
 	goto FINALIZATION;
  FINALIZATION:

@@ -7,6 +7,7 @@ int Calculation_length;   // size of the char* Calculation
 int Log_file_length;      // size of the char* Log_file
 int Log_length;           // max length of the one log message
 char* Log_buffer;         // buffer for the log output
+int Solution_length;      // size of the char* TF_solution
 
 // variables
 /// blocks
@@ -43,6 +44,8 @@ double Initial_diff_max;       // actual-mode: maximum initial value
 bool Initial_diff_max_set;
 double TF_threshold;           // actual-mode: threshold for the convergence
 bool TF_threshold_set;
+char* TF_solution;             // solution: RK1 (or Euler) or RK4 (default)
+double TF_solution_set;
 double* TF_phi;                // Thomas-Fermi potential
 double* TF_phi_diff;           // Differential of TF_phi;
 

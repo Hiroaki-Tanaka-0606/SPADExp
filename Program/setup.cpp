@@ -10,6 +10,7 @@ void initialize(){
 	Log_file_length=1024;
 	Log_length=256;
 	Log_buffer=new char[Log_length+1];
+	Solution_length=16;
 	
 	// variables
 	/// blocks
@@ -30,12 +31,15 @@ void initialize(){
 	Initial_diff_offset_set=false;
 	Initial_diff_delta_set=false;
 	Initial_diff_size_set=false;
-	Initial_diff_min=-1.52;
-	Initial_diff_max=-1.51;
+	Initial_diff_min=-1.49; // -1.52 for RK1
+	Initial_diff_max=-1.48; // -1.51 for RK1
 	Initial_diff_min_set=false;
 	Initial_diff_max_set=false;
 	TF_threshold=1e-5;
 	TF_threshold_set=false;
+	TF_solution=new char[Solution_length+1];
+	strcpy(TF_solution, "RK4");
+	TF_solution_set=false;
 	
 }
 

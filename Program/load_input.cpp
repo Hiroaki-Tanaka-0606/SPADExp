@@ -194,7 +194,7 @@ int load_input(){
 				if(Output_file_set){
 					output_error(line_number, (char*)"keyword Output_file already appeared"); status=0; goto FINALIZATION;
 				}
-				parse_status=parse_char(input_line_c, (char*)"OUtput_file", Output_file, Log_file_length, value_buffer);
+				parse_status=parse_char(input_line_c, (char*)"Output_file", Output_file, Log_file_length, value_buffer);
 				if(parse_status==0){
 					output_error(line_number, (char*)"invalid value of Output_file"); status=0; goto FINALIZATION;
 				}
@@ -279,6 +279,18 @@ int load_input(){
 					output_error(line_number, (char*)"invalid value of Threshold"); status=0; goto FINALIZATION;
 				}
 			  TF_threshold_set=true; continue;
+			}
+			/// Solution: char[]
+			if(strcmp(keyword_buffer, "Solution")==0){
+				if(TF_solution_set){
+					output_error(line_number, (char*)"keyword Solution already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_char(input_line_c, (char*)"Solution", TF_solution, Solution_length, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Solution"); status=0; goto FINALIZATION;
+				}
+				TF_solution_set=true;
+				continue;
 			}
 		}else{
 			// none of the above, which should not happen

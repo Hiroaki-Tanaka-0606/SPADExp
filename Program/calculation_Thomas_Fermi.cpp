@@ -1,6 +1,7 @@
 // calcPSF calculation of Thomas-Fermi potential calculation
 
 #include <cmath>
+#include <cstring>
 
 #include "variables_ext.hpp"
 #include "log.hpp"
@@ -109,17 +110,91 @@ void calc_Thomas_Fermi(){
 	delete sprintf_buffer;
 }
 
+// Thomas-Fermi diffrential equation
+// (phi, phi_diff)'=f(phi, phi_diff)=(phi_diff, phi^1.5 x^-0.5)
 void Thomas_Fermi_evolution(){
-	int i;
-	for(i=1; i<x_count; i++){
-		TF_phi[i]=TF_phi[i-1]+TF_phi_diff[i-1]*(x_coordinates[i]-x_coordinates[i-1]);
-		if(i==1){
-			// to avoid the division by zero
-			TF_phi_diff[i]=TF_phi_diff[i-1];
-		}else if(TF_phi[i-1]<0){
-			TF_phi_diff[i]=0;
-		}else{
-			TF_phi_diff[i]=TF_phi_diff[i-1]+pow(TF_phi[i-1], 1.5)/sqrt(x_coordinates[i-1])*(x_coordinates[i]-x_coordinates[i-1]);
+	int i, j;
+	if(strcmp(TF_solution, "RK1")==0){
+		// RK1: Euler method
+		for(i=1; i<x_count; i++){
+			TF_phi[i]=TF_phi[i-1]+TF_phi_diff[i-1]*(x_coordinates[i]-x_coordinates[i-1]);
+			if(i==1){
+				// to avoid the division by zero
+				TF_phi_diff[i]=TF_phi_diff[i-1];
+			}else if(TF_phi[i-1]<0){
+				// to avoid the calculation of (negative value)^1.5
+				TF_phi_diff[i]=0;
+			}else{
+				TF_phi_diff[i]=TF_phi_diff[i-1]+pow(TF_phi[i-1], 1.5)/sqrt(x_coordinates[i-1])*(x_coordinates[i]-x_coordinates[i-1]);
+			}
+		}
+	}else if(strcmp(TF_solution, "RK4")==0){
+		// RK4: Runge-Kutta 4th order method
+		int current_index=0;
+		double k1_0, k1_1, k2_0, k2_1, k3_0, k3_1, k4_0, k4_1;
+		double phi_x, phi_diff_x, phi_x1, phi_diff_x1, phi_x2, phi_diff_x2, phi_x3, phi_diff_x3;
+		double x, x1, x2, x3;
+		double interval;
+		for(i=0; i<Radial_grid_count; i++){
+			interval=Radial_grid_intervals[i];
+			for(j=0; j<Radial_grid_points[i]; j++){
+				x=x_coordinates[current_index];
+				phi_x=TF_phi[current_index];
+				phi_diff_x=TF_phi_diff[current_index];
+				if(i==0 && j==0){
+					TF_phi[current_index+1]=TF_phi[current_index]+TF_phi_diff[current_index]*interval;
+					TF_phi_diff[current_index+1]=TF_phi_diff[current_index];
+					current_index++;
+					continue;
+				}
+				k1_0=phi_diff_x;
+				//if(true){
+				//k1_1=-phi_x;
+				if(phi_x>=0){
+					k1_1=pow(phi_x, 1.5)/sqrt(x);
+					
+					x1          =x         +     interval/2.0;
+					phi_x1      =phi_x     +k1_0*interval/2.0;
+					phi_diff_x1 =phi_diff_x+k1_1*interval/2.0;
+
+					k2_0=phi_diff_x1;
+					//if(true){
+					//k2_1=-phi_x1;
+					if(phi_x1>=0){
+						k2_1=pow(phi_x1, 1.5)/sqrt(x1);
+
+						x2          =x         +     interval/2.0;
+						phi_x2      =phi_x     +k2_0*interval/2.0;
+						phi_diff_x2 =phi_diff_x+k2_1*interval/2.0;
+
+						k3_0=phi_diff_x2;
+						//if(true){
+						//k3_1=-phi_x2;
+						if(phi_x2>=0){
+							k3_1=pow(phi_x2, 1.5)/sqrt(x2);
+
+							x3          =x         +     interval;
+							phi_x3      =phi_x     +k3_0*interval;
+							phi_diff_x3 =phi_diff_x+k3_1*interval;
+
+							k4_0=phi_diff_x3;
+							//if(true){
+							//k4_1=-phi_x3;
+							if(phi_x3>=0){
+								k4_1=pow(phi_x3, 1.5)/sqrt(x3);
+
+								TF_phi[current_index+1]     =TF_phi[current_index]     +interval*(k1_0/6.0+k2_0/3.0+k3_0/3.0+k4_0/6.0);
+								TF_phi_diff[current_index+1]=TF_phi_diff[current_index]+interval*(k1_1/6.0+k2_1/3.0+k3_1/3.0+k4_1/6.0);
+								current_index++;
+								continue;
+							}
+						}
+					}
+				}
+				TF_phi[current_index+1]=TF_phi[current_index]+interval*TF_phi_diff[current_index];
+				TF_phi_diff[current_index+1]=0;
+				current_index++;
+			}
 		}
 	}
 }

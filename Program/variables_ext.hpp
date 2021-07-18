@@ -8,6 +8,7 @@ extern int Calculation_length;
 extern int Log_file_length;
 extern int Log_length;
 extern char* Log_buffer;
+extern int Solution_length;
 
 // variables
 /// blocks
@@ -44,6 +45,8 @@ extern double Initial_diff_max;
 extern bool Initial_diff_max_set;
 extern double TF_threshold;
 extern bool TF_threshold_set;
+extern char* TF_solution;
+extern double TF_solution_set;
 extern double* TF_phi;
 extern double* TF_phi_diff;
 
