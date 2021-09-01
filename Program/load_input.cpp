@@ -87,6 +87,12 @@ int load_input(){
 					output_error(line_number, (char*)"block 'Thomas-Fermi' already appeared"); status=0; goto FINALIZATION;
 				}
 				TF_block_appeared=true;
+			}else if(*block_name==string("Atomic-wfn")){
+				// At: Atomic-wfn (wavefunction)
+				if(At_block_appeared){
+					output_error(line_number, (char*)"block 'Atomic-wfn' already appeared"); status=0; goto FINALIZATION;
+				}
+				At_block_appeared=true;
 			}else if(*block_name==string("Radial-grid")){
 				// Rg: Radial grid
 				if(Rg_block_appeared){
@@ -291,6 +297,177 @@ int load_input(){
 				}
 				TF_solution_set=true;
 				continue;
+			}
+		}else if(*block_name==string("Atomic-wfn")){
+			// At block
+			/// n_min: int
+			if(strcmp(keyword_buffer, "n_min")==0){
+				if(n_min_set){
+					output_error(line_number, (char*)"keyword n_min already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_int(input_line_c, &n_min);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of n_min"); status=0; goto FINALIZATION;
+				}
+			  n_min_set=true; continue;
+			}
+			/// n_max: int
+			if(strcmp(keyword_buffer, "n_max")==0){
+				if(n_max_set){
+					output_error(line_number, (char*)"keyword n_max already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_int(input_line_c, &n_max);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of n_max"); status=0; goto FINALIZATION;
+				}
+			  n_max_set=true; continue;
+			}
+			/// n (n_single): int
+			if(strcmp(keyword_buffer, "n")==0){
+				if(n_single_set){
+					output_error(line_number, (char*)"keyword n already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_int(input_line_c, &n_single);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of n"); status=0; goto FINALIZATION;
+				}
+			  n_single_set=true; continue;
+			}
+			/// l_min: int
+			if(strcmp(keyword_buffer, "l_min")==0){
+				if(l_min_set){
+					output_error(line_number, (char*)"keyword l_min already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_int(input_line_c, &l_min);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of l_min"); status=0; goto FINALIZATION;
+				}
+			  l_min_set=true; continue;
+			}
+			/// l_max: int
+			if(strcmp(keyword_buffer, "l_max")==0){
+				if(l_max_set){
+					output_error(line_number, (char*)"keyword l_max already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_int(input_line_c, &l_max);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of l_max"); status=0; goto FINALIZATION;
+				}
+			  l_max_set=true; continue;
+			}
+			/// l (l_single): int
+			if(strcmp(keyword_buffer, "l")==0){
+				if(l_single_set){
+					output_error(line_number, (char*)"keyword l already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_int(input_line_c, &l_single);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of l"); status=0; goto FINALIZATION;
+				}
+			  l_single_set=true; continue;
+			}
+			/// Z_min: int
+			if(strcmp(keyword_buffer, "Z_min")==0){
+				if(Z_min_set){
+					output_error(line_number, (char*)"keyword Z_min already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_int(input_line_c, &Z_min);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Z_min"); status=0; goto FINALIZATION;
+				}
+			  Z_min_set=true; continue;
+			}
+			/// Z_max: int
+			if(strcmp(keyword_buffer, "Z_max")==0){
+				if(Z_max_set){
+					output_error(line_number, (char*)"keyword Z_max already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_int(input_line_c, &Z_max);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Z_max"); status=0; goto FINALIZATION;
+				}
+			  Z_max_set=true; continue;
+			}
+			/// Z (Z_single): int
+			if(strcmp(keyword_buffer, "Z")==0){
+				if(Z_single_set){
+					output_error(line_number, (char*)"keyword Z already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_int(input_line_c, &Z_single);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Z"); status=0; goto FINALIZATION;
+				}
+			  Z_single_set=true; continue;
+			}
+			/// Potential (At_potential): char[]
+			if(strcmp(keyword_buffer, "Potential")==0){
+				if(At_potential_set){
+					output_error(line_number, (char*)"keyword Potential already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_char(input_line_c, (char*)"Potential", At_potential, Potential_length, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Potential"); status=0; goto FINALIZATION;
+				}
+				At_potential_set=true;
+				continue;
+			}
+			/// Potential_file (At_potential_file): char[]
+			if(strcmp(keyword_buffer, "Potential_file")==0){
+				if(At_potential_file_set){
+					output_error(line_number, (char*)"keyword Potential_file already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_char(input_line_c, (char*)"Potential_file", At_potential_file, Potential_file_length, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Potential_file"); status=0; goto FINALIZATION;
+				}
+				At_potential_file_set=true;
+				continue;
+			}
+			
+			/// Solution (At_solution): char[]
+			if(strcmp(keyword_buffer, "Solution")==0){
+				if(At_solution_set){
+					output_error(line_number, (char*)"keyword Solution already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_char(input_line_c, (char*)"Solution", At_solution, Solution_length, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Solution"); status=0; goto FINALIZATION;
+				}
+				At_solution_set=true;
+				continue;
+			}
+			/// Bisection_step: double
+			if(strcmp(keyword_buffer, "Bisection_step")==0){
+				if(Bisection_step_set){
+					output_error(line_number, (char*)"keyword Bisection_step already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &Bisection_step);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Bisection_step"); status=0; goto FINALIZATION;
+				}
+			  Bisection_step_set=true; continue;
+			}
+			/// E_threshold (At_E_threshold): double
+			if(strcmp(keyword_buffer, "E_threshold")==0){
+				if(At_E_threshold_set){
+					output_error(line_number, (char*)"keyword E_threshold already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &At_E_threshold);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of E_threshold"); status=0; goto FINALIZATION;
+				}
+			  At_E_threshold_set=true; continue;
+			}
+			/// Radius_factor (At_radius_factor): double
+			if(strcmp(keyword_buffer, "Radius_factor")==0){
+				if(At_radius_factor_set){
+					output_error(line_number, (char*)"keyword Radius_factor already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &At_radius_factor);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Radius_factor"); status=0; goto FINALIZATION;
+				}
+			  At_radius_factor_set=true; continue;
 			}
 		}else{
 			// none of the above, which should not happen

@@ -9,12 +9,16 @@ extern int Log_file_length;
 extern int Log_length;
 extern char* Log_buffer;
 extern int Solution_length;
+extern int Potential_length;
+extern int Potential_file_length;
+extern double Data_read_error;
 
 // variables
 /// blocks
 extern bool Ct_block_appeared;
 extern bool TF_block_appeared;
 extern bool Rg_block_appeared;
+extern bool At_block_appeared;
 /// Ct block
 extern char* Calculation;
 extern bool Calculation_set;
@@ -49,6 +53,45 @@ extern char* TF_solution;
 extern double TF_solution_set;
 extern double* TF_phi;
 extern double* TF_phi_diff;
+/// At block
+extern int n_min;
+extern bool n_min_set;
+extern int n_max;
+extern bool n_max_set;
+extern int n_single;
+extern int n_single_set;
+extern int l_min;
+extern bool l_min_set;
+extern int l_max;
+extern bool l_max_set;
+extern int l_single;
+extern int l_single_set;
+extern int Z_min;
+extern bool Z_min_set;
+extern int Z_max;
+extern bool Z_max_set;
+extern int Z_single;
+extern bool Z_single_set;
+extern char* At_potential;
+extern bool At_potential_set;
+extern char* At_potential_file;
+extern bool At_potential_file_set;
+extern char* At_solution;
+extern bool At_solution_set;
+extern double Bisection_step;
+extern double Bisection_step_set;
+extern double At_radius_factor;
+extern bool At_radius_factor_set;
+extern double At_E_threshold;
+extern bool At_E_threshold_set;
+extern double At_initial_diff;
+extern double At_initial_diff2;
+extern double* At_p_x;
+extern double* At_p_diff_x;
+extern double* At_v_x;
+extern double At_bisection_threshold;
+extern int At_min_iteration;
+extern int At_max_iteration;
 
 /// files
 extern FILE* Log_file_obj;

@@ -1,7 +1,13 @@
 // calcPSF setup (initialization and finalization)
 
-#include "variables_ext.hpp"
+#include <string>
 #include <cstring>
+#include <iostream>
+#include <fstream>
+#include "variables_ext.hpp"
+#include "log.hpp"
+
+using namespace std;
 
 void initialize(){
 	// constants
@@ -11,11 +17,15 @@ void initialize(){
 	Log_length=256;
 	Log_buffer=new char[Log_length+1];
 	Solution_length=16;
+	Potential_length=32;
+	Potential_file_length=1024;
+	Data_read_error=0.01;
 	
 	// variables
 	/// blocks
 	Ct_block_appeared=false;
 	TF_block_appeared=false;
+	At_block_appeared=false;
 	/// Ct block
 	Calculation=new char[Calculation_length+1];
 	Calculation_set=false;
@@ -40,11 +50,43 @@ void initialize(){
 	TF_solution=new char[Solution_length+1];
 	strcpy(TF_solution, "RK4");
 	TF_solution_set=false;
-	
+	/// At block
+	n_min_set=false;
+	n_max_set=false;
+	n_single_set=false;
+	l_min_set=false;
+	l_max_set=false;
+	l_single_set=false;
+	Z_min_set=false;
+	Z_max_set=false;
+	Z_single_set=false;
+	At_potential_set=false;
+	At_potential=new char[Potential_length+1];
+	At_potential_file_set=false;
+	At_potential_file=new char[Potential_file_length+1];
+	At_solution_set=false;
+	At_solution=new char[Solution_length+1];
+	strcpy(At_solution, "Numerov");
+	At_radius_factor_set=false;
+	At_radius_factor=8;
+	At_E_threshold_set=false;
+	At_E_threshold=1e-5;
+	Bisection_step_set=false;
+	Bisection_step=1e-3;
+	At_initial_diff=1;
+	At_initial_diff2=-1e-10;
+	At_bisection_threshold=1.01;
+	At_min_iteration=100;
+	At_max_iteration=1000;
+		
 }
 
 void finalize(){
 	delete Calculation;
+	delete Log_file;
+	delete Output_file;
+	delete TF_solution;
+	delete At_solution;
 	if(Log_file_set && Log_file_obj!=NULL){
 		fclose(Log_file_obj);
 	}
@@ -101,7 +143,101 @@ void generate_radial_grid(){
 			index++;
 		}
 	}
-	TF_phi=new double[points_count];
-	TF_phi_diff=new double[points_count];
 	x_count=points_count;
+}
+
+void setup_radial_grid(){
+	char* sprintf_buffer=new char[Log_length+1];
+	write_log((char*)"----Radial-grid block----");
+	// Radial grid
+	if(Rg_block_appeared==false){
+		write_log((char*)"Default radial grid is used");
+		initialize_radial_grid();
+	}
+	generate_radial_grid();
+	int i;
+	int last_index=0;
+	for(i=0; i<Radial_grid_count; i++){
+		sprintf(sprintf_buffer, "    Block %3d: x = %8.3f to %8.3f, %3d points, interval %8f", (i+1), x_coordinates[last_index], x_coordinates[last_index+Radial_grid_points[i]], Radial_grid_points[i], Radial_grid_intervals[i]);
+		write_log(sprintf_buffer);
+		last_index+=Radial_grid_points[i];
+	}
+	delete sprintf_buffer;
+}
+
+int setup_potential(int Z, double mu){
+	int status=1;
+	int i;
+	FILE* Potential_file_obj;
+	string input_line_s;
+	char* input_line_c=new char[buffer_length+1];
+	int actual_line_length;
+	int sscanf_status;
+	int current_index=0;
+	double current_x;
+	double x_error;
+	
+	if(strcmp(At_potential, "H-like")==0){
+		// hydrogren-like potential: v(x)=-Z/(mu x)
+		for(i=0; i<x_count; i++){
+			if(i==0){
+				At_v_x[i]=0;
+			}else{
+				At_v_x[i]=-Z/(mu*x_coordinates[i]);
+			}
+		}
+	}else if(strcmp(At_potential, "Thomas-Fermi")==0 || strcmp(At_potential, "file")==0){
+		// Thomas-Fermi potential: v(x)=-Z/(mu x) * phi(x)
+		// phi(x) is from the file
+		// or
+		// file: v(x) is from the file
+		ifstream Potential_file_obj(At_potential_file);
+		if(!Potential_file_obj.is_open()){
+			write_log((char*)"Error: could not open the potential file");
+			status=0; goto FINALIZATION;
+		}
+		
+		while(getline(Potential_file_obj, input_line_s)){
+			// read one line from cin (stdin), copy to input_line_c
+			actual_line_length=input_line_s.length();
+			if(actual_line_length>buffer_length){
+				actual_line_length=buffer_length;
+			}
+			input_line_s.copy(input_line_c, actual_line_length);
+			input_line_c[actual_line_length]='\0';
+			// parse
+			sscanf_status=sscanf(input_line_c, "%lf %lf", &current_x, &At_v_x[current_index]);
+			if(sscanf_status==2){
+				// parse succeeded
+				if(current_index!=0){
+					// error check
+					x_error=abs(1.0-current_x/x_coordinates[current_index]);
+					if(x_error>Data_read_error){
+						// error is too large
+						write_log((char*)"Error: x coordinate mismatch");
+						status=0; goto FINALIZATION;
+					}
+					if(strcmp(At_potential, "Thomas-Fermi")==0){
+						// only for Thomas-Fermi potential
+						if(At_v_x[current_index]>1.0/Z){
+							At_v_x[current_index]*=-Z/(mu*x_coordinates[current_index]);
+						}else{
+							At_v_x[current_index]=-1.0/(mu*x_coordinates[current_index]);
+						}
+					}
+				}else{
+					At_v_x[current_index]=0;
+				}
+				current_index++;
+				if(current_index==x_count){
+					break;
+				}
+			}
+		}
+	}
+	goto FINALIZATION;
+	
+ FINALIZATION:
+	delete input_line_c;
+	return status;
 }

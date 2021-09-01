@@ -7,13 +7,17 @@ int Calculation_length;   // size of the char* Calculation
 int Log_file_length;      // size of the char* Log_file
 int Log_length;           // max length of the one log message
 char* Log_buffer;         // buffer for the log output
-int Solution_length;      // size of the char* TF_solution
+int Solution_length;      // size of the char* TF_solution, At_solution
+int Potential_length;     // size of the char* At_potential
+int Potential_file_length;// size of the char* At_potential_file
+double Data_read_error;   // tolerable error in file reading (such as x_coordinates)
 
 // variables
 /// blocks
 bool Ct_block_appeared;        // true: the block "Control" appeared, false: not
 bool TF_block_appeared;        // similar to Ct_block_appeared (description is ignored hereafter)
 bool Rg_block_appeared;
+bool At_block_appeared;
 /// Ct block
 char* Calculation;             // name of the calculation
 bool Calculation_set;          // true: variable Calculation has a value in the input file
@@ -48,6 +52,46 @@ char* TF_solution;             // solution: RK1 (or Euler) or RK4 (default)
 double TF_solution_set;
 double* TF_phi;                // Thomas-Fermi potential
 double* TF_phi_diff;           // Differential of TF_phi;
+/// At block
+/// Either of (min and max) and (single) is allowed
+int n_min;                     // minimum of principal quantum number (n)
+bool n_min_set;
+int n_max;                     // maximum of principal quantum number (n)
+bool n_max_set;
+int n_single;                  // the principal quantum number (n)
+bool n_single_set;
+int l_min;                     // azimutal quantum number (l)
+bool l_min_set;
+int l_max;
+bool l_max_set;
+int l_single;
+bool l_single_set;
+int Z_min;                     // atomic number (Z)
+bool Z_min_set;
+int Z_max;
+bool Z_max_set;
+int Z_single;
+bool Z_single_set;
+char* At_potential;            // Potential: H-like (-Z/r), Thomas-Fermi (-Z/r phi(x)), file
+bool At_potential_set;
+char* At_potential_file;       // Potential_file: necessary if Potential is Thomas-Fermi or file
+bool At_potential_file_set;
+char* At_solution;             // solution: RK1 (Euler), RK4, Numerov
+bool At_solution_set;
+double Bisection_step;         // initial step of the bisection method
+bool Bisection_step_set;
+double At_radius_factor;       // matching_radius*radius_factor determines the last point to be calculated
+bool At_radius_factor_set;
+double At_E_threshold;
+bool At_E_threshold_set;
+double At_initial_diff;        // initial differntial of wfn p'(0) (fixed in initialize())
+double At_initial_diff2;       // initial differential of wfn p'(inf)
+double* At_p_x;                // scaled radial wave function
+double* At_p_diff_x;           // differential of At_p_x;
+double* At_v_x;                // scaled potential energy
+double At_bisection_threshold;
+int At_min_iteration;
+int At_max_iteration;
 
 /// files
 FILE* Log_file_obj;            // log file object

@@ -10,22 +10,12 @@ int validation_Thomas_Fermi(){
 	char* sprintf_buffer=new char[Log_length+1];
 	int status=1;
 	write_log((char*)"----Input value validation----");
-	write_log((char*)"----Radial-grid block----");
-	// Radial grid
-	if(Rg_block_appeared==false){
-		write_log((char*)"Default radial grid is used");
-		initialize_radial_grid();
-	}
-	generate_radial_grid();
-	int i;
-	int last_index=0;
-	for(i=0; i<Radial_grid_count; i++){
-		sprintf(sprintf_buffer, "    Block %3d: x = %8.3f to %8.3f, %3d points, interval %8f", (i+1), x_coordinates[last_index], x_coordinates[last_index+Radial_grid_points[i]], Radial_grid_points[i], Radial_grid_intervals[i]);
-		write_log(sprintf_buffer);
-		last_index+=Radial_grid_points[i];
-	}
+	// Radial-grid
+	setup_radial_grid();
+	TF_phi=new double[x_count];
+	TF_phi_diff=new double[x_count];
 
-	//Thomas-Fermi
+	// Thomas-Fermi
 	write_log((char*)"----Thomas-Fermi block----");
 	sprintf(sprintf_buffer, "%32s = %s", "Calculation_test", (TF_test?"true":"false"));
 	write_log(sprintf_buffer);
@@ -69,6 +59,8 @@ int validation_Thomas_Fermi(){
 		write_log((char*)"Error: Solution should be 'RK1' or 'RK4'");
 		status=0; goto FINALIZATION;
 	}
+
+  write_log((char*)"");
 	
 	goto FINALIZATION;
  FINALIZATION:

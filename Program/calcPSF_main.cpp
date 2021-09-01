@@ -11,6 +11,8 @@
 #include "load_input.hpp"
 #include "validation_Thomas_Fermi.hpp"
 #include "calculation_Thomas_Fermi.hpp"
+#include "validation_atomic_wfn.hpp"
+#include "calculation_atomic_wfn.hpp"
 #include "log.hpp"
 
 //namespace
@@ -81,6 +83,13 @@ int main(int argc, const char** argv){
 			}else{
 				calc_Thomas_Fermi();
 			}
+		}
+	}else if(strcmp(Calculation, "Atomic-wfn")==0){
+		// Atomic wavefunction calculation
+		write_log((char*)"----Atomic wavefunction calculation----");
+		validation_result=validation_atomic_wfn();
+		if(validation_result==1){
+			sequence_atomic_wfn();
 		}
 	}else{
 		cout << "Error: invalid calculation" << endl;
