@@ -3,3 +3,4 @@
 *.dat
 Test/
 Config.py
+__pycache__
