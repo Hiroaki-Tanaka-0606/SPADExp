@@ -4,6 +4,7 @@ from pyqtgraph.Qt import QtGui, QtCore, QtWidgets
 import pyqtgraph as pg
 import numpy as np
 import re
+import h5py
 
 def openFile(win):
     currentFile=win.filePath.text()
@@ -120,3 +121,12 @@ def setGraph(win):
     win.graphPlot.clear()
     for yIndex in yIndices:
         win.graphPlot.plot(y=blockData[blockIndex][yIndex], x=blockData[blockIndex][xIndex])
+
+def exportData(win):
+    currentFile=win.filePath.text()
+    blockIndex=win.selectDataBlock.currentIndex()    
+    selectedFile, _filter=QtGui.QFileDialog.getSaveFileName(caption="Export to HDF5", directory=currentFile)
+    if selectedFile!="":
+        with h5py.File(selectedFile, "w") as f:
+            f.create_dataset("data", data=blockData[blockIndex])
+    

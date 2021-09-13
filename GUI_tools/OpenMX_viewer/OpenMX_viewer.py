@@ -74,6 +74,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.graphPlot=pg.PlotWidget()
         row4.addWidget(self.graphPlot)
 
+        # Row 5: export to hdf5
+        row5=QtGui.QVBoxLayout()
+        row5.setAlignment(QtCore.Qt.AlignTop)
+        vbox.addLayout(row5)
+
+        self.exportHDF5=QtGui.QPushButton("Export to HDF5")
+        row5.addWidget(self.exportHDF5)
+
 
 app=QtGui.QApplication([])
 # win: MainWindow object
@@ -86,6 +94,7 @@ win.openFileButton.clicked.connect(lambda: Events.openFile(win))
 win.selectDataBlock.currentIndexChanged.connect(lambda: Events.setDataBlock(win))
 win.xAxis.buttonToggled.connect(lambda: Events.setGraph(win))
 win.yAxes.buttonToggled.connect(lambda: Events.setGraph(win))
+win.exportHDF5.clicked.connect(lambda: Events.exportData(win))
 pg.setConfigOptions(antialias=True)
 win.show()
 app.exec_()
