@@ -58,12 +58,18 @@ void sequence_atomic_wfn(){
 			}*/
 
 		for(n_current=n_min; n_current<=n_max; n_current++){
-			for(l_current=l_min; l_current<=l_max, l_current<=n_current-1; l_current++){
+			for(l_current=l_min; (l_current<=l_max && l_current<=n_current-1); l_current++){
 				
 				sprintf(sprintf_buffer, "---- n = %3d, l = %3d ( %3d nodes ) ----", n_current, l_current, n_current-l_current-1);
 				write_log(sprintf_buffer);
 				E_n_l=calc_atomic_wfn(mu, l_current, n_current-l_current-1);
 				fprintf(Output_file_obj, "%12.5e ", E_n_l);
+
+				/* debug: wfn */
+				for(i=0; i<x_count; i++){
+					sprintf(sprintf_buffer, "%10.5e %10.5e", x_coordinates[i], At_p_x[i]);
+					write_log(sprintf_buffer);
+				}
 			}
 		}
 		fprintf(Output_file_obj, "\n");
