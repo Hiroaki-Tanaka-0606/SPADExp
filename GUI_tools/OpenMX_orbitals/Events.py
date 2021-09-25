@@ -8,6 +8,7 @@ import re
 import subprocess
 import shutil
 from pyqtgraph.Qt import QtGui, QtCore, QtWidgets
+import pyqtgraph as pg
 import numpy as np
 
 def changeAtom(win):
@@ -28,11 +29,19 @@ def changeAtom(win):
 def clearAll(win):
     win.orbitalTable.setRowCount(0)
     win.orbitalTable.setColumnCount(0)
+    win.matrix.setRowCount(0)
+    win.matrix.setColumnCount(0)
     win.orbitalGraph.clear()
     
 def changeAnalysis(win):
     # QComboBox analysisType is changed
 
+    global PAO_after
+    global PAO_before
+    global PAO_fromVPS
+    global PAO_reproduced
+    global Calc_CCoes
+    global Selected_orbitals
     analysisIndex=win.analysisType.currentIndex()
     Z=win.atomNumber.currentIndex()
     paoIndex=win.paoFile.currentIndex()
@@ -41,6 +50,7 @@ def changeAnalysis(win):
     vpsName=Config.vpsArr[Z][vpsIndex]
     
     if analysisIndex==1: # PAO: Before and after optimization
+        win.matrixType.clear()
         # check PAO files (before and after optimization) exist
         paoPath_after=os.path.join(Config.dirPath_PAO, paoName)
         paoPath_before=os.path.join(Config.dirPath_PAOfromPAO, paoName)
@@ -58,16 +68,14 @@ def changeAnalysis(win):
             print(("Not OK: {0:s} before optimization does not exist").format(paoName))
             clearAll(win)
             return
-        
 
-        global PAO_after
-        global PAO_before
         print(("Read {0:s}").format(paoPath_after))
         PAO_after=PAOp.PAO_parser(paoPath_after, True)
         print(("Read {0:s}").format(paoPath_before))
         PAO_before=PAOp.PAO_parser(paoPath_before, False)
+        Calc_CCoes=np.zeros((PAO_after.PAO_Lmax+1, PAO_after.PAO_Mul, PAO_after.PAO_Mul))
+        PAOp.calcContraction(PAO_after, PAO_before, Calc_CCoes)
         
-        global Selected_orbitals
         Selected_orbitals=np.zeros((PAO_after.PAO_Lmax+1, PAO_after.PAO_Mul))
 
         # construct orbital table
@@ -81,6 +89,142 @@ def changeAnalysis(win):
                 item=QtGui.QTableWidgetItem(str(n)+Config.azimuthal[l])
                 item.setBackground(Config.unselected_item)
                 win.orbitalTable.setItem(l, n-1, item)
+
+        # prepare matrixType combobox
+        for l in range(0, PAO_after.PAO_Lmax+1):
+            win.matrixType.addItem(("Contraction coefficients for L= {0:d}").format(l))
+        for l in range(0, PAO_after.PAO_Lmax+1):
+            win.matrixType.addItem(("Orthonormalization matrix (before) for L= {0:d}").format(l))
+        for l in range(0, PAO_after.PAO_Lmax+1):
+            win.matrixType.addItem(("Orthonormalization matrix (after) for L= {0:d}").format(l))
+
+    elif analysisIndex==2: # PAO: Before optimization and from VPS
+        win.matrixType.clear()
+        # check PAO files (before optimization and from VPS) exist
+        paoPath_before=os.path.join(Config.dirPath_PAOfromPAO, paoName)
+        outPaoName=re.sub(r"\.vps$", ".pao", vpsName)
+        paoPath_fromVPS=os.path.join(Config.dirPath_PAOfromVPS, outPaoName)
+
+        if os.path.isfile(paoPath_before):
+            print(("OK: {0:s} before optimization exists").format(paoName))
+        else:
+            print(("Not OK: {0:s} before optimization does not exist").format(paoName))
+            clearAll(win)
+            return
+            
+        if os.path.isfile(paoPath_fromVPS):
+            print(("OK: {0:s} from VPS exists").format(outPaoName))
+        else:
+            print(("Not OK: {0:s} from VPS does not exist").format(outPaoName))
+            clearAll(win)
+            return
+
+        print(("Read {0:s}").format(paoPath_before))
+        PAO_before=PAOp.PAO_parser(paoPath_before, True)
+        print(("Read {0:s}").format(paoPath_fromVPS))
+        PAO_fromVPS=PAOp.PAO_parser(paoPath_fromVPS, False)
+
+        Calc_CCoes=np.zeros((PAO_before.PAO_Lmax+1, PAO_before.PAO_Mul, PAO_fromVPS.PAO_Mul))
+        PAO_reproduced=np.zeros((PAO_before.PAO_Lmax+1, PAO_before.PAO_Mul, PAO_before.grid_output))
+
+        # compatibility check
+        if PAO_before.grid_output != PAO_fromVPS.grid_output or\
+           abs(PAO_before.x[0]-PAO_fromVPS.x[0])>0.01 or\
+           abs(PAO_before.x[-1]-PAO_fromVPS.x[-1])>0.01:
+            print("Error: grid mismatch")
+            return
+        
+        
+        PAOp.calcContraction(PAO_before, PAO_fromVPS, Calc_CCoes)
+        Lmax=max(PAO_before.PAO_Lmax, PAO_fromVPS.PAO_Lmax)
+        Mul=max(PAO_before.PAO_Mul, PAO_fromVPS.PAO_Mul)
+        Selected_orbitals=np.zeros((Lmax+1, Mul))
+
+        PAOp.reproducePAO(PAO_fromVPS, Calc_CCoes, PAO_reproduced)
+
+        # construct orbital table
+        win.orbitalTable.setRowCount(Lmax+1)
+        win.orbitalTable.setColumnCount(Mul)
+        for l in range(0, Lmax+1):
+            win.orbitalTable.setVerticalHeaderItem(l, QtGui.QTableWidgetItem(Config.azimuthal[l]))
+            
+        for n in range(1, Mul+1):
+            for l in range(0, Lmax+1):
+                item=QtGui.QTableWidgetItem(str(n)+Config.azimuthal[l])
+                item.setBackground(Config.unselected_item)
+                win.orbitalTable.setItem(l, n-1, item)
+
+        # prepare matrixType combobox
+        for l in range(0, PAO_before.PAO_Lmax+1):
+            win.matrixType.addItem(("Contraction coefficients for L= {0:d}").format(l))
+        for l in range(0, PAO_before.PAO_Lmax+1):
+            win.matrixType.addItem(("Orthonormalization matrix (before) for L= {0:d}").format(l))
+        for l in range(0, PAO_fromVPS.PAO_Lmax+1):
+            win.matrixType.addItem(("Orthonormalization matrix (from VPS) for L= {0:d}").format(l))
+
+    elif analysisIndex==3: # PAO: After optimization and from VPS
+        win.matrixType.clear()
+        # check PAO files (after optimization and from VPS) exist
+        paoPath_after=os.path.join(Config.dirPath_PAO, paoName)
+        outPaoName=re.sub(r"\.vps$", ".pao", vpsName)
+        paoPath_fromVPS=os.path.join(Config.dirPath_PAOfromVPS, outPaoName)
+
+        if os.path.isfile(paoPath_after):
+            print(("OK: {0:s} after optimization exists").format(paoName))
+        else:
+            print(("Not OK: {0:s} after optimization does not exist").format(paoName))
+            clearAll(win)
+            return
+            
+        if os.path.isfile(paoPath_fromVPS):
+            print(("OK: {0:s} from VPS exists").format(outPaoName))
+        else:
+            print(("Not OK: {0:s} from VPS does not exist").format(outPaoName))
+            clearAll(win)
+            return
+
+        print(("Read {0:s}").format(paoPath_after))
+        PAO_after=PAOp.PAO_parser(paoPath_after, True)
+        print(("Read {0:s}").format(paoPath_fromVPS))
+        PAO_fromVPS=PAOp.PAO_parser(paoPath_fromVPS, False)
+
+        Calc_CCoes=np.zeros((PAO_after.PAO_Lmax+1, PAO_after.PAO_Mul, PAO_fromVPS.PAO_Mul))
+        PAO_reproduced=np.zeros((PAO_after.PAO_Lmax+1, PAO_after.PAO_Mul, PAO_after.grid_output))
+
+        # compatibility check
+        if PAO_after.grid_output != PAO_fromVPS.grid_output or\
+           abs(PAO_after.x[0]-PAO_fromVPS.x[0])>0.01 or\
+           abs(PAO_after.x[-1]-PAO_fromVPS.x[-1])>0.01:
+            print("Error: grid mismatch")
+            return
+        
+        
+        PAOp.calcContraction(PAO_after, PAO_fromVPS, Calc_CCoes)
+        Lmax=max(PAO_after.PAO_Lmax, PAO_fromVPS.PAO_Lmax)
+        Mul=max(PAO_after.PAO_Mul, PAO_fromVPS.PAO_Mul)
+        Selected_orbitals=np.zeros((Lmax+1, Mul))
+
+        PAOp.reproducePAO(PAO_fromVPS, Calc_CCoes, PAO_reproduced)
+
+        # construct orbital table
+        win.orbitalTable.setRowCount(Lmax+1)
+        win.orbitalTable.setColumnCount(Mul)
+        for l in range(0, Lmax+1):
+            win.orbitalTable.setVerticalHeaderItem(l, QtGui.QTableWidgetItem(Config.azimuthal[l]))
+            
+        for n in range(1, Mul+1):
+            for l in range(0, Lmax+1):
+                item=QtGui.QTableWidgetItem(str(n)+Config.azimuthal[l])
+                item.setBackground(Config.unselected_item)
+                win.orbitalTable.setItem(l, n-1, item)
+
+        # prepare matrixType combobox
+        for l in range(0, PAO_after.PAO_Lmax+1):
+            win.matrixType.addItem(("Contraction coefficients for L= {0:d}").format(l))
+        for l in range(0, PAO_after.PAO_Lmax+1):
+            win.matrixType.addItem(("Orthonormalization matrix (after) for L= {0:d}").format(l))
+        for l in range(0, PAO_fromVPS.PAO_Lmax+1):
+            win.matrixType.addItem(("Orthonormalization matrix (from VPS) for L= {0:d}").format(l))
 
 
 def selectOrbital(win, row, column):
@@ -106,14 +250,226 @@ def drawOrbitalGraph(win):
             for mul in range(0, len(Selected_orbitals[l])):
                 if Selected_orbitals[l][mul]==1:
                     if radialType=="P":
-                        win.orbitalGraph.plot(y=PAO_after.PAOs[l][mul]*PAO_after.r, x=PAO_after.r, pen=Config.pen_after, name=str(mul+1)+Config.azimuthal[l]+" after")
-                        win.orbitalGraph.plot(y=PAO_before.PAOs[l][mul]*PAO_before.r, x=PAO_before.r, pen=Config.pen_before, name=str(mul+1)+Config.azimuthal[l]+" before")
+                        win.orbitalGraph.plot(y=PAO_after.PAOs[l][mul]*PAO_after.r,\
+                                              x=PAO_after.r,\
+                                              pen=Config.pen_after,\
+                                              name=str(mul+1)+Config.azimuthal[l]+" after")
+                        win.orbitalGraph.plot(y=PAO_before.PAOs[l][mul]*PAO_before.r,\
+                                              x=PAO_before.r, \
+                                              pen=Config.pen_before,\
+                                              name=str(mul+1)+Config.azimuthal[l]+" before")
                     else:
-                        win.orbitalGraph.plot(y=PAO_after.PAOs[l][mul], x=PAO_after.r, pen=Config.pen_after, name=str(mul+1)+Config.azimuthal[l]+" after")
-                        win.orbitalGraph.plot(y=PAO_before.PAOs[l][mul], x=PAO_before.r, pen=Config.pen_before, name=str(mul+1)+Config.azimuthal[l]+" before")
-        
-def performCalculation(win):
-    # QPuthButton calcButton is clicked
+                        win.orbitalGraph.plot(y=PAO_after.PAOs[l][mul], \
+                                              x=PAO_after.r, \
+                                              pen=Config.pen_after, \
+                                              name=str(mul+1)+Config.azimuthal[l]+" after")
+                        win.orbitalGraph.plot(y=PAO_before.PAOs[l][mul], \
+                                              x=PAO_before.r, \
+                                              pen=Config.pen_before, \
+                                              name=str(mul+1)+Config.azimuthal[l]+" before")
+    elif analysisIndex==2: # PAO: Before optimization and from VPS
+        win.orbitalGraph.clear()
+        radialType=win.radialType.checkedButton().text()[0]
+        for l in range(0, len(Selected_orbitals)):
+            for mul in range(0, len(Selected_orbitals[l])):
+                if Selected_orbitals[l][mul]==1:
+                    if radialType=="P":
+                        if l<len(PAO_before.PAOs) and mul<len(PAO_before.PAOs[l]):
+                            win.orbitalGraph.plot(y=PAO_before.PAOs[l][mul]*PAO_before.r,\
+                                                  x=PAO_before.r,\
+                                                  pen=Config.pen_before,\
+                                                  name=str(mul+1)+Config.azimuthal[l]+" before")
+                            win.orbitalGraph.plot(y=PAO_reproduced[l][mul]*PAO_before.r,\
+                                                  x=PAO_before.r,\
+                                                  pen=pg.mkPen(color=Config.pen_reproduced,style=QtCore.Qt.DashLine),\
+                                                  name=str(mul+1)+Config.azimuthal[l]+" before (reproduced)")
+                        if l<len(PAO_fromVPS.PAOs) and mul<len(PAO_fromVPS.PAOs[l]):
+                            win.orbitalGraph.plot(y=PAO_fromVPS.PAOs[l][mul]*PAO_fromVPS.r,\
+                                                  x=PAO_fromVPS.r, \
+                                                  pen=Config.pen_fromVPS,\
+                                                  name=str(mul+1)+Config.azimuthal[l]+" from VPS")
+                    else:
+                        if l<len(PAO_before.PAOs) and mul<len(PAO_before.PAOs[l]):
+                            win.orbitalGraph.plot(y=PAO_before.PAOs[l][mul],\
+                                                  x=PAO_before.r,\
+                                                  pen=Config.pen_before,\
+                                                  name=str(mul+1)+Config.azimuthal[l]+" before")
+                            win.orbitalGraph.plot(y=PAO_reproduced[l][mul],\
+                                                  x=PAO_before.r,\
+                                                  pen=pg.mkPen(color=Config.pen_reproduced,style=QtCore.Qt.DashLine),\
+                                                  name=str(mul+1)+Config.azimuthal[l]+" before (reproduced)")
+                        if l<len(PAO_fromVPS.PAOs) and mul<len(PAO_fromVPS.PAOs[l]):
+                            win.orbitalGraph.plot(y=PAO_fromVPS.PAOs[l][mul],\
+                                                  x=PAO_fromVPS.r, \
+                                                  pen=Config.pen_fromVPS,\
+                                                  name=str(mul+1)+Config.azimuthal[l]+" from VPS")
+    elif analysisIndex==3: # PAO: After optimization and from VPS
+        win.orbitalGraph.clear()
+        radialType=win.radialType.checkedButton().text()[0]
+        for l in range(0, len(Selected_orbitals)):
+            for mul in range(0, len(Selected_orbitals[l])):
+                if Selected_orbitals[l][mul]==1:
+                    if radialType=="P":
+                        if l<len(PAO_after.PAOs) and mul<len(PAO_after.PAOs[l]):
+                            win.orbitalGraph.plot(y=PAO_after.PAOs[l][mul]*PAO_after.r,\
+                                                  x=PAO_after.r,\
+                                                  pen=Config.pen_after,\
+                                                  name=str(mul+1)+Config.azimuthal[l]+" after")
+                            win.orbitalGraph.plot(y=PAO_reproduced[l][mul]*PAO_after.r,\
+                                                  x=PAO_after.r,\
+                                                  pen=pg.mkPen(color=Config.pen_reproduced,style=QtCore.Qt.DashLine),\
+                                                  name=str(mul+1)+Config.azimuthal[l]+" after (reproduced)")
+                        if l<len(PAO_fromVPS.PAOs) and mul<len(PAO_fromVPS.PAOs[l]):
+                            win.orbitalGraph.plot(y=PAO_fromVPS.PAOs[l][mul]*PAO_fromVPS.r,\
+                                                  x=PAO_fromVPS.r, \
+                                                  pen=Config.pen_fromVPS,\
+                                                  name=str(mul+1)+Config.azimuthal[l]+" from VPS")
+                    else:
+                        if l<len(PAO_after.PAOs) and mul<len(PAO_after.PAOs[l]):
+                            win.orbitalGraph.plot(y=PAO_after.PAOs[l][mul],\
+                                                  x=PAO_after.r,\
+                                                  pen=Config.pen_after,\
+                                                  name=str(mul+1)+Config.azimuthal[l]+" after")
+                            win.orbitalGraph.plot(y=PAO_reproduced[l][mul],\
+                                                  x=PAO_after.r,\
+                                                  pen=pg.mkPen(color=Config.pen_reproduced,style=QtCore.Qt.DashLine),\
+                                                  name=str(mul+1)+Config.azimuthal[l]+" after (reproduced)")
+                        if l<len(PAO_fromVPS.PAOs) and mul<len(PAO_fromVPS.PAOs[l]):
+                            win.orbitalGraph.plot(y=PAO_fromVPS.PAOs[l][mul],\
+                                                  x=PAO_fromVPS.r, \
+                                                  pen=Config.pen_fromVPS,\
+                                                  name=str(mul+1)+Config.azimuthal[l]+" from VPS")
+def changeMatrix(win):
+    # QComboBox matrixType is changed
+
+    analysisIndex=win.analysisType.currentIndex()
+    matrixIndex=win.matrixType.currentIndex()
+
+    global PAO_after
+    global PAO_before
+    global Calc_CCoes
+    
+    if analysisIndex==1: # PAO: Before and after optimization
+        if not ("PAO_after" in globals()) or not ("PAO_before" in globals()):
+            return
+        win.matrix.setRowCount(PAO_after.PAO_Mul)
+        win.matrix.setColumnCount(PAO_after.PAO_Mul)
+        if matrixIndex>=0 and matrixIndex<=PAO_after.PAO_Lmax: # Contraction coefficients
+            l=matrixIndex
+            for i in range(0, PAO_after.PAO_Mul):
+                for j in range(0, PAO_after.PAO_Mul):
+                    item=QtGui.QTableWidgetItem(("{0:7.4f}\n{1:7.4f}").format(PAO_after.CCoes[l][i][j], Calc_CCoes[l][i][j]))
+                    win.matrix.setItem(j, i, item)
+                    error=PAO_after.CCoes[l][i][j]-Calc_CCoes[l][i][j]
+                    if abs(error)>Config.Contraction_threshold:
+                        item.setBackground(Config.error_item)
+        elif matrixIndex>=PAO_after.PAO_Lmax+1 and matrixIndex<=PAO_after.PAO_Lmax*2+1: # Orthonormalization matrix (before)
+            l=matrixIndex-PAO_after.PAO_Lmax-1
+            for i in range(0, PAO_after.PAO_Mul):
+                for j in range(0, PAO_after.PAO_Mul):
+                    item=QtGui.QTableWidgetItem(("{0:7.4f}").format(PAO_before.OrthNorm[l][i][j]))
+                    win.matrix.setItem(j, i, item)
+                    error=PAO_before.OrthNorm[l][i][j]
+                    if i==j:
+                        error-=1
+                    if abs(error)>Config.OrthNorm_threshold:
+                        item.setBackground(Config.error_item)
+        elif matrixIndex>=PAO_after.PAO_Lmax*2+2 and matrixIndex<=PAO_after.PAO_Lmax*3+2: # Orthonormalization matrix (after)
+            l=matrixIndex-PAO_after.PAO_Lmax*2-2
+            for i in range(0, PAO_after.PAO_Mul):
+                for j in range(0, PAO_after.PAO_Mul):
+                    item=QtGui.QTableWidgetItem(("{0:7.4f}").format(PAO_after.OrthNorm[l][i][j]))
+                    win.matrix.setItem(j, i, item)
+                    error=PAO_after.OrthNorm[l][i][j]
+                    if i==j:
+                        error-=1
+                    if abs(error)>Config.OrthNorm_threshold:
+                        item.setBackGround(Config.error_item)
+
+    elif analysisIndex==2: # PAO: Before optimization and from VPS
+        if not ("PAO_fromVPS" in globals()) or not ("PAO_before" in globals()):
+            return
+        if matrixIndex>=0 and matrixIndex<=PAO_before.PAO_Lmax: # Contraction coefficients
+            l=matrixIndex
+            win.matrix.setRowCount(PAO_fromVPS.PAO_Mul)
+            win.matrix.setColumnCount(PAO_before.PAO_Mul)
+            for i in range(0, PAO_before.PAO_Mul):
+                for j in range(0, PAO_fromVPS.PAO_Mul):
+                    item=QtGui.QTableWidgetItem(("{0:7.4f}").format(Calc_CCoes[l][i][j]))
+                    win.matrix.setItem(j, i, item)
+        elif matrixIndex>=PAO_before.PAO_Lmax+1 and matrixIndex<=PAO_before.PAO_Lmax*2+1: # Orthonormalization matrix (before)
+            l=matrixIndex-PAO_before.PAO_Lmax-1
+            win.matrix.setColumnCount(PAO_before.PAO_Mul)
+            win.matrix.setRowCount(PAO_before.PAO_Mul)
+            for i in range(0, PAO_before.PAO_Mul):
+                for j in range(0, PAO_before.PAO_Mul):
+                    item=QtGui.QTableWidgetItem(("{0:7.4f}").format(PAO_before.OrthNorm[l][i][j]))
+                    win.matrix.setItem(j, i, item)
+                    error=PAO_before.OrthNorm[l][i][j]
+                    if i==j:
+                        error-=1
+                    if abs(error)>Config.OrthNorm_threshold:
+                        item.setBackground(Config.error_item)
+        elif matrixIndex>=PAO_before.PAO_Lmax*2+2 and matrixIndex<=PAO_before.PAO_Lmax*2+PAO_fromVPS.PAO_Lmax+2: # Orthonormalization matrix (from VPS)
+            l=matrixIndex-PAO_before.PAO_Lmax*2-2
+            win.matrix.setColumnCount(PAO_fromVPS.PAO_Mul)
+            win.matrix.setRowCount(PAO_fromVPS.PAO_Mul)
+            for i in range(0, PAO_fromVPS.PAO_Mul):
+                for j in range(0, PAO_fromVPS.PAO_Mul):
+                    item=QtGui.QTableWidgetItem(("{0:7.4f}").format(PAO_fromVPS.OrthNorm[l][i][j]))
+                    win.matrix.setItem(j, i, item)
+                    error=PAO_fromVPS.OrthNorm[l][i][j]
+                    if i==j:
+                        error-=1
+                    if abs(error)>Config.OrthNorm_threshold:
+                        item.setBackGround(Config.error_item)
+
+    elif analysisIndex==3: # PAO: After optimization and from VPS
+        if not ("PAO_fromVPS" in globals()) or not ("PAO_after" in globals()):
+            return
+        if matrixIndex>=0 and matrixIndex<=PAO_after.PAO_Lmax: # Contraction coefficients
+            l=matrixIndex
+            win.matrix.setRowCount(PAO_fromVPS.PAO_Mul)
+            win.matrix.setColumnCount(PAO_after.PAO_Mul)
+            for i in range(0, PAO_after.PAO_Mul):
+                for j in range(0, PAO_fromVPS.PAO_Mul):
+                    item=QtGui.QTableWidgetItem(("{0:7.4f}\n({1:7.4f})").format(Calc_CCoes[l][i][j],(PAO_after.CCoes[l][i][j] if j<PAO_after.PAO_Mul else 0)))
+                    win.matrix.setItem(j, i, item)
+                    error=(PAO_after.CCoes[l][i][j] if j<PAO_after.PAO_Mul else 0)-Calc_CCoes[l][i][j]
+                    if abs(error)>Config.Contraction_threshold:
+                        item.setBackground(Config.error_item)
+        elif matrixIndex>=PAO_after.PAO_Lmax+1 and matrixIndex<=PAO_after.PAO_Lmax*2+1: # Orthonormalization matrix (after)
+            l=matrixIndex-PAO_after.PAO_Lmax-1
+            win.matrix.setColumnCount(PAO_after.PAO_Mul)
+            win.matrix.setRowCount(PAO_after.PAO_Mul)
+            for i in range(0, PAO_after.PAO_Mul):
+                for j in range(0, PAO_after.PAO_Mul):
+                    item=QtGui.QTableWidgetItem(("{0:7.4f}").format(PAO_after.OrthNorm[l][i][j]))
+                    win.matrix.setItem(j, i, item)
+                    error=PAO_after.OrthNorm[l][i][j]
+                    if i==j:
+                        error-=1
+                    if abs(error)>Config.OrthNorm_threshold:
+                        item.setBackground(Config.error_item)
+        elif matrixIndex>=PAO_after.PAO_Lmax*2+2 and matrixIndex<=PAO_after.PAO_Lmax*2+PAO_fromVPS.PAO_Lmax+2: # Orthonormalization matrix (from VPS)
+            l=matrixIndex-PAO_after.PAO_Lmax*2-2
+            win.matrix.setColumnCount(PAO_fromVPS.PAO_Mul)
+            win.matrix.setRowCount(PAO_fromVPS.PAO_Mul)
+            for i in range(0, PAO_fromVPS.PAO_Mul):
+                for j in range(0, PAO_fromVPS.PAO_Mul):
+                    item=QtGui.QTableWidgetItem(("{0:7.4f}").format(PAO_fromVPS.OrthNorm[l][i][j]))
+                    win.matrix.setItem(j, i, item)
+                    error=PAO_fromVPS.OrthNorm[l][i][j]
+                    if i==j:
+                        error-=1
+                    if abs(error)>Config.OrthNorm_threshold:
+                        item.setBackGround(Config.error_item)
+                                                                    
+                
+
+    
+def performCalculation_PAO(win):
+    # QPuthButton calcButton_PAO is clicked
 
     Z=win.atomNumber.currentIndex()
     paoIndex=win.paoFile.currentIndex()
@@ -121,6 +477,8 @@ def performCalculation(win):
     paoName=Config.paoArr[Z][paoIndex]
     vpsName=Config.vpsArr[Z][vpsIndex]
 
+    pwd=os.getcwd()
+    
     # 1: PAO before optimization
     print("Calculation 1: PAO before optimization")
     paoPath_after=os.path.join(Config.dirPath_PAO, paoName)
@@ -148,7 +506,6 @@ def performCalculation(win):
         print("Error: System.Name not found")
         return
 
-    pwd=os.getcwd()
     os.chdir(Config.dirPath_inPAO4PAO)
     adpack_proc=subprocess.Popen([Config.adpack, inPaoName, "-nt", "1"], stdout=subprocess.PIPE, text=True)
     while True:
@@ -158,9 +515,75 @@ def performCalculation(win):
         if (not line) and adpack_proc.poll() is not None:
             break
     shutil.move(sysName+".pao", outPaoPath)
-    
-    os.chdir(pwd)
-                
-            
 
+    os.chdir(pwd)
+    changeAnalysis(win)
+
+def performCalculation_VPS(win):
+    # QPuthButton calcButton_VPS is clicked
+
+    Z=win.atomNumber.currentIndex()
+    paoIndex=win.paoFile.currentIndex()
+    vpsIndex=win.vpsFile.currentIndex()
+    paoName=Config.paoArr[Z][paoIndex]
+    vpsName=Config.vpsArr[Z][vpsIndex]
+
+    pwd=os.getcwd()
+    
+    # 1: PAO from VPS
+    print("Calculation 1: PAO from VPS")
+    vpsPath=os.path.join(Config.dirPath_VPS, vpsName)
+    inVpsName=re.sub(r"\.vps$", ".inp", vpsName)
+    inVpsPath=os.path.join(Config.dirPath_inVPS4PAO, inVpsName)
+    outPaoName=re.sub(r"\.vps$", ".pao", vpsName)
+    outPaoPath=os.path.join(Config.dirPath_PAOfromVPS, outPaoName)
+    sysName=""
+    with open(vpsPath, "r") as f1:
+        with open(inVpsPath, "w") as f2:
+            line=""
+            while len(re.findall(r"^\s*Input file\s*$", line))==0:
+                line=f1.readline()
+                if len(line)==0:
+                    print("Error: cannot find input parameters")
+                    return
+            while line[0] != "#":
+                line=f1.readline()
+            while len(re.findall(r"^\*{32}", line))==0 and len(line)>0:
+                re_result=re.findall(r"^System.Name\s*(\S*).*$", line)
+                if len(re_result)>0:
+                    sysName=re_result[0]
+                    print(("System name is {0:s}").format(sysName))
+                    
+                re_result=re.findall(r"(calc.type\s*)\S*(.*)$", line)
+                if len(re_result)>0:
+                    line=re_result[0][0]+"pao"+re_result[0][1]+"\n"
+                    
+                re_result=re.findall(r"(search.UpperE\s*)(\S*)(.*)$", line)
+                if len(re_result)>0:
+                    line=re_result[0][0]+("{0:.4f}").format(float(re_result[0][1])*Config.search_UpperE_coeff)+re_result[0][2]+"\n"
+                    
+                re_result=re.findall(r"(num.of.partition\s*)(\S*)(.*)$", line)
+                if len(re_result)>0:
+                    line=re_result[0][0]+("{0:d}").format(round(int(re_result[0][1])*Config.num_of_partition_coeff))+re_result[0][2]+"\n"
+                    
+                line=re.sub(r"ocupied","occupied",line)
+                f2.write(line)
+                line=f1.readline()
+
+    if len(sysName)==0:
+        print("Error: System.Name not found")
+        return
+
+    os.chdir(Config.dirPath_inVPS4PAO)
+    adpack_proc=subprocess.Popen([Config.adpack, inVpsName, "-nt", "1"], stdout=subprocess.PIPE, text=True)
+    while True:
+        line=adpack_proc.stdout.readline().rstrip()
+        if line:
+            print(line)
+        if (not line) and adpack_proc.poll() is not None:
+            break
+    shutil.move(sysName+".pao", outPaoPath)
+    
+
+    os.chdir(pwd)
     changeAnalysis(win)

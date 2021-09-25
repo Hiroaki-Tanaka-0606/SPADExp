@@ -72,8 +72,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self.analysisType.addItem(analysisType)
         row3.addWidget(self.analysisType)
 
-        self.calcButton=QtGui.QPushButton("Calculate")
-        row3.addWidget(self.calcButton)
+        self.calcButton_PAO=QtGui.QPushButton("Calculate for PAO")
+        row3.addWidget(self.calcButton_PAO)
+        
+        self.calcButton_VPS=QtGui.QPushButton("Calculate for VPS")
+        row3.addWidget(self.calcButton_VPS)
 
         # Row 4: select orbitals
         row4=QtGui.QHBoxLayout()
@@ -86,7 +89,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.orbitalTable.verticalHeader().setSectionResizeMode(QtGui.QHeaderView.Stretch)
         self.orbitalTable.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
 
-        # Row 5: graph prefs
+        # Row 5: graph and matrix prefs
         row5=QtGui.QHBoxLayout()
         row5.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row5)
@@ -103,12 +106,24 @@ class MainWindow(QtWidgets.QMainWindow):
         self.radialType.addButton(radial_p)
         row5.addWidget(radial_p)
 
-        # Row 6: graph
+        mLabel=QtGui.QLabel("Matrix")
+        row5.addWidget(mLabel)
+        self.matrixType=QtGui.QComboBox()
+        self.matrixType.addItem("The choices are presented after an analysis is selected")
+        row5.addWidget(self.matrixType)
+
+        # Row 6: graph and matrix
         row6=QtGui.QHBoxLayout()
         self.orbitalGraph=pg.PlotWidget()
         self.orbitalGraph.addLegend()
         row6.addWidget(self.orbitalGraph)
         vbox.addLayout(row6)
+
+        self.matrix=QtGui.QTableWidget()
+        row6.addWidget(self.matrix)
+        self.matrix.horizontalHeader().setSectionResizeMode(QtGui.QHeaderView.ResizeToContents)
+        self.matrix.verticalHeader().setSectionResizeMode(QtGui.QHeaderView.ResizeToContents)
+        self.matrix.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
 
 
 app=QtGui.QApplication([])
@@ -126,6 +141,8 @@ Config.dirPath_PAO=os.path.join(Config.workingDirectory, "PAO")
 Config.dirPath_VPS=os.path.join(Config.workingDirectory, "VPS")
 Config.dirPath_inPAO4PAO=os.path.join(Config.workingDirectory, "PAO_input_for_PAO")
 Config.dirPath_PAOfromPAO=os.path.join(Config.workingDirectory, "PAO_from_PAO")
+Config.dirPath_inVPS4PAO=os.path.join(Config.workingDirectory, "VPS_input_for_PAO")
+Config.dirPath_PAOfromVPS=os.path.join(Config.workingDirectory, "PAO_from_VPS")
 
 for dirPath in [Config.dirPath_PAO, Config.dirPath_VPS]:
     if os.path.isdir(dirPath):
@@ -133,7 +150,8 @@ for dirPath in [Config.dirPath_PAO, Config.dirPath_VPS]:
     else:
         print(("Not OK: {0:s} is not a directory or does not exist").format(dirPath))
 
-for dirPath in [Config.dirPath_inPAO4PAO, Config.dirPath_PAOfromPAO]:
+for dirPath in [Config.dirPath_inPAO4PAO, Config.dirPath_PAOfromPAO, \
+                Config.dirPath_inVPS4PAO, Config.dirPath_PAOfromVPS,]:
     if os.path.isdir(dirPath):
         print(("Directory {0:s} exists").format(dirPath))
     else:
@@ -181,6 +199,9 @@ for paoList in Config.paoArr:
 # objects
 PAO_after=None
 PAO_before=None
+PAO_fromVPS=None
+Calc_CCoes=None
+PAO_reproduced=None
 Selected_orbitals=None
 
 # Event
@@ -190,10 +211,12 @@ Events.changeAtom(win)
 win.paoFile.currentIndexChanged.connect(lambda: Events.changeAnalysis(win))
 win.vpsFile.currentIndexChanged.connect(lambda: Events.changeAnalysis(win))
 win.analysisType.currentIndexChanged.connect(lambda: Events.changeAnalysis(win))
-win.calcButton.clicked.connect(lambda: Events.performCalculation(win))
+win.calcButton_PAO.clicked.connect(lambda: Events.performCalculation_PAO(win))
+win.calcButton_VPS.clicked.connect(lambda: Events.performCalculation_VPS(win))
 win.orbitalTable.cellClicked.connect(lambda row, column: Events.selectOrbital(win, row, column))
 for b in win.radialType.buttons():
     b.clicked.connect(lambda: Events.drawOrbitalGraph(win))
+win.matrixType.currentIndexChanged.connect(lambda: Events.changeMatrix(win))
 
 pg.setConfigOptions(antialias=True)
 win.show()

@@ -3,6 +3,7 @@
 
 import re
 import numpy as np
+import math
 
 class PAO_parser:
     def __init__(self, filePath, optimized):
@@ -17,6 +18,7 @@ class PAO_parser:
         self.PAOs=None
         self.x=None
         self.r=None
+        self.OrthNorm=None
         
         # read contraction coefficients, grid.num.output, maxL.pao, num.pao
         # read PAO.Lmax(=maxL.pao), PAO.Mul(=num.pao), pseudo.atomic.orbitals
@@ -127,9 +129,9 @@ class PAO_parser:
                     return
 
             # put contraction coefficients in numpy
-            self.CCoes=np.zeros((self.PAO_Lmax, self.PAO_Mul, self.PAO_Mul))
+            self.CCoes=np.zeros((self.PAO_Lmax+1, self.PAO_Mul, self.PAO_Mul))
             Mul_indices=[]
-            for i in range(0,self.PAO_Lmax):
+            for i in range(0,self.PAO_Lmax+1):
                 Mul_indices.append(-1)
                 for j in range(0, self.PAO_Mul):
                     self.CCoes[i][j][j]=1
@@ -139,6 +141,8 @@ class PAO_parser:
                     Mul_indices[ccoe[0]]+=1
                 i=Mul_indices[ccoe[0]]
                 self.CCoes[ccoe[0]][i][ccoe[1]]=ccoe[2]
+
+            self.OrthNorm=np.zeros((self.PAO_Lmax+1, self.PAO_Mul, self.PAO_Mul))
 
             # for mat in self.CCoes:
             # print(mat)
@@ -170,5 +174,64 @@ class PAO_parser:
                 re_result=re.findall(r"pseudo.atomic.orbitals.L="+str(l)+">", line)
                 if len(re_result)>0:
                     print(("Reading pseudo atomic orbitals L= {0:d} finished").format(l))
-                    
+
+            # Gram-Schmidt orthonormalization
+            if optimized:
+                for l, CCoe_mat in enumerate(self.CCoes):
+                    for i in range(1, self.PAO_Mul):
+                        for j in range(0, i):
+                            # orthogonalization
+                            norm=np.dot(CCoe_mat[i], CCoe_mat[j])
+                            CCoe_mat[i]-=norm*CCoe_mat[j]
+                        
+                        # normalization
+                        norm2=np.dot(CCoe_mat[i], CCoe_mat[i])
+                        CCoe_mat[i]/=math.sqrt(norm2)
+
+                        
+                    # print(("Orthonormalized contraction coefficients for L= {0:d}").format(l))
+                    # for i in range(0, self.PAO_Mul):
+                    #     for j in range(0, self.PAO_Mul):
+                    #         print(("{0:7.4f} ").format(CCoe_mat[i][j]), end="")
+                    #     
+                    #     print("")
+                    # print("")
+
+
+            # Orthonormalization check or orbitals
+            for l in range(0, self.PAO_Lmax+1):
+                for i in range(0, self.PAO_Mul):
+                    for j in range(0, i+1):
+                        norm=0.0
+                        for k in range(0, self.grid_output-1):
+                            norm+=self.PAOs[l][i][k]*self.PAOs[l][j][k]*math.pow(self.r[k], 2)*(self.r[k+1]-self.r[k])
+                        self.OrthNorm[l][i][j]=norm
+                        self.OrthNorm[l][j][i]=norm
+
+
+def calcContraction(after, before, matrix):
+    Lmax=after.PAO_Lmax
+    Mul1=after.PAO_Mul
+    Mul2=before.PAO_Mul
+    grid=after.grid_output
+
+    for l in range(0, Lmax+1):
+        for i in range(0, Mul1):
+            for j in range(0, Mul2):
+                norm1=0.0
+                norm2=0.0
+                for k in range(0, grid-1):
+                    norm1+=after.PAOs[l][i][k]*before.PAOs[l][j][k]*math.pow(before.r[k],2)*(before.r[k+1]-before.r[k])
+                    norm2+=before.PAOs[l][j][k]*before.PAOs[l][j][k]*math.pow(before.r[k],2)*(before.r[k+1]-before.r[k])
+                matrix[l][i][j]=norm1/norm2
+
             
+def reproducePAO(before, ccoes, reproduced):
+    Lsize=len(ccoes)
+    Mul1=len(ccoes[0])
+    Mul2=before.PAO_Mul
+
+    for l in range(0, Lsize):
+        for i in range(0, Mul1):
+            for j in range(0, Mul2):
+                reproduced[l][i]+=before.PAOs[l][j]*ccoes[l][i][j]
