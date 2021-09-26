@@ -143,6 +143,8 @@ Config.dirPath_inPAO4PAO=os.path.join(Config.workingDirectory, "PAO_input_for_PA
 Config.dirPath_PAOfromPAO=os.path.join(Config.workingDirectory, "PAO_from_PAO")
 Config.dirPath_inVPS4PAO=os.path.join(Config.workingDirectory, "VPS_input_for_PAO")
 Config.dirPath_PAOfromVPS=os.path.join(Config.workingDirectory, "PAO_from_VPS")
+Config.dirPath_inVPS4AO=os.path.join(Config.workingDirectory, "VPS_input_for_AO")
+Config.dirPath_AOfromVPS=os.path.join(Config.workingDirectory, "AO_from_VPS")
 
 for dirPath in [Config.dirPath_PAO, Config.dirPath_VPS]:
     if os.path.isdir(dirPath):
@@ -151,7 +153,8 @@ for dirPath in [Config.dirPath_PAO, Config.dirPath_VPS]:
         print(("Not OK: {0:s} is not a directory or does not exist").format(dirPath))
 
 for dirPath in [Config.dirPath_inPAO4PAO, Config.dirPath_PAOfromPAO, \
-                Config.dirPath_inVPS4PAO, Config.dirPath_PAOfromVPS,]:
+                Config.dirPath_inVPS4PAO, Config.dirPath_PAOfromVPS,\
+                Config.dirPath_inVPS4AO,  Config.dirPath_AOfromVPS,]:
     if os.path.isdir(dirPath):
         print(("Directory {0:s} exists").format(dirPath))
     else:
@@ -202,6 +205,7 @@ PAO_before=None
 PAO_fromVPS=None
 Calc_CCoes=None
 PAO_reproduced=None
+AO_fromVPS=None
 Selected_orbitals=None
 
 # Event

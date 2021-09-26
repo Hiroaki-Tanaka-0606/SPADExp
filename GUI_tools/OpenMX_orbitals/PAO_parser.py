@@ -4,6 +4,7 @@
 import re
 import numpy as np
 import math
+import Config
 
 class PAO_parser:
     def __init__(self, filePath, optimized):
@@ -19,8 +20,11 @@ class PAO_parser:
         self.x=None
         self.r=None
         self.OrthNorm=None
+        self.valence_min=[]
         
-        # read contraction coefficients, grid.num.output, maxL.pao, num.pao
+        
+        # read contraction coefficients, grid.num.output, number.vps, <pseudo.NandL>
+        # read maxL.pao, num.pao
         # read PAO.Lmax(=maxL.pao), PAO.Mul(=num.pao), pseudo.atomic.orbitals
         with open(filePath, "r") as f:
             # number.optpao
@@ -73,6 +77,47 @@ class PAO_parser:
                 if len(line)==0:
                     print("Error: cannot find grid.num.output")
                     return
+
+            # number.vps
+            number_vps=-1
+            while True:
+                line=f.readline()
+                re_result=re.findall(r"number\.vps\s*(\d+)", line)
+                if len(re_result)>0:
+                    number_vps=int(re_result[0])
+                    print(("number.vps is {:d}").format(number_vps))
+                    break
+                if len(line)==0:
+                    print("Error: cannot find number.vps")
+                    return
+
+            # <pseudo.NandL>
+            pseudo_NL=[]
+            maxL=-1
+            
+            while True:
+                line=f.readline()
+                re_result=re.findall(r"^<pseudo.NandL", line)
+                if len(re_result)>0:
+                    for i in range(0, number_vps):
+                        line=f.readline()
+                        re_result=re.findall(r"\s*\d+\s*(\d+)\s*(\d+)", line)
+                        if len(re_result)>0:
+                            pseudo_NL.append([int(re_result[0][0]), int(re_result[0][1])])
+                            if maxL<int(re_result[0][1]):
+                                maxL=int(re_result[0][1])
+                    line=f.readline()
+                    re_result=re.findall("^pseudo.NandL>", line)
+                    if len(re_result)==0:
+                        print("Error in pseudo.NandL")
+                        return
+                    for l in range(0, maxL+1):
+                        self.valence_min.append(-1)
+                    for data in pseudo_NL:
+                        if self.valence_min[data[1]]<0 or self.valence_min[data[1]]>data[0]:
+                            self.valence_min[data[1]]=data[0]
+                    break
+                        
 
             # maxL.pao
             while True:
@@ -198,7 +243,7 @@ class PAO_parser:
                     # print("")
 
 
-            # Orthonormalization check or orbitals
+            # Orthonormalization check of orbitals
             for l in range(0, self.PAO_Lmax+1):
                 for i in range(0, self.PAO_Mul):
                     for j in range(0, i+1):
@@ -235,3 +280,35 @@ def reproducePAO(before, ccoes, reproduced):
         for i in range(0, Mul1):
             for j in range(0, Mul2):
                 reproduced[l][i]+=before.PAOs[l][j]*ccoes[l][i][j]
+
+
+def normCheck(PAO, AO):
+    Lmax=PAO.PAO_Lmax
+    valence_min=PAO.valence_min
+    Mul=PAO.PAO_Mul
+    grid=PAO.grid_output
+    
+    for Mul_PAO in range(0, Mul):
+        for l in range(0, Lmax+1):
+            Mul_AO=Mul_PAO+(valence_min[l]-(l+1) if len(valence_min)>l else 0)
+            norm1=0.0
+            norm2=0.0
+            for k in range(round(grid*0.9), grid-1):
+                norm1+=PAO.PAOs[l][Mul_PAO][k]*AO.AOs[l][Mul_AO][k]*math.pow(PAO.r[k],2)*(PAO.r[k+1]-PAO.r[k])
+                norm2+=PAO.PAOs[l][Mul_PAO][k]*PAO.PAOs[l][Mul_PAO][k]*math.pow(PAO.r[k],2)*(PAO.r[k+1]-PAO.r[k])
+            if norm1/norm2<Config.invert_criterion:
+                print(("{0:d}{1:s} in AO is inverted, norm={2:.3f}").format(Mul_AO+l+1, Config.azimuthal[l], norm1/norm2))
+                AO.AOs[l][Mul_AO]*=-1
+        
+
+            
+def reproduceAO(AO, PAO, ccoes, reproduced):
+    Lsize=len(ccoes)
+    Mul1=len(ccoes[0])
+    Mul2=PAO.PAO_Mul
+
+    for l in range(0, Lsize):
+        for i in range(0, Mul1):
+            for j in range(0, Mul2):
+                Mul_AO=j+(PAO.valence_min[l]-(l+1) if len(PAO.valence_min)>l else 0)
+                reproduced[l][i]+=AO.AOs[l][Mul_AO]*ccoes[l][i][j]
