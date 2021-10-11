@@ -359,8 +359,8 @@ def changeAnalysis(win):
             win.orbitalTable.setVerticalHeaderItem(l, QtGui.QTableWidgetItem(Config.azimuthal[l]))
 
             
-        for n in range(1, PAO_fromVPS.PAO_Mul+1):
-            for l in range(0, PAO_fromVPS.PAO_Lmax+1):
+        for n in range(1, PAO_after.PAO_Mul+1):
+            for l in range(0, PAO_after.PAO_Lmax+1):
                 item_str=str(n)+Config.azimuthal[l]                
                 item=QtGui.QTableWidgetItem(item_str)
                 item.setBackground(Config.unselected_item)
@@ -448,6 +448,7 @@ def drawOrbitalGraph(win):
         for l in range(0, len(Selected_orbitals)):
             for mul in range(0, len(Selected_orbitals[l])):
                 if Selected_orbitals[l][mul]==1:
+                    # print(PAO_after.PAOs[l][mul]-PAO_reproduced[l][mul])
                     if radialType=="P":
                         if l<len(PAO_after.PAOs) and mul<len(PAO_after.PAOs[l]):
                             win.orbitalGraph.plot(y=PAO_after.PAOs[l][mul]*PAO_after.r,\

@@ -1,4 +1,4 @@
-# Config for OpenMX_viewer
+# Config for OpenMX_orbitals
 
 
 from pyqtgraph.Qt import QtGui, QtCore, QtWidgets
@@ -23,7 +23,20 @@ el_symbol=[ \
 
 azimuthal=["s", "p", "d", "f", "g"]
 
-analysisTypes=["---- select one from the following ----", "PAO: Before and after optimization"]
+analysisTypes=["---- select one from the following ----",\
+               "PAO: Before and after optimization",\
+               "PAO: Before optimization and from VPS",\
+               "PAO: After optimization and from VPS",
+               "PAO and AO from VPS",
+               "PAO and AO after optimization"]
+
+OrthNorm_threshold=0.01
+Contraction_threshold=0.01
+
+search_UpperE_coeff=2.0
+num_of_partition_coeff=2.0
+
+invert_criterion=-0.2
 
 # (modified) adpack
 adpack="/home/hiroaki/adpack2.2/work/adpack"
@@ -33,9 +46,12 @@ fontFamilies=["Segoe UI", "Yu Gothic UI"]
 # For table
 unselected_item=QtGui.QBrush(QtGui.QColor(255,255,255))
 selected_item=QtGui.QBrush(QtGui.QColor(0, 170, 255))
+error_item=QtGui.QBrush(QtGui.QColor(255, 0, 153))
 # For graph
 pen_after=(0, 170, 255)
-pen_before=(255, 255, 255)
+pen_before=(0, 0, 255)
+pen_fromVPS=(128, 212, 255)
+pen_reproduced=(41, 204, 41)
 # font sizes are in unit of pixel
 fontSize_normal=16
 fontSize_large=24
