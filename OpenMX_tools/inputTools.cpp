@@ -98,7 +98,7 @@ int load_logical(const char* key, bool* value){
 	if(exists){
 		return 1;
 	}else{
-		printf("Error: key %s does not exist\n", key);
+		printf("key %s does not exist\n", key);
 		return 0;
 	}
 	
@@ -124,7 +124,35 @@ int load_int(const char* key, int* value){
 	if(exists){
 		return 1;
 	}else{
-		printf("Error: key %s does not exist or parse error happens\n", key);
+		printf("key %s does not exist or parse error happens\n", key);
+		return 0;
+	}
+}
+
+int load_str(const char* key, char* value, int length){
+	char keyBuf[keySize];
+	char valBuf[valSize];
+	int i;
+	bool exists=false;
+	
+	for(i=0; i<line_count; i++){
+		if(sscanf(input_char[i], "%s %s", keyBuf, valBuf)==2 && strcmp(keyBuf, key)==0){
+			if(exists){
+				printf("Error: key %s already exists\n", key);
+				return 0;
+			}
+			exists=true;
+			if(strlen(valBuf)>length){
+				printf("Error: the value for key %s is longer than %d\n", key, length);
+			}
+			strncpy(value, valBuf, length);
+			value[length]='\0';
+		}
+	}
+	if(exists){
+		return 1;
+	}else{
+		printf("key %s does not exist or parse error happens\n", key);
 		return 0;
 	}
 }
@@ -159,7 +187,7 @@ int load_doublev(const char* key, const int count, double* values){
 	if(exists){
 		return 1;
 	}else{
-		printf("Error: key %s does not exist\n", key);
+		printf("key %s does not exist\n", key);
 		return 0;
 	}
 }

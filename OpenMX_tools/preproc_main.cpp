@@ -39,22 +39,18 @@ int main(int argc, const char** argv){
 	int i, j;
 	bool curved;
 	int dimension;
-	double* origin_frac=new double[3];
-	double* x_frac=new double[3];
-	double* y_frac=new double[3];
-	double* origin_orth=new double[3];
-	double* x_orth=new double[3];
-	double* y_orth=new double[3];
+	double origin_frac[3];
+	double x_frac[3];
+	double y_frac[3];
+	double origin_orth[3];
+	double x_orth[3];
+	double y_orth[3];
 	double xMin, xMax;
 	double yMin, yMax;
 	int x_count;
 	int y_count;
-	double** cell=new double*[3];
-	double** rec_cell=new double*[3];
-	for(i=0; i<3;i++){
-		cell[i]=new double[3];
-		rec_cell[i]=new double[3];
-	}
+	double cell[3][3];
+	double rec_cell[3][3];
 
 	if(load_int("calcPSF.dimension", &dimension)==1){
 		printf("calcPSF.dimension is %d\n", dimension);
@@ -98,10 +94,10 @@ int main(int argc, const char** argv){
 					printf("Error in parsing y range");
 					return 0;
 				}
-			}
-			if(y_count<1){
-				printf("Error: y_count must be positive\n");
-				return 0;
+				if(y_count<1){
+					printf("Error: y_count must be positive\n");
+					return 0;
+				}
 			}
 		}else{
 			printf("Dimension error\n");
@@ -201,7 +197,7 @@ int main(int argc, const char** argv){
 		return 0;
 	}
 
-	printf("O, X, and Y are orthogonal\n");
+	printf("O, X, and Y are orthogonal\n\n");
 
 	// prepare the output file
 	// neglect MO.fileout, MO.Nkpoint, and <MO.kpoint> block
@@ -241,6 +237,7 @@ int main(int argc, const char** argv){
 		dq=(yMax-yMin)/(y_count-1);
 	}
 	output << "<MO.kpoint" << endl;
+	cout << "kpoints in fractional coordinates" << endl;
 	if(dimension==2){
 		for(j=0; j<y_count; j++){
 			for(i=0; i<x_count; i++){
