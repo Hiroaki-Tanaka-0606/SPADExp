@@ -85,10 +85,10 @@ int load_logical(const char* key, bool* value){
 			}
 			exists=true;
 			for(j=0; j<strChoices; j++){
-				if(strncasecmp(valBuf, trueStrs[j], strlen(trueStrs[j]))==0){
+				if(strncasecmp(valBuf, trueStrs[j], strlen(trueStrs[j]))==0 && strlen(valBuf)==strlen(trueStrs[j])){
 					*value=true;
 				}
-				if(strncasecmp(valBuf, falseStrs[j], strlen(falseStrs[j]))==0){
+				if(strncasecmp(valBuf, falseStrs[j], strlen(falseStrs[j]))==0 && strlen(valBuf)==strlen(falseStrs[j])){
 					*value=false;
 				}
 			}

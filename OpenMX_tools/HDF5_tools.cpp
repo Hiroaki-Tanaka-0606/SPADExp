@@ -20,6 +20,12 @@ void w_att_int(Group g, const char* key, int value){
 	int data_i[1]={value};
 	at.write(PredType::NATIVE_INT, data_i);
 }
+		
+void w_att_double(Group g, const char* key, double value){
+	Attribute at=g.createAttribute(key, PredType::NATIVE_DOUBLE, H5S_SCALAR);
+	double data_i[1]={value};
+	at.write(PredType::NATIVE_DOUBLE, data_i);
+}
 
 void w_att_bool(Group g, const char* key, bool value){
 	Attribute at=g.createAttribute(key, PredType::NATIVE_HBOOL, H5S_SCALAR);

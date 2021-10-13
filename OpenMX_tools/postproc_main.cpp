@@ -19,6 +19,8 @@
 using namespace std;
 using namespace H5;
 
+bool readLine(ifstream* fp, char* line_c, int bufSize);
+
 
 int main(int argc, const char** argv){
 	cout << "Starting postproc tool for OpenMX..." << endl;
@@ -40,6 +42,10 @@ int main(int argc, const char** argv){
 	int itemSize=32;
 	int valSize=128;
 	int pathSize=1024;
+	int bufSize=4096;
+
+	// diff criterion
+	double diff_threshold1=0.01; // kp coordinates
 	
 	// variables
 	int i, j;
@@ -62,6 +68,8 @@ int main(int argc, const char** argv){
 	char currentDir[valSize+1];
 	char vectorUnit[valSize+1];
 	char atomUnit[valSize+1];
+	char spinPol[valSize+1];
+	int spinPol_i; // 0: off, 1: on, 2: nc (noncollinear)
 
 	int specNum;
 	int atomNum;
@@ -87,6 +95,7 @@ int main(int argc, const char** argv){
 	int line_species_start=find_str("<Definition.of.Atomic.Species");
 	int line_species_end=find_str("Definition.of.Atomic.Species>");
 	char species[specNum][4][valSize];
+	int numOrbits[specNum];
 	if(line_species_start>=0 && line_species_end>=0 &&
 		 line_species_end-line_species_start-1==specNum){
 		for(i=0; i<specNum; i++){
@@ -101,8 +110,27 @@ int main(int argc, const char** argv){
 					strcpy(species[i][2], &species[i][1][j+1]);
 				}
 			}
+			numOrbits[i]=0;
+			for(j=0; j<strlen(species[i][2]); j+=2){
+				char orbitLabel=species[i][2][j];
+				char numLabel[1]={species[i][2][j+1]};
+				if(orbitLabel=='s'){
+					numOrbits[i]+=atoi(numLabel);
+				}else if(orbitLabel=='p'){
+					numOrbits[i]+=3*atoi(numLabel);
+				}else if(orbitLabel=='d'){
+					numOrbits[i]+=5*atoi(numLabel);
+				}else if(orbitLabel=='f'){
+					numOrbits[i]+=7*atoi(numLabel);
+				}else{
+					printf("Error: invalid orbit label %c\n", orbitLabel);
+					return 0;
+				}
+			}
 			// printf("%s %s %s %s\n", species[i][0], species[i][1], species[i][2], species[i][3]);
+			// cout << numOrbits[i] << endl;
 		}
+		
 	}else{
 		printf("Error in Definition.of.Atomic.Species");
 		return 0;
@@ -118,6 +146,7 @@ int main(int argc, const char** argv){
 	int line_atom_end=find_str("Atoms.SpeciesAndCoordinates>");
 	char atoms[atomNum][valSize];
 	double coordinates[atomNum][3];
+	int totalOrbits=0;
 	if(line_atom_start>=0 && line_atom_end>=0 &&
 		 line_atom_end-line_atom_start-1==atomNum){
 		for(i=0; i<atomNum; i++){
@@ -126,6 +155,20 @@ int main(int argc, const char** argv){
 				printf("Error in parsing Atoms.SpeciesAndCoordinates\n");
 				return 0;
 			}
+			bool specFound=false;
+			for(j=0; j<specNum; j++){
+				if(strcmp(atoms[i], species[j][0])==0){
+					totalOrbits+=numOrbits[j];
+					specFound=true;
+					// cout << j << endl;
+				}
+			}
+			if(!specFound){
+				printf("Error: cannot find atom %s\n", atoms[i]);
+				return 0;
+			}
+
+				
 		}
 	}else{
 		printf("Error in Atoms.SpeciesAndCoordinates\n");
@@ -138,10 +181,26 @@ int main(int argc, const char** argv){
 		return 0;
 	}
 	
-	
+	// cout << totalOrbits << endl;
 	
 	if(load_str("Atoms.UnitVectors.Unit", vectorUnit, valSize)==1){
 		printf("Atoms.UnitVectors.Unit is %s\n", vectorUnit);
+	}else{
+		return 0;
+	}
+
+	if(load_str("scf.SpinPolarization", spinPol, valSize)==1){
+		printf("scf.SpinPolarization is %s\n", spinPol);
+		if(strncasecmp("off", spinPol, strlen(spinPol))==0 && strlen(spinPol)==3){
+			spinPol_i=0;
+		}else if(strncasecmp("on", spinPol, strlen(spinPol))==0 && strlen(spinPol)==2){
+			spinPol_i=1;
+		}else if(strncasecmp("nc", spinPol, strlen(spinPol))==0 && strlen(spinPol)==2){
+			spinPol_i=2;
+		}else{
+			printf("Error: invalid scf.SpinPolarization\n");
+			return 0;
+		}
 	}else{
 		return 0;
 	}
@@ -287,16 +346,6 @@ int main(int argc, const char** argv){
 
 	H5File output(outFilePath, H5F_ACC_TRUNC);
 
-	// variable-length string
-	StrType str_var(PredType::C_S1, H5T_VARIABLE);
-	str_var.setCset(H5T_CSET_UTF8);
-
-	// variables for data processing
-	Attribute at;
-	int data_i[1];
-	string data_s[1];
-	bool data_b[1];
-
 	// att Datetime @root
 	time_t datetime_now=time(NULL);
 	struct tm *timeptr=localtime(&datetime_now);
@@ -394,11 +443,217 @@ int main(int argc, const char** argv){
 	// data @/Input/Kpath
 	w_data_2d(KpathG, "Coordinates", total_count, 3, (double**)kps);
 	
-	// DataSpace ds(rank, [x,y,z]);
+	cout << "Finished writing /Input" << endl;
+	cout << endl;
+	
+	// open the output of OpenMX
+	char outOpenMXPath[pathSize];
+	sprintf(outOpenMXPath, "%s%s.out", currentDir, sysName);
+	printf("Open %s\n", outOpenMXPath);
 
+	// data loaded from the output file
+	int numBands= (spinPol_i==2) ? totalOrbits*2 : totalOrbits;
+	double Band[total_count][numBands];
+	double BandUp[total_count][numBands];
+	double BandDn[total_count][numBands];
+
+	ifstream outOpenMX(outOpenMXPath);
+	string line;
+	char line_c[bufSize];
+	int line_number=0;
+	bool LCAO_found=false;
+	while(getline(outOpenMX, line)){
+		line_number++;
+		if(line=="        Eigenvalues (Hartree) and LCAO coefficients        "){
+			printf("The LCAO block start from line %d\n", line_number+4);
+			LCAO_found=true;
+			break;
+		}
+	}
+	if(!LCAO_found){
+		printf("Error: cannot find the LCAO block\n");
+		return 0;
+	}
+
+	for(i=0; i<3; i++){
+		getline(outOpenMX, line);
+		line_number++;
+	}
+	// here, the next line is the first line of the LCAO block
+
+	int kp_index;
+	int actual_line_length;
+	char kpBuf[valSize];
+	int indexBuf;
+	bool kp_found;
+	double EF_Eh; // in units of the Hartree energy (27.2 eV)
+	for(kp_index=1; kp_index<=total_count; kp_index++){
+		// # of k-point = XX
+		kp_found=false;
+		while(readLine(&outOpenMX, line_c, bufSize)){
+			line_number++;
+			if(sscanf(line_c, "%s %*s %*s %*s %d", kpBuf, &indexBuf)==2 &&
+				 strlen(kpBuf)==1 && kpBuf[0]=='#'){
+				if(indexBuf!=kp_index){
+					printf("Error: kp index mismatch\n");
+					return 0;
+				}
+				printf("kp #%d starts from line %d\n", kp_index, line_number);
+				kp_found=true;
+				break;
+			}
+		}
+		if(!kp_found){
+			printf("Error: cannot find kp #%d\n", kp_index);
+			return 0;
+		}
+		// kp coordinates check
+		readLine(&outOpenMX, line_c, bufSize);
+		double kp_read[3];
+		if(sscanf(line_c, "%*s %lf %*s %lf %*s %lf", &kp_read[0], &kp_read[1], &kp_read[2])==3){
+			for(i=0; i<3; i++){
+				if(abs(kp_read[i]-kps[kp_index-1][i])>diff_threshold1){
+					printf("Error: kp coordinate mismatch\n");
+					return 0;
+				}
+			}
+		}else{
+			printf("Error: cannot find kp coordinate\n");
+			return 0;
+		}
+		readLine(&outOpenMX, line_c, bufSize);
+		readLine(&outOpenMX, line_c, bufSize);
+		// chemical potential (only when kp_index==1)
+		if(kp_index==1){
+			if(sscanf(line_c, "%*s %*s %*s %*s %lf", &EF_Eh)==1){
+				printf("The Fermi energy (in units of the Hartree energy) is %.5f\n", EF_Eh);
+			}else{
+				printf("Error in parsing Chemical Potential\n");
+				return 0;
+			}
+		}
+		// skip 6 rows if spinPol==off or nc, else 7 (spinPol==on)
+		// <=> The former: spinPol_i==0 or 2, the latter: spinPol_i==1
+		int skipRows= (spinPol_i==1) ? 7 : 6;
+		for(i=0; i<skipRows; i++){
+			readLine(&outOpenMX, line_c, bufSize);
+		}
+
+		int band_remaining=numBands;
+		int band_index=0;
+		bool loadingUp=true;
+		double eigen[4];
+		while(band_remaining>0){
+			readLine(&outOpenMX, line_c, bufSize);
+			// parse eigenvalues
+			switch(spinPol_i){
+			case 0:
+				// spinPol off: 4 values, only (U)
+				if(sscanf(line_c, "%lf %lf %lf %lf", &eigen[0], &eigen[1], &eigen[2], &eigen[3])==min(4, band_remaining)){
+					for(i=0; (i<4 && band_remaining>0); i++){
+						Band[kp_index-1][band_index]=eigen[i];
+						band_index++;
+						band_remaining--;
+					}
+				}else{
+					printf("Error in parsing eigenvalues\n");
+					return 0;
+				}
+				break;
+			case 1:
+				// sponPol on: 4 values, (U)s following (D)s
+				if(sscanf(line_c, "%lf %lf %lf %lf", &eigen[0], &eigen[1], &eigen[2], &eigen[3])==min(4, band_remaining)){
+					for(i=0; (i<4 && band_remaining>0); i++){
+						if(loadingUp){
+							BandUp[kp_index-1][band_index]=eigen[i];
+						}else{
+							BandDn[kp_index-1][band_index]=eigen[i];
+						}	
+						band_index++;
+						band_remaining--;
+					}
+					if(band_remaining==0 && loadingUp){
+						band_remaining=numBands;
+						band_index=0;
+						loadingUp=false;
+					}
+				}else{
+					printf("Error in parsing eigenvalues\n");
+					return 0;
+				}
+				break;
+			case 2:
+				// spinPol nc: 2 values
+				if(sscanf(line_c, "%lf %lf", &eigen[0], &eigen[1])==min(2, band_remaining)){
+					for(i=0; (i<2 && band_remaining>0); i++){
+						Band[kp_index-1][band_index]=eigen[i];
+						band_index++;
+						band_remaining--;
+					}
+				}else{
+					printf("Error in parsing eigenvalues\n");
+					return 0;
+				}
+				break;
+			}
+
+			// skip 3 rows
+			for(i=0; i<3; i++){
+				readLine(&outOpenMX, line_c, bufSize);
+			}
+
+			// read LCAO coefficients
+			for(i=0; i<totalOrbits; i++){
+				readLine(&outOpenMX, line_c, bufSize);
+			}
+
+			// skip 2 rows
+			for(i=0; i<2; i++){
+				readLine(&outOpenMX, line_c, bufSize);
+			}
+		}
+			
+			
+		
+	}
+
+	
+	// group /Output
+	Group OutputG(output.createGroup("/Output"));
 
 
 	
+	// band data
+	if(spinPol_i==1){
+		w_data_2d(OutputG, "BandUp", total_count, numBands, (double**)BandUp);
+		w_data_2d(OutputG, "BandDn", total_count, numBands, (double**)BandDn);
+	}else{
+		w_data_2d(OutputG, "Band", total_count, numBands, (double**)Band);
+	}
+
+	// atts @/Output
+	w_att_double(OutputG, "EF_Eh", EF_Eh);
+	w_att_str(OutputG, "Spin", spinPol);
+	
+	outOpenMX.close();
 	output.close();
 	cout << "Finished writing data." << endl;
+}
+
+
+	
+bool readLine(ifstream* fp, char* line_c, int bufSize){
+	string line_s;
+	if(getline(*fp, line_s)){
+		int actual_line_length=line_s.length();
+		if(actual_line_length>bufSize){
+			printf("Error: line longer than %d characters\n", bufSize);
+			return false;
+		}
+		line_s.copy(line_c, actual_line_length);
+		line_c[actual_line_length]='\0';
+		return true;
+	}else{
+		return false;
+	}
 }
