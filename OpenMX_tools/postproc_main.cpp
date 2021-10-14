@@ -9,6 +9,7 @@
 #include <cstring>
 #include <string>
 #include <ctime>
+#include <complex>
 #include "H5Cpp.h"
 
 // include libraries from current directory
@@ -20,7 +21,6 @@ using namespace std;
 using namespace H5;
 
 bool readLine(ifstream* fp, char* line_c, int bufSize);
-
 
 int main(int argc, const char** argv){
 	cout << "Starting postproc tool for OpenMX..." << endl;
@@ -48,7 +48,7 @@ int main(int argc, const char** argv){
 	double diff_threshold1=0.01; // kp coordinates
 	
 	// variables
-	int i, j;
+	int i, j, k, l;
 	bool curved;
 	int dimension;
 	double origin_frac[3];
@@ -146,6 +146,8 @@ int main(int argc, const char** argv){
 	int line_atom_end=find_str("Atoms.SpeciesAndCoordinates>");
 	char atoms[atomNum][valSize];
 	double coordinates[atomNum][3];
+	int atomOrbits[atomNum];
+	int orbitIndices[atomNum];
 	int totalOrbits=0;
 	if(line_atom_start>=0 && line_atom_end>=0 &&
 		 line_atom_end-line_atom_start-1==atomNum){
@@ -158,6 +160,7 @@ int main(int argc, const char** argv){
 			bool specFound=false;
 			for(j=0; j<specNum; j++){
 				if(strcmp(atoms[i], species[j][0])==0){
+					atomOrbits[i]=numOrbits[j];
 					totalOrbits+=numOrbits[j];
 					specFound=true;
 					// cout << j << endl;
@@ -174,6 +177,16 @@ int main(int argc, const char** argv){
 		printf("Error in Atoms.SpeciesAndCoordinates\n");
 		return 0;
 	}
+	j=0;
+	orbitIndices[0]=0;
+	for(i=0; i<atomNum-1; i++){
+		j+=atomOrbits[i];
+		orbitIndices[i+1]=j;
+	}
+	for(i=0; i<atomNum; i++){
+		cout << orbitIndices[i] << endl;
+	}
+	
 
 	if(load_str("Atoms.SpeciesAndCoordinates.Unit", atomUnit, valSize)==1){
 		printf("Atoms.UnitVectors.Unit is %s\n", atomUnit);
@@ -419,8 +432,8 @@ int main(int argc, const char** argv){
 
 	// atts @/Input/UnitCells
 	w_att_str(UnitG, "Unit", vectorUnit);
-	w_att_2d(UnitG, "Atoms", 3, 3, (double**)cell);
-	w_att_2d(UnitG, "Bands", 3, 3, (double**)bandCell);
+	w_data_2d(UnitG, "Atoms", 3, 3, (double**)cell);
+	w_data_2d(UnitG, "Bands", 3, 3, (double**)bandCell);
 
 
 	// group /Input/Kpath
@@ -457,6 +470,11 @@ int main(int argc, const char** argv){
 	double BandUp[total_count][numBands];
 	double BandDn[total_count][numBands];
 
+	int digit=(spinPol_i==2)?4:2;
+	double LCAO_all[total_count][numBands][totalOrbits][digit];
+	double LCAOUp_all[total_count][numBands][totalOrbits][2];
+	double LCAODn_all[total_count][numBands][totalOrbits][2];
+
 	ifstream outOpenMX(outOpenMXPath);
 	string line;
 	char line_c[bufSize];
@@ -465,7 +483,7 @@ int main(int argc, const char** argv){
 	while(getline(outOpenMX, line)){
 		line_number++;
 		if(line=="        Eigenvalues (Hartree) and LCAO coefficients        "){
-			printf("The LCAO block start from line %d\n", line_number+4);
+			printf("The LCAO block starts from line %d\n", line_number+4);
 			LCAO_found=true;
 			break;
 		}
@@ -488,6 +506,7 @@ int main(int argc, const char** argv){
 	bool kp_found;
 	double EF_Eh; // in units of the Hartree energy (27.2 eV)
 	for(kp_index=1; kp_index<=total_count; kp_index++){
+		// cout << kp_index << endl << endl;
 		// # of k-point = XX
 		kp_found=false;
 		while(readLine(&outOpenMX, line_c, bufSize)){
@@ -498,7 +517,7 @@ int main(int argc, const char** argv){
 					printf("Error: kp index mismatch\n");
 					return 0;
 				}
-				printf("kp #%d starts from line %d\n", kp_index, line_number);
+				printf("kp #%d starts\n", kp_index);
 				kp_found=true;
 				break;
 			}
@@ -541,8 +560,12 @@ int main(int argc, const char** argv){
 
 		int band_remaining=numBands;
 		int band_index=0;
+		int lcao_remaining=numBands;
+		int lcao_index=0;
 		bool loadingUp=true;
+		bool loadingUp_l=true;
 		double eigen[4];
+		double lcao[8];
 		while(band_remaining>0){
 			readLine(&outOpenMX, line_c, bufSize);
 			// parse eigenvalues
@@ -605,8 +628,100 @@ int main(int argc, const char** argv){
 			// read LCAO coefficients
 			for(i=0; i<totalOrbits; i++){
 				readLine(&outOpenMX, line_c, bufSize);
+				// cout << line_c << endl;
+				int sscanf_result;
+				bool flag=false;
+				for(j=0; j<atomNum; j++){
+					if(i==orbitIndices[j]){
+						flag=true;
+					}
+				}
+				if(flag){
+					sscanf_result=sscanf(line_c, "%*d %*s %*d %*s %lf %lf %lf %lf %lf %lf %lf %lf",
+															 &lcao[0], &lcao[1], &lcao[2], &lcao[3], &lcao[4], &lcao[5], &lcao[6], &lcao[7]);
+				}else{
+					sscanf_result=sscanf(line_c, "%*d %*s %lf %lf %lf %lf %lf %lf %lf %lf",
+															 &lcao[0], &lcao[1], &lcao[2], &lcao[3], &lcao[4], &lcao[5], &lcao[6], &lcao[7]);
+				}
+				switch(spinPol_i){
+				case 0:
+					// spinPol off
+					if(sscanf_result==2*min(4, lcao_remaining)){
+						int lcao_remaining_tmp=lcao_remaining;
+						for(j=0; (j<4 && lcao_remaining_tmp>0); j++){
+							LCAO_all[kp_index-1][lcao_index+j][i][0]=lcao[2*j];
+							LCAO_all[kp_index-1][lcao_index+j][i][1]=lcao[2*j+1];
+							lcao_remaining_tmp--;
+						}
+					}else{
+						printf("Error in parsing LCAO coefficients\n");
+						return 0;
+					}
+					break;
+				case 1:
+					// spinPol on
+					if(sscanf_result==2*min(4, lcao_remaining)){
+						int lcao_remaining_tmp=lcao_remaining;
+						for(j=0; (j<4 && lcao_remaining_tmp>0); j++){
+							if(loadingUp_l){
+								LCAOUp_all[kp_index-1][lcao_index+j][i][0]=lcao[2*j];
+								LCAOUp_all[kp_index-1][lcao_index+j][i][1]=lcao[2*j+1];
+							}else{
+								LCAODn_all[kp_index-1][lcao_index+j][i][0]=lcao[2*j];
+								LCAODn_all[kp_index-1][lcao_index+j][i][1]=lcao[2*j+1];
+							}
+							lcao_remaining_tmp--;
+						}
+					}else{
+						printf("Error in parsing LCAO coefficients\n");
+						// cout << flag << endl;
+						return 0;
+					}
+					break;
+				case 2:
+					// spinPol nc
+					if(sscanf_result==4*min(2, lcao_remaining)){
+						int lcao_remaining_tmp=lcao_remaining;
+						for(j=0; (j<2 && lcao_remaining_tmp>0); j++){
+							LCAO_all[kp_index-1][lcao_index+j][i][0]=lcao[4*j];
+							LCAO_all[kp_index-1][lcao_index+j][i][1]=lcao[4*j+1];
+							LCAO_all[kp_index-1][lcao_index+j][i][2]=lcao[4*j+2];
+							LCAO_all[kp_index-1][lcao_index+j][i][3]=lcao[4*j+3];
+							lcao_remaining_tmp--;
+						}
+					}else{
+						printf("Error in parsing LCAO coefficients\n");
+						return 0;
+					}
+					break;
+				}
 			}
 
+			// update lcao_index and lcao_remaining
+			if(spinPol_i==2){
+				if(lcao_remaining<2){
+					lcao_index+=lcao_remaining;
+					lcao_remaining=0;
+				}else{
+					lcao_index+=2;
+					lcao_remaining-=2;
+				}
+			}else{
+				if(lcao_remaining<4){
+					lcao_index+=lcao_remaining;
+					lcao_remaining=0;
+				}else{
+					lcao_index+=4;
+					lcao_remaining-=4;
+				}
+				if(lcao_remaining==0 && spinPol_i==1 && loadingUp_l){
+					loadingUp_l=false;
+					lcao_remaining=numBands;
+					lcao_index=0;
+					// cout << "!!" << endl;
+				}
+			}
+			// cout << lcao_remaining << endl;
 			// skip 2 rows
 			for(i=0; i<2; i++){
 				readLine(&outOpenMX, line_c, bufSize);
@@ -617,7 +732,6 @@ int main(int argc, const char** argv){
 		
 	}
 
-	
 	// group /Output
 	Group OutputG(output.createGroup("/Output"));
 
@@ -629,6 +743,79 @@ int main(int argc, const char** argv){
 		w_data_2d(OutputG, "BandDn", total_count, numBands, (double**)BandDn);
 	}else{
 		w_data_2d(OutputG, "Band", total_count, numBands, (double**)Band);
+	}
+
+	// LCAO data
+	// For the conversion from px, py, pz to p(l=-1, 0, 1), see openmx/source/AngularF.c
+	Group LCAOG(OutputG.createGroup("LCAO"));
+	int specIndex=0;
+	char groupName[itemSize];
+	char datasetName[itemSize];
+	int lcao_index=0;
+	int twoLp1;
+	int ip, jp, kp;
+	for(i=0; i<atomNum; i++){
+		for(j=0; j<specNum; j++){
+			if(strcmp(atoms[i], species[j][0])==0){
+				specIndex=j;
+				break;
+			}
+		}
+		sprintf(groupName, "%d_%s", (i+1), atoms[i]);
+		Group atomG(LCAOG.createGroup(groupName));
+		for(j=0; j<strlen(species[specIndex][2]); j+=2){
+			char orbitLabel=species[specIndex][2][j];
+			char numLabel[1]={species[specIndex][2][j+1]};
+			for(k=0; k<atoi(numLabel); k++){
+				// printf("%s %c %d\n", atoms[i], orbitLabel, k);
+				if(orbitLabel=='s'){
+					twoLp1=1;
+				}else if(orbitLabel=='p'){
+					twoLp1=3;
+				}else if(orbitLabel=='d'){
+					twoLp1=5;
+				}else if(orbitLabel=='f'){
+					twoLp1=7;
+				}
+				if(spinPol_i!=1){
+					sprintf(datasetName, "%c%d", orbitLabel, k);
+					int digit=(spinPol_i==2)?4:2;
+					double LCAO_ext[total_count][numBands][twoLp1][digit];
+					for(l=0; l<twoLp1; l++){
+						for(ip=0; ip<total_count; ip++){
+							for(jp=0; jp<numBands; jp++){
+								for(kp=0; kp<digit; kp++){
+									LCAO_ext[ip][jp][l][kp]=LCAO_all[ip][jp][lcao_index+l][kp];
+								}
+							}
+						}
+					}
+					lcao_index+=l;
+					w_data_4d(atomG, datasetName, total_count, numBands, twoLp1, digit, (double****)LCAO_ext);
+				}else{
+					// spinPol_i=1
+					double LCAOUp_ext[total_count][numBands][twoLp1][2];
+					double LCAODn_ext[total_count][numBands][twoLp1][2];
+					for(l=0; l<twoLp1; l++){
+						for(ip=0; ip<total_count; ip++){
+							for(jp=0; jp<numBands; jp++){
+								for(kp=0; kp<2; kp++){
+									LCAOUp_ext[ip][jp][l][kp]=LCAOUp_all[ip][jp][lcao_index+l][kp];
+									LCAODn_ext[ip][jp][l][kp]=LCAODn_all[ip][jp][lcao_index+l][kp];
+								}
+							}
+						}
+					}
+					lcao_index+=l;
+					sprintf(datasetName, "%c%dUp", orbitLabel, k);
+					w_data_4d(atomG, datasetName, total_count, numBands, twoLp1, 2, (double****)LCAOUp_ext);
+					sprintf(datasetName, "%c%dDn", orbitLabel, k);
+					w_data_4d(atomG, datasetName, total_count, numBands, twoLp1, 2, (double****)LCAODn_ext);
+					
+				}
+			}
+		}
+		
 	}
 
 	// atts @/Output
@@ -656,4 +843,89 @@ bool readLine(ifstream* fp, char* line_c, int bufSize){
 	}else{
 		return false;
 	}
+}
+
+void convertWfn(double**** LCAO_ext, int total_count, int numBands, int nSpin, int twoLp1){
+	int ip, jp, kp;
+	for(ip=0; ip<total_count; ip++){
+		for(jp=0; jp<numBands; jp++){
+			for(kp=0; kp<nSpin*2; kp+=2){
+				printf("%d %d %d\n", ip, jp, kp);
+				complex<double> px(0), py(0), pz(0);
+				complex<double> d3z2r2, dx2y2, dxy, dxz, dyz;
+				complex<double> f5z23r2, f5xz2xr2, f5yz2yr2, fzx2zy2, fxyz,fx33xy2, f3yx2y3;
+				complex<double> lm3, lm2, lm1, lp0, lp1, lp2, lp3;
+				complex<double> im(0,1);
+				complex<double> hello=(3,2);
+					cout << px << endl;
+				switch(twoLp1){
+				case 1:
+					// s orbital: nothing to do
+					break;
+				case 3:
+					// p orbital: px (cos P), py (sin P), pz (1)
+				printf("%d %d %d\n", ip, jp, kp);
+				cout << LCAO_ext << endl;
+				cout << LCAO_ext[ip] << endl;
+				cout << LCAO_ext[ip][jp] << endl;
+				cout << LCAO_ext[ip][jp][0] << endl;
+					px=(LCAO_ext[ip][jp][0][kp], LCAO_ext[ip][jp][0][kp+1]);
+					py=(LCAO_ext[ip][jp][1][kp], LCAO_ext[ip][jp][1][kp+1]);
+					pz=(LCAO_ext[ip][jp][2][kp], LCAO_ext[ip][jp][2][kp+1]);
+					cout << px << endl;
+					lm1=(px-im*py)/sqrt(2);
+					lp0=pz;
+					lp1=(px+im*py)/sqrt(2);
+					LCAO_ext[ip][jp][0][kp]=lm1.real(); LCAO_ext[ip][jp][0][kp+1]=lm1.imag();
+					LCAO_ext[ip][jp][1][kp]=lp0.real(); LCAO_ext[ip][jp][1][kp+1]=lp0.imag();
+					LCAO_ext[ip][jp][2][kp]=lp1.real(); LCAO_ext[ip][jp][2][kp+1]=lp1.imag();
+					break;
+				case 5:
+					// d orbital: d3z^2-r^2 (1), dx^2-y^2 (cos 2P), xy (sin 2P), xz (cos P), yz (sin P)
+					d3z2r2=(LCAO_ext[ip][jp][0][kp], LCAO_ext[ip][jp][0][kp+1]);
+					dx2y2 =(LCAO_ext[ip][jp][1][kp], LCAO_ext[ip][jp][1][kp+1]);
+					dxy   =(LCAO_ext[ip][jp][2][kp], LCAO_ext[ip][jp][2][kp+1]);
+					dxz   =(LCAO_ext[ip][jp][3][kp], LCAO_ext[ip][jp][3][kp+1]);
+					dyz   =(LCAO_ext[ip][jp][4][kp], LCAO_ext[ip][jp][4][kp+1]);
+					lm2=(dx2y2-im*dxy)/sqrt(2);
+					lm1=(dxz-im*dyz)/sqrt(2);
+					lp0=d3z2r2;
+					lp1=(dxz+im*dyz)/sqrt(2);
+					lp2=(dx2y2+im*dxy)/sqrt(2);
+					LCAO_ext[ip][jp][0][kp]=lm2.real(); LCAO_ext[ip][jp][0][kp+1]=lm2.imag();
+					LCAO_ext[ip][jp][1][kp]=lm1.real(); LCAO_ext[ip][jp][1][kp+1]=lm1.imag();
+					LCAO_ext[ip][jp][2][kp]=lp0.real(); LCAO_ext[ip][jp][2][kp+1]=lp0.imag();
+					LCAO_ext[ip][jp][3][kp]=lp1.real(); LCAO_ext[ip][jp][3][kp+1]=lp1.imag();
+					LCAO_ext[ip][jp][4][kp]=lp2.real(); LCAO_ext[ip][jp][4][kp+1]=lp2.imag();
+					break;
+				case 7:
+					// f orbital: f5z23r2 (1), f5xy2xr2 (cos P), f5yz2yr2 (sin P),
+					//            fzx2zy2 (cos 2P), fxyz (sin 2P), fx33xy2 (cos 3P), f3yx2y3 (sin 3P)
+					f5z23r2 =(LCAO_ext[ip][jp][0][kp], LCAO_ext[ip][jp][0][kp+1]);
+					f5xz2xr2=(LCAO_ext[ip][jp][1][kp], LCAO_ext[ip][jp][1][kp+1]);
+					f5yz2yr2=(LCAO_ext[ip][jp][2][kp], LCAO_ext[ip][jp][2][kp+1]);
+					fzx2zy2 =(LCAO_ext[ip][jp][3][kp], LCAO_ext[ip][jp][3][kp+1]);
+					fxyz    =(LCAO_ext[ip][jp][4][kp], LCAO_ext[ip][jp][4][kp+1]);
+					fx33xy2 =(LCAO_ext[ip][jp][5][kp], LCAO_ext[ip][jp][5][kp+1]);
+					f3yx2y3 =(LCAO_ext[ip][jp][6][kp], LCAO_ext[ip][jp][6][kp+1]);
+					lm3=(fx33xy2-im*f3yx2y3)/sqrt(2);
+					lm2=(fzx2zy2-im*fxyz)/sqrt(2);
+					lm1=(f5xz2xr2-im*f5yz2yr2)/sqrt(2);
+					lp0=f5z23r2;
+					lp1=(f5xz2xr2+im*f5yz2yr2)/sqrt(2);
+					lp2=(fzx2zy2+im*fxyz)/sqrt(2);
+					lp3=(fx33xy2+im*f3yx2y3)/sqrt(2);
+					LCAO_ext[ip][jp][0][kp]=lm3.real(); LCAO_ext[ip][jp][0][kp+1]=lm3.imag();
+					LCAO_ext[ip][jp][1][kp]=lm2.real(); LCAO_ext[ip][jp][1][kp+1]=lm2.imag();
+					LCAO_ext[ip][jp][2][kp]=lm1.real(); LCAO_ext[ip][jp][2][kp+1]=lm1.imag();
+					LCAO_ext[ip][jp][3][kp]=lp0.real(); LCAO_ext[ip][jp][3][kp+1]=lp0.imag();
+					LCAO_ext[ip][jp][4][kp]=lp1.real(); LCAO_ext[ip][jp][4][kp+1]=lp1.imag();
+					LCAO_ext[ip][jp][5][kp]=lp2.real(); LCAO_ext[ip][jp][5][kp+1]=lp2.imag();
+					LCAO_ext[ip][jp][6][kp]=lp3.real(); LCAO_ext[ip][jp][6][kp+1]=lp3.imag();
+					break;
+				}
+			}
+		}
+	}
+
 }

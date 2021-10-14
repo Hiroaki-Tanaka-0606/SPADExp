@@ -33,7 +33,7 @@ def openFile(win):
         with h5py.File(selectedFile, "r") as f:
             unit=str(f["Input"]["UnitCells"].attrs["Unit"])
             win.plot.setLabel(axis="bottom", text=("Wavevector ({0:s}^-1)").format(unit))
-            BandCell=np.array(f["Input"]["UnitCells"].attrs["Bands"])
+            BandCell=np.array(f["Input"]["UnitCells"]["Bands"])
             Dimension=int(f["Input"]["Kpath"].attrs["Dimension"])
             Spin=str(f["Output"].attrs["Spin"])
             EF_Eh=float(f["Output"].attrs["EF_Eh"])
