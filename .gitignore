@@ -1,6 +1,7 @@
 *~
 *.o
 *.dat
+*.hdf5
 Test/
 Config.py
 __pycache__
