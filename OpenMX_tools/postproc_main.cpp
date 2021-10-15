@@ -183,9 +183,9 @@ int main(int argc, const char** argv){
 		j+=atomOrbits[i];
 		orbitIndices[i+1]=j;
 	}
-	for(i=0; i<atomNum; i++){
-		cout << orbitIndices[i] << endl;
-	}
+	// for(i=0; i<atomNum; i++){
+	// 	cout << orbitIndices[i] << endl;
+	// }
 	
 
 	if(load_str("Atoms.SpeciesAndCoordinates.Unit", atomUnit, valSize)==1){
@@ -528,15 +528,14 @@ int main(int argc, const char** argv){
 		}
 		// kp coordinates check
 		readLine(&outOpenMX, line_c, bufSize);
-		double kp_read[3];
-		if(sscanf(line_c, "%*s %lf %*s %lf %*s %lf", &kp_read[0], &kp_read[1], &kp_read[2])==3){
-			for(i=0; i<3; i++){
-				if(abs(kp_read[i]-kps[kp_index-1][i])>diff_threshold1){
-					printf("Error: kp coordinate mismatch\n");
-					return 0;
-				}
-			}
-		}else{
+		 double kp_read[3];
+		 if(sscanf(line_c, "%*s %lf %*s %lf %*s %lf", &kp_read[0], &kp_read[1], &kp_read[2])==3){
+			 /* for(i=0; i<3; i++){
+		 		if(abs(kp_read[i]-kps[kp_index-1][i])>diff_threshold1){
+		 			printf("Warning: kp coordinate mismatch\n");
+		 		}
+				}*/
+		 }else{
 			printf("Error: cannot find kp coordinate\n");
 			return 0;
 		}
@@ -864,11 +863,11 @@ void convertWfn(double**** LCAO_ext, int total_count, int numBands, int nSpin, i
 					break;
 				case 3:
 					// p orbital: px (cos P), py (sin P), pz (1)
-				printf("%d %d %d\n", ip, jp, kp);
-				cout << LCAO_ext << endl;
-				cout << LCAO_ext[ip] << endl;
-				cout << LCAO_ext[ip][jp] << endl;
-				cout << LCAO_ext[ip][jp][0] << endl;
+					printf("%d %d %d\n", ip, jp, kp);
+					cout << LCAO_ext << endl;
+					cout << LCAO_ext[ip] << endl;
+					cout << LCAO_ext[ip][jp] << endl;
+					cout << LCAO_ext[ip][jp][0] << endl;
 					px=(LCAO_ext[ip][jp][0][kp], LCAO_ext[ip][jp][0][kp+1]);
 					py=(LCAO_ext[ip][jp][1][kp], LCAO_ext[ip][jp][1][kp+1]);
 					pz=(LCAO_ext[ip][jp][2][kp], LCAO_ext[ip][jp][2][kp+1]);
