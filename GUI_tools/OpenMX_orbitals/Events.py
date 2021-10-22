@@ -11,6 +11,8 @@ import shutil
 from pyqtgraph.Qt import QtGui, QtCore, QtWidgets
 import pyqtgraph as pg
 import numpy as np
+import h5py
+from datetime import datetime
 
 def changeAtom(win):
     # QComboBox atomNumber is changed
@@ -86,11 +88,11 @@ def changeAnalysis(win):
         for l in range(0, PAO_after.PAO_Lmax+1):
             win.orbitalTable.setVerticalHeaderItem(l, QtGui.QTableWidgetItem(Config.azimuthal[l]))
             
-        for n in range(1, PAO_after.PAO_Mul+1):
+        for p in range(0, PAO_after.PAO_Mul):
             for l in range(0, PAO_after.PAO_Lmax+1):
-                item=QtGui.QTableWidgetItem(str(n)+Config.azimuthal[l])
+                item=QtGui.QTableWidgetItem(Config.azimuthal[l]+str(p))
                 item.setBackground(Config.unselected_item)
-                win.orbitalTable.setItem(l, n-1, item)
+                win.orbitalTable.setItem(l, p, item)
 
         # prepare matrixType combobox
         for l in range(0, PAO_after.PAO_Lmax+1):
@@ -150,11 +152,11 @@ def changeAnalysis(win):
         for l in range(0, Lmax+1):
             win.orbitalTable.setVerticalHeaderItem(l, QtGui.QTableWidgetItem(Config.azimuthal[l]))
             
-        for n in range(1, Mul+1):
+        for p in range(0, Mul):
             for l in range(0, Lmax+1):
-                item=QtGui.QTableWidgetItem(str(n)+Config.azimuthal[l])
+                item=QtGui.QTableWidgetItem(Config.azimuthal[l]+str(p))
                 item.setBackground(Config.unselected_item)
-                win.orbitalTable.setItem(l, n-1, item)
+                win.orbitalTable.setItem(l, p, item)
 
         # prepare matrixType combobox
         for l in range(0, PAO_before.PAO_Lmax+1):
@@ -214,11 +216,11 @@ def changeAnalysis(win):
         for l in range(0, Lmax+1):
             win.orbitalTable.setVerticalHeaderItem(l, QtGui.QTableWidgetItem(Config.azimuthal[l]))
             
-        for n in range(1, Mul+1):
+        for p in range(0, Mul):
             for l in range(0, Lmax+1):
-                item=QtGui.QTableWidgetItem(str(n)+Config.azimuthal[l])
+                item=QtGui.QTableWidgetItem(Config.azimuthal[l]+str(p))
                 item.setBackground(Config.unselected_item)
-                win.orbitalTable.setItem(l, n-1, item)
+                win.orbitalTable.setItem(l, p, item)
 
         # prepare matrixType combobox
         for l in range(0, PAO_after.PAO_Lmax+1):
@@ -359,12 +361,12 @@ def changeAnalysis(win):
             win.orbitalTable.setVerticalHeaderItem(l, QtGui.QTableWidgetItem(Config.azimuthal[l]))
 
             
-        for n in range(1, PAO_after.PAO_Mul+1):
+        for p in range(0, PAO_after.PAO_Mul):
             for l in range(0, PAO_after.PAO_Lmax+1):
-                item_str=str(n)+Config.azimuthal[l]                
+                item_str=Config.azimuthal[l]+str(p)
                 item=QtGui.QTableWidgetItem(item_str)
                 item.setBackground(Config.unselected_item)
-                win.orbitalTable.setItem(l, n-1, item)
+                win.orbitalTable.setItem(l, p, item)
 
 def selectOrbital(win, row, column):
     global Selected_orbitals
@@ -394,20 +396,20 @@ def drawOrbitalGraph(win):
                         win.orbitalGraph.plot(y=PAO_after.PAOs[l][mul]*PAO_after.r,\
                                               x=PAO_after.r,\
                                               pen=Config.pen_after,\
-                                              name=str(mul+1)+Config.azimuthal[l]+" after")
+                                              name=Config.azimuthal[l]+str(mul)+" after")
                         win.orbitalGraph.plot(y=PAO_before.PAOs[l][mul]*PAO_before.r,\
                                               x=PAO_before.r, \
                                               pen=Config.pen_before,\
-                                              name=str(mul+1)+Config.azimuthal[l]+" before")
+                                              name=Config.azimuthal[l]+str(mul)+" before")
                     else:
                         win.orbitalGraph.plot(y=PAO_after.PAOs[l][mul], \
                                               x=PAO_after.r, \
                                               pen=Config.pen_after, \
-                                              name=str(mul+1)+Config.azimuthal[l]+" after")
+                                              name=Config.azimuthal[l]+str(mul)+" after")
                         win.orbitalGraph.plot(y=PAO_before.PAOs[l][mul], \
                                               x=PAO_before.r, \
                                               pen=Config.pen_before, \
-                                              name=str(mul+1)+Config.azimuthal[l]+" before")
+                                              name=Config.azimuthal[l]+str(mul)+" before")
     elif analysisIndex==2: # PAO: Before optimization and from VPS
         win.orbitalGraph.clear()
         for l in range(0, len(Selected_orbitals)):
@@ -418,31 +420,31 @@ def drawOrbitalGraph(win):
                             win.orbitalGraph.plot(y=PAO_before.PAOs[l][mul]*PAO_before.r,\
                                                   x=PAO_before.r,\
                                                   pen=Config.pen_before,\
-                                                  name=str(mul+1)+Config.azimuthal[l]+" before")
+                                                  name=Config.azimuthal[l]+str(mul)+" before")
                             win.orbitalGraph.plot(y=PAO_reproduced[l][mul]*PAO_before.r,\
                                                   x=PAO_before.r,\
                                                   pen=pg.mkPen(color=Config.pen_reproduced,style=QtCore.Qt.DashLine),\
-                                                  name=str(mul+1)+Config.azimuthal[l]+" before (reproduced)")
+                                                  name=Config.azimuthal[l]+str(mul)+" before (reproduced)")
                         if l<len(PAO_fromVPS.PAOs) and mul<len(PAO_fromVPS.PAOs[l]):
                             win.orbitalGraph.plot(y=PAO_fromVPS.PAOs[l][mul]*PAO_fromVPS.r,\
                                                   x=PAO_fromVPS.r, \
                                                   pen=Config.pen_fromVPS,\
-                                                  name=str(mul+1)+Config.azimuthal[l]+" from VPS")
+                                                  name=Config.azimuthal[l]+str(mul)+" from VPS")
                     else:
                         if l<len(PAO_before.PAOs) and mul<len(PAO_before.PAOs[l]):
                             win.orbitalGraph.plot(y=PAO_before.PAOs[l][mul],\
                                                   x=PAO_before.r,\
                                                   pen=Config.pen_before,\
-                                                  name=str(mul+1)+Config.azimuthal[l]+" before")
+                                                  name=Config.azimuthal[l]+str(mul)+" before")
                             win.orbitalGraph.plot(y=PAO_reproduced[l][mul],\
                                                   x=PAO_before.r,\
                                                   pen=pg.mkPen(color=Config.pen_reproduced,style=QtCore.Qt.DashLine),\
-                                                  name=str(mul+1)+Config.azimuthal[l]+" before (reproduced)")
+                                                  name=Config.azimuthal[l]+str(mul)+" before (reproduced)")
                         if l<len(PAO_fromVPS.PAOs) and mul<len(PAO_fromVPS.PAOs[l]):
                             win.orbitalGraph.plot(y=PAO_fromVPS.PAOs[l][mul],\
                                                   x=PAO_fromVPS.r, \
                                                   pen=Config.pen_fromVPS,\
-                                                  name=str(mul+1)+Config.azimuthal[l]+" from VPS")
+                                                  name=Config.azimuthal[l]+str(mul)+" from VPS")
     elif analysisIndex==3: # PAO: After optimization and from VPS
         win.orbitalGraph.clear()
         for l in range(0, len(Selected_orbitals)):
@@ -454,31 +456,31 @@ def drawOrbitalGraph(win):
                             win.orbitalGraph.plot(y=PAO_after.PAOs[l][mul]*PAO_after.r,\
                                                   x=PAO_after.r,\
                                                   pen=Config.pen_after,\
-                                                  name=str(mul+1)+Config.azimuthal[l]+" after")
+                                                  name=Config.azimuthal[l]+str(mul)+" after")
                             win.orbitalGraph.plot(y=PAO_reproduced[l][mul]*PAO_after.r,\
                                                   x=PAO_after.r,\
                                                   pen=pg.mkPen(color=Config.pen_reproduced,style=QtCore.Qt.DashLine),\
-                                                  name=str(mul+1)+Config.azimuthal[l]+" after (reproduced)")
+                                                  name=Config.azimuthal[l]+str(mul)+" after (reproduced)")
                         if l<len(PAO_fromVPS.PAOs) and mul<len(PAO_fromVPS.PAOs[l]):
                             win.orbitalGraph.plot(y=PAO_fromVPS.PAOs[l][mul]*PAO_fromVPS.r,\
                                                   x=PAO_fromVPS.r, \
                                                   pen=Config.pen_fromVPS,\
-                                                  name=str(mul+1)+Config.azimuthal[l]+" from VPS")
+                                                  name=Config.azimuthal[l]+str(mul)+" from VPS")
                     else:
                         if l<len(PAO_after.PAOs) and mul<len(PAO_after.PAOs[l]):
                             win.orbitalGraph.plot(y=PAO_after.PAOs[l][mul],\
                                                   x=PAO_after.r,\
                                                   pen=Config.pen_after,\
-                                                  name=str(mul+1)+Config.azimuthal[l]+" after")
+                                                  name=Config.azimuthal[l]+str(mul)+" after")
                             win.orbitalGraph.plot(y=PAO_reproduced[l][mul],\
                                                   x=PAO_after.r,\
                                                   pen=pg.mkPen(color=Config.pen_reproduced,style=QtCore.Qt.DashLine),\
-                                                  name=str(mul+1)+Config.azimuthal[l]+" after (reproduced)")
+                                                  name=Config.azimuthal[l]+str(mul)+" after (reproduced)")
                         if l<len(PAO_fromVPS.PAOs) and mul<len(PAO_fromVPS.PAOs[l]):
                             win.orbitalGraph.plot(y=PAO_fromVPS.PAOs[l][mul],\
                                                   x=PAO_fromVPS.r, \
                                                   pen=Config.pen_fromVPS,\
-                                                  name=str(mul+1)+Config.azimuthal[l]+" from VPS")
+                                                  name=Config.azimuthal[l]+str(mul)+" from VPS")
 
     elif analysisIndex==4: # PAO and AO from VPS
         win.orbitalGraph.clear()
@@ -519,22 +521,22 @@ def drawOrbitalGraph(win):
                         win.orbitalGraph.plot(y=PAO_after.PAOs[l][mul]*PAO_after.r,\
                                               x=PAO_after.r,\
                                               pen=Config.pen_after,\
-                                              name=str(mul+1)+Config.azimuthal[l]+" PAO")
+                                              name=Config.azimuthal[l]+str(mul)+" PAO")
         
                         win.orbitalGraph.plot(y=PAO_reproduced[l][mul]*PAO_after.r,\
                                               x=PAO_after.r, \
                                               pen=Config.pen_fromVPS,\
-                                              name=str(mul+1)+Config.azimuthal[l]+" AO")
+                                              name=Config.azimuthal[l]+str(mul)+" AO")
                     else:
                         win.orbitalGraph.plot(y=PAO_after.PAOs[l][mul],\
                                               x=PAO_after.r,\
                                               pen=Config.pen_after,\
-                                              name=str(mul+1)+Config.azimuthal[l]+" PAO")
+                                              name=Config.azimuthal[l]+str(mul)+" PAO")
         
                         win.orbitalGraph.plot(y=PAO_reproduced[l][mul],\
                                               x=PAO_after.r, \
                                               pen=Config.pen_fromVPS,\
-                                              name=str(mul+1)+Config.azimuthal[l]+" AO")
+                                              name=Config.azimuthal[l]+str(mul)+" AO")
         
 def changeMatrix(win):
     # QComboBox matrixType is changed
@@ -937,3 +939,114 @@ def performCalculation_VPS(win):
 
     os.chdir(pwd)
     changeAnalysis(win)
+
+def outputToHdf5(win):
+    # output PAO and AO after optimization
+    # check whether "PAO and AO after optimization" is selected
+    global PAO_after
+    global PAO_reproduced
+    
+    analysisIndex=win.analysisType.currentIndex()
+    if analysisIndex!=5:
+        print("Error: 'PAO and AO after optimization' must be selected")
+        return
+
+    Z=win.atomNumber.currentIndex()
+    paoIndex=win.paoFile.currentIndex()
+    vpsIndex=win.vpsFile.currentIndex()
+    paoName=Config.paoArr[Z][paoIndex]
+    vpsName=Config.vpsArr[Z][vpsIndex]
+
+    paoPrefix=re.sub(r"\.pao$", "", paoName)
+    vpsPrefix=re.sub(r"\.vps$", "", vpsName)
+
+    groupName=paoPrefix+"&"+vpsPrefix
+    
+    # PAO_after.PAOs contains PAO after opt
+    # PAO_reproduced contains AO after opt
+    
+    # data in the HDF5 file
+    # PAO and AO are P(r) (= rR(r)) format
+    # (groupName) /s0 = [PAO, AO]
+    #             /s1 = [PAO, AO]
+    #             ...
+    #             /r (attribute)
+    #             /log_r (attribute)
+    #             /datetime (attribute)
+    #             /length (attribute) <- len(r) (= len(log_r) = len(PAO) = len(AO))
+
+    with h5py.File(Config.hdf5File, "a") as f:
+        # print(list(f.keys()))
+        if groupName in list(f.keys()):
+            print(("Group {0:s} exists, overwrite it").format(groupName))
+            del f[groupName]
+
+        f.create_group(groupName)
+        lSize=PAO_after.PAOs.shape[0]
+        mulSize=PAO_after.PAOs.shape[1]
+        rSize=PAO_after.r.shape[0]
+        PAO_and_AO=np.zeros((2,rSize))
+        for l in range(0, lSize):
+            for mul in range(0, mulSize):
+                datasetName=("{0:s}{1:d}").format(Config.azimuthal[l], mul)
+                for i in range(0, rSize):
+                    PAO_and_AO[0][i]=PAO_after.PAOs[l][mul][i]*PAO_after.r[i]
+                    PAO_and_AO[1][i]=PAO_reproduced[l][mul][i]*PAO_after.r[i]
+                f[groupName].create_dataset(datasetName, data=PAO_and_AO)
+        f[groupName].attrs.create("length", rSize)
+        f[groupName].attrs.create("r", PAO_after.r)
+        f[groupName].attrs.create("log_r", PAO_after.x)
+        f[groupName].attrs.create("datetime", datetime.now().isoformat(" "))
+        f[groupName].attrs.create("Z", Z)
+
+        print(("Output to the group {0:s} finished.").format(groupName))
+
+
+def createDatabase(win):
+    # calculate AO after opt and save data to the HDF5 file
+
+    for db in Config.database_list:
+        print(db)
+        win.analysisType.setCurrentIndex(0)
+        Z=db[0]
+        paoName=db[1]+".pao"
+        vpsName=db[2]+".vps"
+        win.atomNumber.setCurrentIndex(Z)
+        paoCount=win.paoFile.count()
+        vpsCount=win.vpsFile.count()
+        pao_found=False
+        vps_found=False
+        for p in range(0, paoCount):
+            if win.paoFile.itemText(p)==paoName:
+                win.paoFile.setCurrentIndex(p)
+                pao_found=True
+                break
+        if pao_found==False:
+            print(("Error: {0:s} not found").format(paoName))
+            return
+
+        for v in range(0, vpsCount):
+            if win.vpsFile.itemText(v)==vpsName:
+                win.vpsFile.setCurrentIndex(v)
+                vps_found=True
+                break
+        if vps_found==False:
+            print(("Error: {0:s} not found").format(vpsName))
+            return
+
+        # performCalculation_PAO(win)
+        # performCalculation_VPS(win)
+
+        win.analysisType.setCurrentIndex(5)
+        outputToHdf5(win)
+
+
+        
+
+
+
+
+
+        
+            
+

@@ -43,6 +43,7 @@ class MainWindow(QtWidgets.QMainWindow):
         zLabel=QtGui.QLabel("Atomic number")
         row2.addWidget(zLabel)
         self.atomNumber=QtGui.QComboBox()
+        self.atomNumber.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         row2.addWidget(self.atomNumber)
         for z, el in enumerate(Config.el_symbol):
             self.atomNumber.addItem(("{0:d}: {1:s}").format(z, el))
@@ -51,12 +52,14 @@ class MainWindow(QtWidgets.QMainWindow):
         pLabel=QtGui.QLabel("PAO file")
         row2.addWidget(pLabel)
         self.paoFile=QtGui.QComboBox()
+        self.paoFile.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         row2.addWidget(self.paoFile)
 
         ## VPS file
         vLabel=QtGui.QLabel("VPS file")
         row2.addWidget(vLabel)
         self.vpsFile=QtGui.QComboBox()
+        self.vpsFile.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         row2.addWidget(self.vpsFile)
 
         # Row 3: analysis type & calculation button
@@ -77,6 +80,13 @@ class MainWindow(QtWidgets.QMainWindow):
         
         self.calcButton_VPS=QtGui.QPushButton("Calculate for VPS")
         row3.addWidget(self.calcButton_VPS)
+
+        self.outToHdf5Button=QtGui.QPushButton("Output to the hdf5 file")
+        row3.addWidget(self.outToHdf5Button)
+
+        self.databaseButton=QtGui.QPushButton("Create database")
+        row3.addWidget(self.databaseButton)
+
 
         # Row 4: select orbitals
         row4=QtGui.QHBoxLayout()
@@ -217,6 +227,8 @@ win.vpsFile.currentIndexChanged.connect(lambda: Events.changeAnalysis(win))
 win.analysisType.currentIndexChanged.connect(lambda: Events.changeAnalysis(win))
 win.calcButton_PAO.clicked.connect(lambda: Events.performCalculation_PAO(win))
 win.calcButton_VPS.clicked.connect(lambda: Events.performCalculation_VPS(win))
+win.outToHdf5Button.clicked.connect(lambda: Events.outputToHdf5(win))
+win.databaseButton.clicked.connect(lambda: Events.createDatabase(win))
 win.orbitalTable.cellClicked.connect(lambda row, column: Events.selectOrbital(win, row, column))
 for b in win.radialType.buttons():
     b.clicked.connect(lambda: Events.drawOrbitalGraph(win))
