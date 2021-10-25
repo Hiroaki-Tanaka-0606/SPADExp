@@ -8,6 +8,8 @@ import h5py
 import math
 from scipy.stats import norm
 
+import pyqtgraph.opengl as gl
+
 import Config
 
 
@@ -410,11 +412,28 @@ def makeDispersion3(win):
         tr_E.translate(Xlength*Xrange[0]-dx_length/2,Ylength*Yrange[0]-dy_length/2)
         tr_E.scale(dx_length, dx_length)
         win.imgxy.setTransform(tr_E)
-        
+    else:
+        return
 
+    Maxpoint=Dispersion.max()
+
+    win.Cube=np.zeros((numPnts_kx, numPnts_ky, numPnts_E, 4))
+    win.Cube[:,:,:,0]=255
+    win.Cube[:,:,:,1]=255
+    win.Cube[:,:,:,2]=255
+    win.Cube[:,:,:,3]=Dispersion/Maxpoint*100
+    
+    win.bandCube=gl.GLVolumeItem(win.Cube)
+    win.bandCube.scale(dx_length, dx_length, EPixel)    
+    win.bandCube.translate(Xlength*Xrange[0]-dx_length/2,Ylength*Yrange[0]-dy_length/2,0)
+    win.plot3D.clear()
+    win.plot3D.addItem(win.bandCube)
     plot3(win)
 
 def plot3(win):
+
+    global Dispersion
+    Maxpoint=Dispersion.max()
 
     kx=win.kxIndex.value()
     ky=win.kyIndex.value()
@@ -422,6 +441,28 @@ def plot3(win):
     win.imgEx.setImage(Dispersion[:,ky,:])
     win.imgEy.setImage(Dispersion[kx,:,:])
     win.imgxy.setImage(Dispersion[:,:,ei])
+
+    win.Cube[:,:,:,0]=255
+    win.Cube[:,:,:,1]=255
+    win.Cube[:,:,:,2]=255
+    win.Cube[:,:,:,3]=Dispersion/Maxpoint*100
+
+    win.Cube[kx,:,:,0]=Config.pen1[0]
+    win.Cube[kx,:,:,1]=Config.pen1[1]
+    win.Cube[kx,:,:,2]=Config.pen1[2]
+    win.Cube[kx,:,:,3]=Config.gridAlpha
+
+    win.Cube[:,ky,:,0]=Config.pen2[0]
+    win.Cube[:,ky,:,1]=Config.pen2[1]
+    win.Cube[:,ky,:,2]=Config.pen2[2]
+    win.Cube[:,ky,:,3]=Config.gridAlpha
+
+    win.Cube[:,:,ei,0]=Config.pen3[0]
+    win.Cube[:,:,ei,1]=Config.pen3[1]
+    win.Cube[:,:,ei,2]=Config.pen3[2]
+    win.Cube[:,:,ei,3]=Config.gridAlpha
+
+    win.bandCube.setData(win.Cube)
 
     ExMax=Dispersion[:,ky,:].max()
     EyMax=Dispersion[kx,:,:].max()

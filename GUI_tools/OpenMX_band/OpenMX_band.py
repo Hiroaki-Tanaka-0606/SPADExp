@@ -80,7 +80,7 @@ class MainWindow(QtWidgets.QMainWindow):
         vbox.addLayout(row3)
 
         self.graphTab=QtGui.QTabWidget()
-        row3.addWidget(self.graphTab)
+        row3.addWidget(self.graphTab, 3)
         
         ## 2D
         self.plot=pg.PlotWidget()
@@ -105,9 +105,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plot.getAxis("bottom").setZValue(1)
         self.plot.getAxis("left").setZValue(1)
 
-        self.vLine=pg.InfiniteLine(angle=90, movable=False)
+        self.vLine=pg.InfiniteLine(angle=90, movable=False, pen=Config.pen1)
         self.plot.addItem(self.vLine, ignoreBounds=True)
-        self.hLine=pg.InfiniteLine(angle=0, movable=False)
+        self.hLine=pg.InfiniteLine(angle=0, movable=False, pen=Config.pen1)
         self.plot.addItem(self.hLine, ignoreBounds=True)
 
         ## 3D
@@ -187,24 +187,24 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plotxy.getAxis("left").setZValue(1)
 
         
-        self.vLineEx=pg.InfiniteLine(angle=90, movable=False)
+        self.vLineEx=pg.InfiniteLine(angle=90, movable=False, pen=Config.pen1)
         self.plotEx.addItem(self.vLineEx, ignoreBounds=True)
-        self.hLineEx=pg.InfiniteLine(angle=0, movable=False)
+        self.hLineEx=pg.InfiniteLine(angle=0, movable=False, pen=Config.pen1)
         self.plotEx.addItem(self.hLineEx, ignoreBounds=True)
 
-        self.vLineEy=pg.InfiniteLine(angle=90, movable=False)
+        self.vLineEy=pg.InfiniteLine(angle=90, movable=False, pen=Config.pen1)
         self.plotEy.addItem(self.vLineEy, ignoreBounds=True)
-        self.hLineEy=pg.InfiniteLine(angle=0, movable=False)
+        self.hLineEy=pg.InfiniteLine(angle=0, movable=False, pen=Config.pen1)
         self.plotEy.addItem(self.hLineEy, ignoreBounds=True)
 
-        self.vLinexy=pg.InfiniteLine(angle=90, movable=False)
+        self.vLinexy=pg.InfiniteLine(angle=90, movable=False, pen=Config.pen1)
         self.plotxy.addItem(self.vLinexy, ignoreBounds=True)
-        self.hLinexy=pg.InfiniteLine(angle=0, movable=False)
+        self.hLinexy=pg.InfiniteLine(angle=0, movable=False, pen=Config.pen1)
         self.plotxy.addItem(self.hLinexy, ignoreBounds=True)
 
-        self.bLineEx=pg.InfiniteLine(angle=0, movable=False, pen=(255,0,0))
+        self.bLineEx=pg.InfiniteLine(angle=0, movable=False, pen=Config.pen2)
         self.plotEx.addItem(self.bLineEx, ignoreBounds=True)
-        self.bLineEy=pg.InfiniteLine(angle=90, movable=False, pen=(255,0,0))
+        self.bLineEy=pg.InfiniteLine(angle=90, movable=False, pen=Config.pen2)
         self.plotEy.addItem(self.bLineEy, ignoreBounds=True)
 
         def changeKBIndices(e):
@@ -244,7 +244,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Row 3 right: properties
         vbox2=QtGui.QVBoxLayout()
         vbox2.setAlignment(QtCore.Qt.AlignTop)
-        row3.addLayout(vbox2)
+        row3.addLayout(vbox2, 1)
 
         ## row 1: k index
         row3r1=QtGui.QHBoxLayout()
