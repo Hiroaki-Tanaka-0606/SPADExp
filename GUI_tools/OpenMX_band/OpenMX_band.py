@@ -5,23 +5,11 @@
 # PyQt5 and PyqQtGraph are necessary
 from pyqtgraph.Qt import QtGui, QtCore, QtWidgets
 import pyqtgraph as pg
+import pyqtgraph.opengl as gl
+
 
 import Config
 import Events
-
-BandCell=None
-RecCell=None
-Band=None
-BandUp=None
-BandDn=None
-Dimension=0
-Spin=""
-Spin_i=0
-EF_Eh=0
-Dispersion=None
-Atoms=[]
-LCAO=[]
-LCAO_labels=[]
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, *args, **kwargs):
@@ -86,14 +74,19 @@ class MainWindow(QtWidgets.QMainWindow):
         row2.addWidget(self.plotButton)
 
 
-        # Row 3 left: graph
+        # Row 3 left: graph (2D / 3D)
         row3=QtGui.QHBoxLayout()
         row3.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row3)
+
+        self.graphTab=QtGui.QTabWidget()
+        row3.addWidget(self.graphTab)
         
+        ## 2D
         self.plot=pg.PlotWidget()
         self.img=pg.ImageItem()
-        row3.addWidget(self.plot)
+        # row3.addWidget(self.plot)
+        self.graphTab.addTab(self.plot, "2D")
         self.plot.addItem(self.img)
         
         labelStyle={"font-size":str(Config.fontSize_normal)+"px", "color": "white"}
@@ -117,17 +110,136 @@ class MainWindow(QtWidgets.QMainWindow):
         self.hLine=pg.InfiniteLine(angle=0, movable=False)
         self.plot.addItem(self.hLine, ignoreBounds=True)
 
+        ## 3D
+        ## the four panels are placed like the following
+        ## [3D] | [Ey] [xy]
+        ##      |      [Ex]
+
+        row3_3d=QtGui.QHBoxLayout()
+        row3_3d.setAlignment(QtCore.Qt.AlignLeft)
+
+        tabWidget=QtGui.QWidget()
+        tabWidget.setLayout(row3_3d)
+        self.graphTab.addTab(tabWidget, "3D")
+        
+        self.plot3D=gl.GLViewWidget()
+        self.plot3D.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        row3_3d.addWidget(self.plot3D)
+
+        self.plot3=pg.GraphicsLayoutWidget()
+        self.plot3.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        row3_3d.addWidget(self.plot3)
+
+        self.plotEy=self.plot3.addPlot()
+        self.plotxy=self.plot3.addPlot()
+        self.plot3.nextRow()
+        self.plot3.nextColumn()
+        self.plotEx=self.plot3.addPlot()
+
+        self.imgEx=pg.ImageItem()
+        self.imgEy=pg.ImageItem()
+        self.imgxy=pg.ImageItem()
+        self.plotEx.addItem(self.imgEx)
+        self.plotEy.addItem(self.imgEy)
+        self.plotxy.addItem(self.imgxy)
+
+        self.plotEx.setLabel(axis="left", text="E-EF (eV)")
+        self.plotEy.setLabel(axis="bottom", text="E-EF (eV)")
+        
+        self.plotEx.getAxis("bottom").setStyle(tickFont=font,tickLength=Config.tickLength)
+        self.plotEx.getAxis("left").setStyle(tickFont=font,tickLength=Config.tickLength)
+        self.plotEx.getAxis("bottom").setPen((255,255,255))
+        self.plotEx.getAxis("left").setPen((255,255,255))
+        self.plotEx.getAxis("bottom").setTextPen((255,255,255))
+        self.plotEx.getAxis("left").setTextPen((255,255,255))
+        self.plotEx.getAxis("bottom").setLabel(**labelStyle)
+        self.plotEx.getAxis("left").setLabel(**labelStyle)
+        self.plotEx.setLabel(axis="left", text="E-EF (eV)")
+        self.plotEx.showGrid(x=True, y=True, alpha=1.0)
+        self.plotEx.getAxis("bottom").setZValue(1)
+        self.plotEx.getAxis("left").setZValue(1)
+
+        
+        self.plotEy.getAxis("bottom").setStyle(tickFont=font,tickLength=Config.tickLength)
+        self.plotEy.getAxis("left").setStyle(tickFont=font,tickLength=Config.tickLength)
+        self.plotEy.getAxis("bottom").setPen((255,255,255))
+        self.plotEy.getAxis("left").setPen((255,255,255))
+        self.plotEy.getAxis("bottom").setTextPen((255,255,255))
+        self.plotEy.getAxis("left").setTextPen((255,255,255))
+        self.plotEy.getAxis("bottom").setLabel(**labelStyle)
+        self.plotEy.getAxis("left").setLabel(**labelStyle)
+        self.plotEy.setLabel(axis="bottom", text="E-EF (eV)")
+        self.plotEy.showGrid(x=True, y=True, alpha=1.0)
+        self.plotEy.getAxis("bottom").setZValue(1)
+        self.plotEy.getAxis("left").setZValue(1)
+
+        
+        self.plotxy.getAxis("bottom").setStyle(tickFont=font,tickLength=Config.tickLength)
+        self.plotxy.getAxis("left").setStyle(tickFont=font,tickLength=Config.tickLength)
+        self.plotxy.getAxis("bottom").setPen((255,255,255))
+        self.plotxy.getAxis("left").setPen((255,255,255))
+        self.plotxy.getAxis("bottom").setTextPen((255,255,255))
+        self.plotxy.getAxis("left").setTextPen((255,255,255))
+        self.plotxy.getAxis("bottom").setLabel(**labelStyle)
+        self.plotxy.getAxis("left").setLabel(**labelStyle)
+        self.plotxy.showGrid(x=True, y=True, alpha=1.0)
+        self.plotxy.getAxis("bottom").setZValue(1)
+        self.plotxy.getAxis("left").setZValue(1)
+
+        
+        self.vLineEx=pg.InfiniteLine(angle=90, movable=False)
+        self.plotEx.addItem(self.vLineEx, ignoreBounds=True)
+        self.hLineEx=pg.InfiniteLine(angle=0, movable=False)
+        self.plotEx.addItem(self.hLineEx, ignoreBounds=True)
+
+        self.vLineEy=pg.InfiniteLine(angle=90, movable=False)
+        self.plotEy.addItem(self.vLineEy, ignoreBounds=True)
+        self.hLineEy=pg.InfiniteLine(angle=0, movable=False)
+        self.plotEy.addItem(self.hLineEy, ignoreBounds=True)
+
+        self.vLinexy=pg.InfiniteLine(angle=90, movable=False)
+        self.plotxy.addItem(self.vLinexy, ignoreBounds=True)
+        self.hLinexy=pg.InfiniteLine(angle=0, movable=False)
+        self.plotxy.addItem(self.hLinexy, ignoreBounds=True)
+
+        self.bLineEx=pg.InfiniteLine(angle=0, movable=False, pen=(255,0,0))
+        self.plotEx.addItem(self.bLineEx, ignoreBounds=True)
+        self.bLineEy=pg.InfiniteLine(angle=90, movable=False, pen=(255,0,0))
+        self.plotEy.addItem(self.bLineEy, ignoreBounds=True)
+
         def changeKBIndices(e):
             if e.key()==QtCore.Qt.Key_Down:
                 self.bIndex.setValue(self.bIndex.value()-1)
             elif e.key()==QtCore.Qt.Key_Up:
                 self.bIndex.setValue(self.bIndex.value()+1)
             elif e.key()==QtCore.Qt.Key_Right:
-                self.kIndex.setValue(self.kIndex.value()+1)
+                self.kxIndex.setValue(self.kxIndex.value()+1)
             elif e.key()==QtCore.Qt.Key_Left:
-                self.kIndex.setValue(self.kIndex.value()-1)
+                self.kxIndex.setValue(self.kxIndex.value()-1)
+
+        def changeKXYIndices(e):
+            if e.key()==QtCore.Qt.Key_Down:
+                self.kyIndex.setValue(self.kyIndex.value()-1)
+            elif e.key()==QtCore.Qt.Key_Up:
+                self.kyIndex.setValue(self.kyIndex.value()+1)
+            elif e.key()==QtCore.Qt.Key_Right:
+                self.kxIndex.setValue(self.kxIndex.value()+1)
+            elif e.key()==QtCore.Qt.Key_Left:
+                self.kxIndex.setValue(self.kxIndex.value()-1)
+            elif e.key()==QtCore.Qt.Key_PageUp:
+                self.eIndex.setValue(self.eIndex.value()+1)
+            elif e.key()==QtCore.Qt.Key_PageDown:
+                self.eIndex.setValue(self.eIndex.value()-1)
+            elif e.key()==QtCore.Qt.Key_Home:
+                self.bIndex.setValue(self.bIndex.value()+1)
+            elif e.key()==QtCore.Qt.Key_End:
+                self.bIndex.setValue(self.bIndex.value()-1)
+            else:
+                return
+            Events.plot3(win)
                 
         self.plot.keyPressEvent=changeKBIndices
+        self.plot3.keyPressEvent=changeKXYIndices
 
         # Row 3 right: properties
         vbox2=QtGui.QVBoxLayout()
@@ -139,17 +251,27 @@ class MainWindow(QtWidgets.QMainWindow):
         row3r1.setAlignment(QtCore.Qt.AlignLeft)
         vbox2.addLayout(row3r1)
         
-        label3r1A=QtGui.QLabel("k index")
+        label3r1A=QtGui.QLabel("kx index")
         row3r1.addWidget(label3r1A)
-        self.kIndex=QtGui.QSpinBox()
-        self.kIndex.setSingleStep(1)
-        self.kIndex.setMinimum(0)
-        row3r1.addWidget(self.kIndex)
+        self.kxIndex=QtGui.QSpinBox()
+        self.kxIndex.setSingleStep(1)
+        self.kxIndex.setMinimum(0)
+        row3r1.addWidget(self.kxIndex)
 
-        self.kValue=QtGui.QLabel()
-        row3r1.addWidget(self.kValue)
+        self.kxValue=QtGui.QLabel()
+        row3r1.addWidget(self.kxValue)
 
-        ## row 2: band index
+        label3r1B=QtGui.QLabel("ky index")
+        row3r1.addWidget(label3r1B)
+        self.kyIndex=QtGui.QSpinBox()
+        self.kyIndex.setSingleStep(1)
+        self.kyIndex.setMinimum(0)
+        row3r1.addWidget(self.kyIndex)
+
+        self.kyValue=QtGui.QLabel()
+        row3r1.addWidget(self.kyValue)
+
+        ## row 2: band index and Constant energy index
         row3r2=QtGui.QHBoxLayout()
         row3r2.setAlignment(QtCore.Qt.AlignLeft)
         vbox2.addLayout(row3r2)
@@ -162,6 +284,15 @@ class MainWindow(QtWidgets.QMainWindow):
         row3r2.addWidget(self.bIndex)
         self.bValue=QtGui.QLabel()
         row3r2.addWidget(self.bValue)
+
+        label3r2B=QtGui.QLabel("Energy index")
+        row3r2.addWidget(label3r2B)
+        self.eIndex=QtGui.QSpinBox()
+        self.eIndex.setSingleStep(1)
+        self.eIndex.setMinimum(0)
+        row3r2.addWidget(self.eIndex)
+        self.eValue=QtGui.QLabel()
+        row3r2.addWidget(self.eValue)
 
         ## row 3: Up or Dn
         row3r3=QtGui.QHBoxLayout()
@@ -204,12 +335,35 @@ font.setFamilies(Config.fontFamilies)
 win.setFont(font)
 
 win.openFileButton.clicked.connect(lambda: Events.openFile(win))
-win.plotButton.clicked.connect(lambda: Events.plot(win))
 
-win.kIndex.valueChanged.connect(lambda: Events.drawCursor(win))
-win.bIndex.valueChanged.connect(lambda: Events.drawCursor(win))
-win.UpButton.clicked.connect(lambda: Events.drawCursor(win))
-win.DnButton.clicked.connect(lambda: Events.drawCursor(win))
+def plotEvent(win):
+    if Events.Dimension==1:
+        Events.plot(win)
+        win.graphTab.setCurrentIndex(0)
+    elif Events.Dimension==2:
+        Events.makeDispersion3(win)
+        win.graphTab.setCurrentIndex(1)
+    else:
+        print("Dimension error")
+        return
+
+def cursorEvent(win):
+    if Events.Dimension==1:
+        Events.drawCursor(win)
+    elif Events.Dimension==2:
+        Events.drawCursor3(win)
+    else:
+        print("Dimension error")
+        return
+
+win.plotButton.clicked.connect(lambda: plotEvent(win))
+
+win.kxIndex.valueChanged.connect(lambda: cursorEvent(win))
+win.kyIndex.valueChanged.connect(lambda: cursorEvent(win))
+win.bIndex.valueChanged.connect(lambda: cursorEvent(win))
+win.eIndex.valueChanged.connect(lambda: cursorEvent(win))
+win.UpButton.clicked.connect(lambda: cursorEvent(win))
+win.DnButton.clicked.connect(lambda: cursorEvent(win))
 win.Atom.currentIndexChanged.connect(lambda: Events.makeLCAOTable(win))
 
 pg.setConfigOptions(antialias=True)
