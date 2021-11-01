@@ -50,8 +50,15 @@ def changeAnalysis(win):
     Z=win.atomNumber.currentIndex()
     paoIndex=win.paoFile.currentIndex()
     vpsIndex=win.vpsFile.currentIndex()
-    paoName=Config.paoArr[Z][paoIndex]
-    vpsName=Config.vpsArr[Z][vpsIndex]
+    if 0<=paoIndex and paoIndex<len(Config.paoArr[Z]):
+        paoName=Config.paoArr[Z][paoIndex]
+    else:
+        return
+        
+    if 0<=vpsIndex and vpsIndex<len(Config.vpsArr[Z]):
+        vpsName=Config.vpsArr[Z][vpsIndex]
+    else:
+        return
     
     if analysisIndex==1: # PAO: Before and after optimization
         win.matrixType.clear()
