@@ -245,8 +245,9 @@ int main(int argc, const char** argv){
 				q=yMin+dq*j;
 				// cout << p << " " << q << endl;
 				r_Kp=calcKp(p, q, r_X, r_Y, r_O, origin_frac, x_frac, y_frac, curved, kp);
-				sprintf(writeBuf, "%11.5f %11.5f %11.5f # r = %11.5f", kp[0], kp[1], kp[2], r_Kp);
-				output << writeBuf << endl;					
+				sprintf(writeBuf, "%11.5f %11.5f %11.5f", kp[0], kp[1], kp[2]);
+				output << writeBuf << endl;
+				printf("%s # r = %11.5f\n", writeBuf, r_Kp);
 			}
 		}
 	}else{

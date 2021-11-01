@@ -30,7 +30,7 @@ class PAO_parser:
             # number.optpao
             while optimized:
                 line=f.readline()
-                re_result=re.findall(r"^number\.optpao\s*(\d+)", line)
+                re_result=re.findall(r"number\.optpao\s*(\d+)", line)
                 if len(re_result)>0:
                     self.number_optpao=int(re_result[0])
                     print(("number.optpao is {0:d}").format(self.number_optpao))
@@ -43,7 +43,7 @@ class PAO_parser:
             ccoes=[]
             # Contraction.coefficients
             for cindex in range(1, self.number_optpao+1):
-                while len(re.findall(r"^<Contraction.coefficients"+str(cindex), line))==0:
+                while len(re.findall(r"<Contraction.coefficients"+str(cindex), line))==0:
                     line=f.readline()
                 num_rows=int(f.readline())
                 for lindex in range(0, num_rows):
@@ -60,7 +60,7 @@ class PAO_parser:
                                   int(re_result[0][1]),\
                                   float(re_result[0][2])])
                 line=f.readline()
-                if len(re.findall(r"^Contraction.coefficients"+str(cindex)+">", line))==1:
+                if len(re.findall(r"Contraction.coefficients"+str(cindex)+">", line))==1:
                     print(("Reading contraction coefficients {0:d} finished").format(cindex))
                 else:
                     print("Error in reading Contraction.coefficients")
@@ -97,7 +97,7 @@ class PAO_parser:
             
             while True:
                 line=f.readline()
-                re_result=re.findall(r"^<pseudo.NandL", line)
+                re_result=re.findall(r"<pseudo.NandL", line)
                 if len(re_result)>0:
                     for i in range(0, number_vps):
                         line=f.readline()
@@ -107,7 +107,7 @@ class PAO_parser:
                             if maxL<int(re_result[0][1]):
                                 maxL=int(re_result[0][1])
                     line=f.readline()
-                    re_result=re.findall("^pseudo.NandL>", line)
+                    re_result=re.findall("pseudo.NandL>", line)
                     if len(re_result)==0:
                         print("Error in pseudo.NandL")
                         return
@@ -199,7 +199,7 @@ class PAO_parser:
             for l in range(0, self.PAO_Lmax+1):
                 while True:
                     line=f.readline()
-                    re_result=re.findall(r"^<pseudo\.atomic\.orbitals\.L="+str(l), line)
+                    re_result=re.findall(r"<pseudo\.atomic\.orbitals\.L="+str(l), line)
                     if len(re_result)>0:
                         break
                     if len(line)==0:

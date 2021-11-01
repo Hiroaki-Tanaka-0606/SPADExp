@@ -739,7 +739,7 @@ def performCalculation_PAO(win):
             while line[0] != "#":
                 line=f1.readline()
             while len(re.findall(r"^\*{32}", line))==0 and len(line)>0:
-                re_result=re.findall(r"^System.Name\s*(\S*).*$", line)
+                re_result=re.findall(r"System\.Name\s*(\S*).*$", line)
                 if len(re_result)>0:
                     sysName=re_result[0]
                     print(("System name is {0:s}").format(sysName))
@@ -791,10 +791,12 @@ def performCalculation_VPS(win):
                 if len(line)==0:
                     print("Error: cannot find input parameters")
                     return
-            while line[0] != "#":
-                line=f1.readline()
+            line=f1.readline()
+            line=f1.readline()
+            # while line[0] != "#":
+            #     line=f1.readline()
             while len(re.findall(r"^\*{32}", line))==0 and len(line)>0:
-                re_result=re.findall(r"^System\.Name\s*(\S*).*$", line)
+                re_result=re.findall(r"System\.Name\s*(\S*).*$", line)
                 if len(re_result)>0:
                     sysName=re_result[0]
                     print(("System name is {0:s}").format(sysName))
@@ -850,10 +852,12 @@ def performCalculation_VPS(win):
                 if len(line)==0:
                     print("Error: cannot find input parameters")
                     return
-            while line[0] != "#":
-                line=f1.readline()
+            line=f1.readline()
+            line=f1.readline()
+            # while line[0] != "#":
+            #    line=f1.readline()
             while len(re.findall(r"^\*{32}", line))==0 and len(line)>0:
-                re_result=re.findall(r"^System\.Name\s*(\S*).*$", line)
+                re_result=re.findall(r"System\.Name\s*(\S*).*$", line)
                 if len(re_result)>0:
                     sysName=re_result[0]
                     print(("System name is {0:s}").format(sysName))
@@ -1034,8 +1038,8 @@ def createDatabase(win):
             print(("Error: {0:s} not found").format(vpsName))
             return
 
-        # performCalculation_PAO(win)
-        # performCalculation_VPS(win)
+        performCalculation_PAO(win)
+        performCalculation_VPS(win)
 
         win.analysisType.setCurrentIndex(5)
         outputToHdf5(win)

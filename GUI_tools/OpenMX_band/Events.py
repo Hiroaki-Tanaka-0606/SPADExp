@@ -410,7 +410,7 @@ def makeDispersion3(win):
 
         tr_E=QtGui.QTransform()
         tr_E.translate(Xlength*Xrange[0]-dx_length/2,Ylength*Yrange[0]-dy_length/2)
-        tr_E.scale(dx_length, dx_length)
+        tr_E.scale(dx_length, dy_length)
         win.imgxy.setTransform(tr_E)
     else:
         return
