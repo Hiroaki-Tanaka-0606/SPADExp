@@ -14,6 +14,16 @@ import numpy as np
 import h5py
 from datetime import datetime
 
+# objects
+PAO_after=None
+PAO_before=None
+PAO_fromVPS=None
+Calc_CCoes=None
+PAO_reproduced=None
+AO_fromVPS=None
+Selected_orbitals=None
+analysis_succeeded=False
+
 def changeAtom(win):
     # QComboBox atomNumber is changed
 
@@ -38,6 +48,8 @@ def clearAll(win):
     
 def changeAnalysis(win):
     # QComboBox analysisType is changed
+    global analysis_succeeded
+    analysis_succeeded=False
 
     global PAO_after
     global PAO_before
@@ -374,7 +386,9 @@ def changeAnalysis(win):
                 item=QtGui.QTableWidgetItem(item_str)
                 item.setBackground(Config.unselected_item)
                 win.orbitalTable.setItem(l, p, item)
-
+                
+    analysis_succeeded=True
+    
 def selectOrbital(win, row, column):
     global Selected_orbitals
     if Selected_orbitals[row][column]==0:
@@ -1015,7 +1029,8 @@ def outputToHdf5(win):
 
 def createDatabase(win):
     # calculate AO after opt and save data to the HDF5 file
-
+    global analysis_succeeded
+    
     for db in Config.database_list:
         print(db)
         win.analysisType.setCurrentIndex(0)
@@ -1049,7 +1064,11 @@ def createDatabase(win):
         performCalculation_VPS(win)
 
         win.analysisType.setCurrentIndex(5)
-        outputToHdf5(win)
+        if analysis_succeeded==True:
+            outputToHdf5(win)
+        else:
+            print("Creation of database terminated due to error(s)")
+            return
 
 
         

@@ -209,14 +209,6 @@ for Kr_pao in Config.paoArr[36]:
 for paoList in Config.paoArr:
     paoList.sort()
 
-# objects
-PAO_after=None
-PAO_before=None
-PAO_fromVPS=None
-Calc_CCoes=None
-PAO_reproduced=None
-AO_fromVPS=None
-Selected_orbitals=None
 
 # Event
 win.atomNumber.currentIndexChanged.connect(lambda: Events.changeAtom(win))
