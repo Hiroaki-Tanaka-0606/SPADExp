@@ -74,6 +74,9 @@ int main(int argc, const char** argv){
 	int specNum;
 	int atomNum;
 
+	int maxN;
+	int minN;
+
 	if(load_str("System.Name", sysName, valSize)==1){
 		printf("System.Name is %s\n", sysName);
 	}else{
@@ -273,6 +276,18 @@ int main(int argc, const char** argv){
 			return 0;
 	}
 
+	if(load_int("calcPSF.minN", &minN)==1){
+		printf("calcPSF.minN is %s\n", (curved ? "true": "false"));
+	}else{
+		return 0;
+	}
+
+	if(load_int("calcPSF.maxN", &maxN)==1){
+		printf("calcPSF.maxN is %s\n", (curved ? "true": "false"));
+	}else{
+		return 0;
+	}
+  
 	// printf("(%.3f, %.3f, %.3f) [%.3f, %.3f] %d\n", x_frac[0], x_frac[1], x_frac[2], xMin, xMax, x_count);
 	// printf("(%.3f, %.3f, %.3f) [%.3f, %.3f] %d\n", y_frac[0], y_frac[1], y_frac[2], yMin, yMax, y_count);
 
@@ -452,6 +467,8 @@ int main(int argc, const char** argv){
 	w_att_1d(KpathG, "Xrange", 2, xRange);
 	double yRange[2]={yMin, yMax};
 	w_att_1d(KpathG, "Yrange", 2, yRange);
+	w_att_int(KpathG, "minN", minN);
+	w_att_int(KpathG, "maxN", maxN);
 
 	// data @/Input/Kpath
 	w_data_2d(KpathG, "Coordinates", total_count, 3, (double**)kps);
@@ -466,14 +483,17 @@ int main(int argc, const char** argv){
 
 	// data loaded from the output file
 	int numBands= (spinPol_i==2) ? totalOrbits*2 : totalOrbits;
-	double Band[total_count][numBands];
-	double BandUp[total_count][numBands];
-	double BandDn[total_count][numBands];
+	int numBands_out= (spinPol_i==2) ? (maxN-minN+1)*2 : (maxN-minN+1);
+	double Band[total_count][numBands_out];
+	double BandUp[total_count][numBands_out];
+	double BandDn[total_count][numBands_out];
+	double eigen_lowerTop=0; // largest eigenvalue of band minN-1
+	double eigen_upperBottom=0; // smallest eigenvalue of band maxN+1
 
 	int digit=(spinPol_i==2)?4:2;
-	double LCAO_all[total_count][numBands][totalOrbits][digit];
-	double LCAOUp_all[total_count][numBands][totalOrbits][2];
-	double LCAODn_all[total_count][numBands][totalOrbits][2];
+	double LCAO_all[total_count][numBands_out][totalOrbits][digit];
+	double LCAOUp_all[total_count][numBands_out][totalOrbits][2];
+	double LCAODn_all[total_count][numBands_out][totalOrbits][2];
 
 	ifstream outOpenMX(outOpenMXPath);
 	string line;
@@ -573,7 +593,19 @@ int main(int argc, const char** argv){
 				// spinPol off: 4 values, only (U)
 				if(sscanf(line_c, "%lf %lf %lf %lf", &eigen[0], &eigen[1], &eigen[2], &eigen[3])==min(4, band_remaining)){
 					for(i=0; (i<4 && band_remaining>0); i++){
-						Band[kp_index-1][band_index]=eigen[i];
+						if(band_index>=minN && band_index<=maxN){
+							Band[kp_index-1][band_index-minN]=eigen[i];
+						}
+						if(band_index==minN-1){
+							if(kp_index==1 || eigen[i]>eigen_lowerTop){
+								eigen_lowerTop=eigen[i];
+							}
+						}
+						if(band_index==maxN+1){
+							if(kp_index==1 || eigen[i]<eigen_upperBottom){
+								eigen_upperBottom=eigen[i];
+							}
+						}
 						band_index++;
 						band_remaining--;
 					}
@@ -586,11 +618,23 @@ int main(int argc, const char** argv){
 				// sponPol on: 4 values, (U)s following (D)s
 				if(sscanf(line_c, "%lf %lf %lf %lf", &eigen[0], &eigen[1], &eigen[2], &eigen[3])==min(4, band_remaining)){
 					for(i=0; (i<4 && band_remaining>0); i++){
-						if(loadingUp){
-							BandUp[kp_index-1][band_index]=eigen[i];
-						}else{
-							BandDn[kp_index-1][band_index]=eigen[i];
-						}	
+						if(band_index>=minN && band_index<=maxN){
+							if(loadingUp){
+								BandUp[kp_index-1][band_index-minN]=eigen[i];
+							}else{
+								BandDn[kp_index-1][band_index-minN]=eigen[i];
+							}
+						}
+						if(band_index==minN-1){
+							if(kp_index==1 || eigen[i]>eigen_lowerTop){
+								eigen_lowerTop=eigen[i];
+							}
+						}
+						if(band_index==maxN+1){
+							if(kp_index==1 || eigen[i]<eigen_upperBottom){
+								eigen_upperBottom=eigen[i];
+							}
+						}
 						band_index++;
 						band_remaining--;
 					}
@@ -608,7 +652,19 @@ int main(int argc, const char** argv){
 				// spinPol nc: 2 values
 				if(sscanf(line_c, "%lf %lf", &eigen[0], &eigen[1])==min(2, band_remaining)){
 					for(i=0; (i<2 && band_remaining>0); i++){
-						Band[kp_index-1][band_index]=eigen[i];
+						if(band_index>=minN && band_index<=maxN){
+							Band[kp_index-1][band_index-minN]=eigen[i];
+						}
+						if(band_index==minN-1){
+							if(kp_index==1 || eigen[i]>eigen_lowerTop){
+								eigen_lowerTop=eigen[i];
+							}
+						}
+						if(band_index==maxN+1){
+							if(kp_index==1 || eigen[i]<eigen_upperBottom){
+								eigen_upperBottom=eigen[i];
+							}
+						}
 						band_index++;
 						band_remaining--;
 					}
@@ -648,8 +704,10 @@ int main(int argc, const char** argv){
 					if(sscanf_result==2*min(4, lcao_remaining)){
 						int lcao_remaining_tmp=lcao_remaining;
 						for(j=0; (j<4 && lcao_remaining_tmp>0); j++){
-							LCAO_all[kp_index-1][lcao_index+j][i][0]=lcao[2*j];
-							LCAO_all[kp_index-1][lcao_index+j][i][1]=lcao[2*j+1];
+							if(lcao_index+j>=minN && lcao_index+j<=maxN){
+								LCAO_all[kp_index-1][lcao_index+j-minN][i][0]=lcao[2*j];
+								LCAO_all[kp_index-1][lcao_index+j-minN][i][1]=lcao[2*j+1];
+							}
 							lcao_remaining_tmp--;
 						}
 					}else{
@@ -662,12 +720,14 @@ int main(int argc, const char** argv){
 					if(sscanf_result==2*min(4, lcao_remaining)){
 						int lcao_remaining_tmp=lcao_remaining;
 						for(j=0; (j<4 && lcao_remaining_tmp>0); j++){
-							if(loadingUp_l){
-								LCAOUp_all[kp_index-1][lcao_index+j][i][0]=lcao[2*j];
-								LCAOUp_all[kp_index-1][lcao_index+j][i][1]=lcao[2*j+1];
-							}else{
-								LCAODn_all[kp_index-1][lcao_index+j][i][0]=lcao[2*j];
-								LCAODn_all[kp_index-1][lcao_index+j][i][1]=lcao[2*j+1];
+							if(lcao_index+j>=minN && lcao_index+j<=maxN){
+								if(loadingUp_l){
+									LCAOUp_all[kp_index-1][lcao_index+j-minN][i][0]=lcao[2*j];
+									LCAOUp_all[kp_index-1][lcao_index+j-minN][i][1]=lcao[2*j+1];
+								}else{
+									LCAODn_all[kp_index-1][lcao_index+j-minN][i][0]=lcao[2*j];
+									LCAODn_all[kp_index-1][lcao_index+j-minN][i][1]=lcao[2*j+1];
+								}
 							}
 							lcao_remaining_tmp--;
 						}
@@ -682,10 +742,12 @@ int main(int argc, const char** argv){
 					if(sscanf_result==4*min(2, lcao_remaining)){
 						int lcao_remaining_tmp=lcao_remaining;
 						for(j=0; (j<2 && lcao_remaining_tmp>0); j++){
-							LCAO_all[kp_index-1][lcao_index+j][i][0]=lcao[4*j];
-							LCAO_all[kp_index-1][lcao_index+j][i][1]=lcao[4*j+1];
-							LCAO_all[kp_index-1][lcao_index+j][i][2]=lcao[4*j+2];
-							LCAO_all[kp_index-1][lcao_index+j][i][3]=lcao[4*j+3];
+							if(lcao_index+j>=minN && lcao_index+j<=maxN){
+								LCAO_all[kp_index-1][lcao_index+j-minN][i][0]=lcao[4*j];
+								LCAO_all[kp_index-1][lcao_index+j-minN][i][1]=lcao[4*j+1];
+								LCAO_all[kp_index-1][lcao_index+j-minN][i][2]=lcao[4*j+2];
+								LCAO_all[kp_index-1][lcao_index+j-minN][i][3]=lcao[4*j+3];
+							}
 							lcao_remaining_tmp--;
 						}
 					}else{
@@ -731,6 +793,15 @@ int main(int argc, const char** argv){
 		
 	}
 
+	// output lowerTop and upperBottom
+	if(minN>0){
+		printf("Largest eigenenergy in band minN-1 is %8.3f\n", (eigen_lowerTop-EF_Eh)*27.2114);
+	}
+	if(maxN<numBands-1){
+		printf("Smallest eigenenergy in band maxN+1 is %8.3f\n", (eigen_upperBottom-EF_Eh)*27.2114);
+	}
+
+	
 	// group /Output
 	Group OutputG(output.createGroup("/Output"));
 
@@ -738,10 +809,10 @@ int main(int argc, const char** argv){
 	
 	// band data
 	if(spinPol_i==1){
-		w_data_2d(OutputG, "BandUp", total_count, numBands, (double**)BandUp);
-		w_data_2d(OutputG, "BandDn", total_count, numBands, (double**)BandDn);
+		w_data_2d(OutputG, "BandUp", total_count, numBands_out, (double**)BandUp);
+		w_data_2d(OutputG, "BandDn", total_count, numBands_out, (double**)BandDn);
 	}else{
-		w_data_2d(OutputG, "Band", total_count, numBands, (double**)Band);
+		w_data_2d(OutputG, "Band", total_count, numBands_out, (double**)Band);
 	}
 
 	// LCAO data
@@ -779,10 +850,10 @@ int main(int argc, const char** argv){
 				if(spinPol_i!=1){
 					sprintf(datasetName, "%c%d", orbitLabel, k);
 					int digit=(spinPol_i==2)?4:2;
-					double LCAO_ext[total_count][numBands][twoLp1][digit];
+					double LCAO_ext[total_count][numBands_out][twoLp1][digit];
 					for(l=0; l<twoLp1; l++){
 						for(ip=0; ip<total_count; ip++){
-							for(jp=0; jp<numBands; jp++){
+							for(jp=0; jp<numBands_out; jp++){
 								for(kp=0; kp<digit; kp++){
 									LCAO_ext[ip][jp][l][kp]=LCAO_all[ip][jp][lcao_index+l][kp];
 								}
@@ -790,14 +861,14 @@ int main(int argc, const char** argv){
 						}
 					}
 					lcao_index+=l;
-					w_data_4d(atomG, datasetName, total_count, numBands, twoLp1, digit, (double****)LCAO_ext);
+					w_data_4d(atomG, datasetName, total_count, numBands_out, twoLp1, digit, (double****)LCAO_ext);
 				}else{
 					// spinPol_i=1
-					double LCAOUp_ext[total_count][numBands][twoLp1][2];
-					double LCAODn_ext[total_count][numBands][twoLp1][2];
+					double LCAOUp_ext[total_count][numBands_out][twoLp1][2];
+					double LCAODn_ext[total_count][numBands_out][twoLp1][2];
 					for(l=0; l<twoLp1; l++){
 						for(ip=0; ip<total_count; ip++){
-							for(jp=0; jp<numBands; jp++){
+							for(jp=0; jp<numBands_out; jp++){
 								for(kp=0; kp<2; kp++){
 									LCAOUp_ext[ip][jp][l][kp]=LCAOUp_all[ip][jp][lcao_index+l][kp];
 									LCAODn_ext[ip][jp][l][kp]=LCAODn_all[ip][jp][lcao_index+l][kp];
@@ -807,9 +878,9 @@ int main(int argc, const char** argv){
 					}
 					lcao_index+=l;
 					sprintf(datasetName, "%c%dUp", orbitLabel, k);
-					w_data_4d(atomG, datasetName, total_count, numBands, twoLp1, 2, (double****)LCAOUp_ext);
+					w_data_4d(atomG, datasetName, total_count, numBands_out, twoLp1, 2, (double****)LCAOUp_ext);
 					sprintf(datasetName, "%c%dDn", orbitLabel, k);
-					w_data_4d(atomG, datasetName, total_count, numBands, twoLp1, 2, (double****)LCAODn_ext);
+					w_data_4d(atomG, datasetName, total_count, numBands_out, twoLp1, 2, (double****)LCAODn_ext);
 					
 				}
 			}
@@ -842,89 +913,4 @@ bool readLine(ifstream* fp, char* line_c, int bufSize){
 	}else{
 		return false;
 	}
-}
-
-void convertWfn(double**** LCAO_ext, int total_count, int numBands, int nSpin, int twoLp1){
-	int ip, jp, kp;
-	for(ip=0; ip<total_count; ip++){
-		for(jp=0; jp<numBands; jp++){
-			for(kp=0; kp<nSpin*2; kp+=2){
-				printf("%d %d %d\n", ip, jp, kp);
-				complex<double> px(0), py(0), pz(0);
-				complex<double> d3z2r2, dx2y2, dxy, dxz, dyz;
-				complex<double> f5z23r2, f5xz2xr2, f5yz2yr2, fzx2zy2, fxyz,fx33xy2, f3yx2y3;
-				complex<double> lm3, lm2, lm1, lp0, lp1, lp2, lp3;
-				complex<double> im(0,1);
-				complex<double> hello=(3,2);
-					cout << px << endl;
-				switch(twoLp1){
-				case 1:
-					// s orbital: nothing to do
-					break;
-				case 3:
-					// p orbital: px (cos P), py (sin P), pz (1)
-					printf("%d %d %d\n", ip, jp, kp);
-					cout << LCAO_ext << endl;
-					cout << LCAO_ext[ip] << endl;
-					cout << LCAO_ext[ip][jp] << endl;
-					cout << LCAO_ext[ip][jp][0] << endl;
-					px=(LCAO_ext[ip][jp][0][kp], LCAO_ext[ip][jp][0][kp+1]);
-					py=(LCAO_ext[ip][jp][1][kp], LCAO_ext[ip][jp][1][kp+1]);
-					pz=(LCAO_ext[ip][jp][2][kp], LCAO_ext[ip][jp][2][kp+1]);
-					cout << px << endl;
-					lm1=(px-im*py)/sqrt(2);
-					lp0=pz;
-					lp1=(px+im*py)/sqrt(2);
-					LCAO_ext[ip][jp][0][kp]=lm1.real(); LCAO_ext[ip][jp][0][kp+1]=lm1.imag();
-					LCAO_ext[ip][jp][1][kp]=lp0.real(); LCAO_ext[ip][jp][1][kp+1]=lp0.imag();
-					LCAO_ext[ip][jp][2][kp]=lp1.real(); LCAO_ext[ip][jp][2][kp+1]=lp1.imag();
-					break;
-				case 5:
-					// d orbital: d3z^2-r^2 (1), dx^2-y^2 (cos 2P), xy (sin 2P), xz (cos P), yz (sin P)
-					d3z2r2=(LCAO_ext[ip][jp][0][kp], LCAO_ext[ip][jp][0][kp+1]);
-					dx2y2 =(LCAO_ext[ip][jp][1][kp], LCAO_ext[ip][jp][1][kp+1]);
-					dxy   =(LCAO_ext[ip][jp][2][kp], LCAO_ext[ip][jp][2][kp+1]);
-					dxz   =(LCAO_ext[ip][jp][3][kp], LCAO_ext[ip][jp][3][kp+1]);
-					dyz   =(LCAO_ext[ip][jp][4][kp], LCAO_ext[ip][jp][4][kp+1]);
-					lm2=(dx2y2-im*dxy)/sqrt(2);
-					lm1=(dxz-im*dyz)/sqrt(2);
-					lp0=d3z2r2;
-					lp1=(dxz+im*dyz)/sqrt(2);
-					lp2=(dx2y2+im*dxy)/sqrt(2);
-					LCAO_ext[ip][jp][0][kp]=lm2.real(); LCAO_ext[ip][jp][0][kp+1]=lm2.imag();
-					LCAO_ext[ip][jp][1][kp]=lm1.real(); LCAO_ext[ip][jp][1][kp+1]=lm1.imag();
-					LCAO_ext[ip][jp][2][kp]=lp0.real(); LCAO_ext[ip][jp][2][kp+1]=lp0.imag();
-					LCAO_ext[ip][jp][3][kp]=lp1.real(); LCAO_ext[ip][jp][3][kp+1]=lp1.imag();
-					LCAO_ext[ip][jp][4][kp]=lp2.real(); LCAO_ext[ip][jp][4][kp+1]=lp2.imag();
-					break;
-				case 7:
-					// f orbital: f5z23r2 (1), f5xy2xr2 (cos P), f5yz2yr2 (sin P),
-					//            fzx2zy2 (cos 2P), fxyz (sin 2P), fx33xy2 (cos 3P), f3yx2y3 (sin 3P)
-					f5z23r2 =(LCAO_ext[ip][jp][0][kp], LCAO_ext[ip][jp][0][kp+1]);
-					f5xz2xr2=(LCAO_ext[ip][jp][1][kp], LCAO_ext[ip][jp][1][kp+1]);
-					f5yz2yr2=(LCAO_ext[ip][jp][2][kp], LCAO_ext[ip][jp][2][kp+1]);
-					fzx2zy2 =(LCAO_ext[ip][jp][3][kp], LCAO_ext[ip][jp][3][kp+1]);
-					fxyz    =(LCAO_ext[ip][jp][4][kp], LCAO_ext[ip][jp][4][kp+1]);
-					fx33xy2 =(LCAO_ext[ip][jp][5][kp], LCAO_ext[ip][jp][5][kp+1]);
-					f3yx2y3 =(LCAO_ext[ip][jp][6][kp], LCAO_ext[ip][jp][6][kp+1]);
-					lm3=(fx33xy2-im*f3yx2y3)/sqrt(2);
-					lm2=(fzx2zy2-im*fxyz)/sqrt(2);
-					lm1=(f5xz2xr2-im*f5yz2yr2)/sqrt(2);
-					lp0=f5z23r2;
-					lp1=(f5xz2xr2+im*f5yz2yr2)/sqrt(2);
-					lp2=(fzx2zy2+im*fxyz)/sqrt(2);
-					lp3=(fx33xy2+im*f3yx2y3)/sqrt(2);
-					LCAO_ext[ip][jp][0][kp]=lm3.real(); LCAO_ext[ip][jp][0][kp+1]=lm3.imag();
-					LCAO_ext[ip][jp][1][kp]=lm2.real(); LCAO_ext[ip][jp][1][kp+1]=lm2.imag();
-					LCAO_ext[ip][jp][2][kp]=lm1.real(); LCAO_ext[ip][jp][2][kp+1]=lm1.imag();
-					LCAO_ext[ip][jp][3][kp]=lp0.real(); LCAO_ext[ip][jp][3][kp+1]=lp0.imag();
-					LCAO_ext[ip][jp][4][kp]=lp1.real(); LCAO_ext[ip][jp][4][kp+1]=lp1.imag();
-					LCAO_ext[ip][jp][5][kp]=lp2.real(); LCAO_ext[ip][jp][5][kp+1]=lp2.imag();
-					LCAO_ext[ip][jp][6][kp]=lp3.real(); LCAO_ext[ip][jp][6][kp+1]=lp3.imag();
-					break;
-				}
-			}
-		}
-	}
-
 }
