@@ -18,3 +18,8 @@ pen1=(0, 255, 0)
 pen2=(255, 0, 0)
 pen3=(255, 255, 0)
 gridAlpha=50 # 100 =max
+
+
+
+plot3D_minWidth=400
+plot3D_minHeight=400

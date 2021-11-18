@@ -124,6 +124,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         self.plot3D=gl.GLViewWidget()
         self.plot3D.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.plot3D.setMinimumSize(Config.plot3D_minWidth, Config.plot3D_minHeight)
         row3_3d.addWidget(self.plot3D)
 
         self.plot3=pg.GraphicsLayoutWidget()
