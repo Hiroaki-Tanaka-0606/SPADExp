@@ -192,7 +192,7 @@ int main(int argc, const char** argv){
 	
 
 	if(load_str("Atoms.SpeciesAndCoordinates.Unit", atomUnit, valSize)==1){
-		printf("Atoms.UnitVectors.Unit is %s\n", atomUnit);
+		printf("Atoms.SpeciesAndCoordinates.Unit is %s\n", atomUnit);
 	}else{
 		return 0;
 	}
@@ -277,13 +277,13 @@ int main(int argc, const char** argv){
 	}
 
 	if(load_int("calcPSF.minN", &minN)==1){
-		printf("calcPSF.minN is %s\n", (curved ? "true": "false"));
+		printf("calcPSF.minN is %d\n", minN);
 	}else{
 		return 0;
 	}
 
 	if(load_int("calcPSF.maxN", &maxN)==1){
-		printf("calcPSF.maxN is %s\n", (curved ? "true": "false"));
+		printf("calcPSF.maxN is %d\n", maxN);
 	}else{
 		return 0;
 	}
