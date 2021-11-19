@@ -81,13 +81,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.finalState.addButton(self.CalcButton)
         self.PWButton.setChecked(True)
 
-        label3A=QtGui.QLabel("Calc. step of the final states")
+        label3A=QtGui.QLabel("Calc. step of the final states (a.u.^-1)")
         row3.addWidget(label3A)
         self.finalStates_step=QtGui.QLineEdit()
         self.finalStates_step.setText("0.01")
         row3.addWidget(self.finalStates_step)
-        label3B=QtGui.QLabel("a.u.^-1")
-        row3.addWidget(label3B)
 
         # Row 4: configuration (polarization)
         row4=QtGui.QHBoxLayout()
@@ -106,20 +104,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.polarization.addButton(self.lCircular)
         self.linear.setChecked(True)
 
-        label4A=QtGui.QLabel("Theta")
+        label4A=QtGui.QLabel("Theta (deg)")
         row4.addWidget(label4A)
         self.theta=QtGui.QLineEdit()
         self.theta.setText("0.0")
         row4.addWidget(self.theta)
-        label4B=QtGui.QLabel("deg")
+        label4B=QtGui.QLabel("Phi (deg)")
         row4.addWidget(label4B)
-        label4C=QtGui.QLabel("Phi")
-        row4.addWidget(label4C)
         self.phi=QtGui.QLineEdit()
         self.phi.setText("0.0")
         row4.addWidget(self.phi)
-        label4D=QtGui.QLabel("deg")
-        row4.addWidget(label4D)
 
         # Row 5: configuration (plot)
         row5=QtGui.QHBoxLayout()
@@ -302,7 +296,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.bIndex.setValue(self.bIndex.value()-1)
             else:
                 return
-            Events.plot3(win)
+            Events.plot3(win, LCAO)
                 
         self.plot.keyPressEvent=changeKBIndices
         self.plot3.keyPressEvent=changeKXYIndices
@@ -403,35 +397,35 @@ win.setFont(font)
 LCAO=objs.LCAO()
 win.openFileButton.clicked.connect(lambda: Events.openFile(win, LCAO))
 
-def plotEvent(win):
+def plotEvent():
     if LCAO.Dimension==1:
-        Events.plot(win)
+        Events.plot(win, LCAO)
         win.graphTab.setCurrentIndex(0)
     elif LCAO.Dimension==2:
-        Events.makeDispersion3(win)
+        Events.makeDispersion3(win, LCAO)
         win.graphTab.setCurrentIndex(1)
     else:
         print("Dimension error")
         return
 
-def cursorEvent(win):
+def cursorEvent():
     if LCAO.Dimension==1:
-        Events.drawCursor(win)
+        Events.drawCursor(win, LCAO)
     elif LCAO.Dimension==2:
-        Events.drawCursor3(win)
+        Events.drawCursor3(win, LCAO)
     else:
         print("Dimension error")
         return
 
-win.plotButton.clicked.connect(lambda: plotEvent(win))
+win.plotButton.clicked.connect(plotEvent)
 
-win.kxIndex.valueChanged.connect(lambda: cursorEvent(win))
-win.kyIndex.valueChanged.connect(lambda: cursorEvent(win))
-win.bIndex.valueChanged.connect(lambda: cursorEvent(win))
-win.eIndex.valueChanged.connect(lambda: cursorEvent(win))
-win.UpButton.clicked.connect(lambda: cursorEvent(win))
-win.DnButton.clicked.connect(lambda: cursorEvent(win))
-win.Atom.currentIndexChanged.connect(lambda: Events.makeLCAOTable(win))
+win.kxIndex.valueChanged.connect(cursorEvent)
+win.kyIndex.valueChanged.connect(cursorEvent)
+win.bIndex.valueChanged.connect(cursorEvent)
+win.eIndex.valueChanged.connect(cursorEvent)
+win.UpButton.clicked.connect(cursorEvent)
+win.DnButton.clicked.connect(cursorEvent)
+win.Atom.currentIndexChanged.connect(lambda: Events.makeLCAOTable(win, LCAO))
 
 pg.setConfigOptions(antialias=True)
 win.show()

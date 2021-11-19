@@ -12,28 +12,7 @@ import pyqtgraph.opengl as gl
 
 import Config
 
-
-BandCell=None
-RecCell=None
-Band=None
-BandUp=None
-BandDn=None
-Dimension=0
-Spin=""
-Spin_i=0
-EF_Eh=0
-Dispersion=None
-Atoms=[]
-LCAO=[]
-LCAO_labels=[]
-numPnts_kx=0
-numPnts_ky=0
-Xrange=None
-Yrange=None
-Xvector=None
-Yvector=None
-Xlength=0
-Ylength=0
+Dispersion=None # dispersion calculated in the specified energy range (numpy array)
 
 def openFile(win, LCAO):
     currentFile=win.filePath.text()
@@ -86,21 +65,16 @@ def openFile(win, LCAO):
         print("Atoms:")
         print(LCAO.Atoms)
 
-def appendDispersion(i, n, EMin, EPixel, tailProfile):
+def appendDispersion(i, n, EMin, EPixel, tailProfile, LCAO):
     global Dispersion
-    global Band
-    global BandUp
-    global BandDn
-    global EF_Eh
-    global Spin_i
 
     ret=0
     Esize=Dispersion.shape[1]
     tailSize=tailProfile.shape[0]
-    if Spin_i==1:
+    if LCAO.Spin_i==1:
         continueFlag=False
-        
-        eigen=(BandUp[i][n]-EF_Eh)*Config.Eh
+        # spin Up
+        eigen=(LCAO.BandUp[i][n]-LCAO.EF_Eh)*Config.Eh
         eigen_index=round((eigen-EMin)/EPixel)
         if eigen_index-tailSize>=Esize:
             pass
@@ -109,8 +83,8 @@ def appendDispersion(i, n, EMin, EPixel, tailProfile):
             for j in range(-tailSize+1, tailSize):
                 if eigen_index+j>=0 and eigen_index+j<Esize:
                     Dispersion[i][eigen_index+j]+=tailProfile[abs(j)]
-        
-        eigen=(BandDn[i][n]-EF_Eh)*Config.Eh
+        # spin Dn
+        eigen=(LCAO.BandDn[i][n]-LCAO.EF_Eh)*Config.Eh
         eigen_index=round((eigen-EMin)/EPixel)
         if eigen_index-tailSize>=Esize:
             pass
@@ -121,9 +95,8 @@ def appendDispersion(i, n, EMin, EPixel, tailProfile):
                     Dispersion[i][eigen_index+j]+=tailProfile[abs(j)]
 
         return continueFlag
-
     else:
-        eigen=(Band[i][n]-EF_Eh)*Config.Eh
+        eigen=(LCAO.Band[i][n]-LCAO.EF_Eh)*Config.Eh
         eigen_index=round((eigen-EMin)/EPixel)
         if eigen_index-tailSize>=Esize:
             return False
@@ -133,24 +106,18 @@ def appendDispersion(i, n, EMin, EPixel, tailProfile):
         return True
         
 
-def appendDispersion3(ix, iy, n, EMin, EPixel, tailProfile):
+def appendDispersion3(ix, iy, n, EMin, EPixel, tailProfile, LCAO):
     global Dispersion
-    global Band
-    global BandUp
-    global BandDn
-    global EF_Eh
-    global Spin_i
-    global numPnts_kx
 
     ret=0
     Esize=Dispersion.shape[2]
     tailSize=tailProfile.shape[0]
 
-    i=ix+iy*numPnts_kx
-    if Spin_i==1:
+    i=ix+iy*LCAO.numPnts_kx
+    if LCAO.Spin_i==1:
         continueFlag=False
         
-        eigen=(BandUp[i][n]-EF_Eh)*Config.Eh
+        eigen=(LCAO.BandUp[i][n]-LCAO.EF_Eh)*Config.Eh
         eigen_index=round((eigen-EMin)/EPixel)
         if eigen_index-tailSize>=Esize:
             pass
@@ -160,7 +127,7 @@ def appendDispersion3(ix, iy, n, EMin, EPixel, tailProfile):
                 if eigen_index+j>=0 and eigen_index+j<Esize:
                     Dispersion[ix][iy][eigen_index+j]+=tailProfile[abs(j)]
         
-        eigen=(BandDn[i][n]-EF_Eh)*Config.Eh
+        eigen=(LCAO.BandDn[i][n]-LCAO.EF_Eh)*Config.Eh
         eigen_index=round((eigen-EMin)/EPixel)
         if eigen_index-tailSize>=Esize:
             pass
@@ -173,7 +140,7 @@ def appendDispersion3(ix, iy, n, EMin, EPixel, tailProfile):
         return continueFlag
 
     else:
-        eigen=(Band[i][n]-EF_Eh)*Config.Eh
+        eigen=(LCAO.Band[i][n]-LCAO.EF_Eh)*Config.Eh
         eigen_index=round((eigen-EMin)/EPixel)
         if eigen_index-tailSize>=Esize:
             return False
@@ -183,30 +150,24 @@ def appendDispersion3(ix, iy, n, EMin, EPixel, tailProfile):
         return True
                 
 
-def plot(win):
+def genTailProfile(EPixel, dE):
+    tailIndex=math.floor(dE*Config.sigma_max/EPixel)
+    ret=np.zeros((tailIndex+1,))
+    for i in range(0, tailIndex+1):
+        ret[i]=norm.pdf(i*EPixel, loc=0, scale=dE)
+
+    return ret
+    
+def plot(win, LCAO):
     # for 2D plot
     global Dispersion
-    global Band
-    global BandUp
-    global BandDn
-    global RecCell
-    global Spin_i
-    global EF_Eh
-    global Dimension
-    global Xrange
-    global Yrange
-    global Xlength
-    global Ylength
 
     EMin=float(win.EMin.text())
     EMax=float(win.EMax.text())
     dE=float(win.dE.text())
     EPixel=float(win.EPixel.text())
 
-    tailIndex=math.floor(dE*Config.sigma_max/EPixel)
-    tailProfile=np.zeros((tailIndex+1,))
-    for i in range(0, tailIndex+1):
-        tailProfile[i]=norm.pdf(i*EPixel, loc=0, scale=dE)
+    tailProfile=genTailProfile(EPixel, dE)
 
     numPnts_E=math.ceil((EMax-EMin)/EPixel+1)
     if numPnts_E<0:
@@ -214,63 +175,37 @@ def plot(win):
         return
 
     print(("{0:d} points along the energy").format(numPnts_E))
+    print(("{0:d} points along the kx").format(LCAO.numPnts_kx))
 
-    numPnts_k=0
-    numBands=0
-    if Spin_i==1:
-        numPnts_k=BandUp.shape[0]
-        numBands=BandUp.shape[1]
-    else:
-        numPnts_k=Band.shape[0]
-        numBands=Band.shape[1]
+    if LCAO.Dimension!=1:
+        print("Dimension error")
+        return
+    
+    Dispersion=np.zeros((LCAO.numPnts_kx, numPnts_E))
+    for i in range(0, LCAO.numPnts_kx):
+        for n in range(0, LCAO.numBands):
+            if appendDispersion(i, n, EMin, EPixel, tailProfile, LCAO):
+                continue
+            else:
+                break
 
-    print(("{0:d} points along the kx").format(numPnts_k))
-
-    if Dimension==1:
-        Dispersion=np.zeros((numPnts_k, numPnts_E))
-        for i in range(0, numPnts_k):
-            for n in range(0, numBands):
-                if appendDispersion(i, n, EMin, EPixel, tailProfile):
-                    continue
-                else:
-                    break
-
-        dx_length=Xlength*(Xrange[1]-Xrange[0])/(numPnts_k-1)
-        tr=QtGui.QTransform()
-        tr.translate(Xlength*Xrange[0]-dx_length/2,EMin-EPixel/2)
-        tr.scale(dx_length, EPixel)
-        win.img.setTransform(tr)
-
+    tr=QtGui.QTransform()
+    tr.translate(LCAO.Xlength*LCAO.Xrange[0]-LCAO.dx_length/2,EMin-EPixel/2)
+    tr.scale(LCAO.dx_length, EPixel)
+    win.img.setTransform(tr)
     win.img.setImage(Dispersion)
-    drawCursor(win)
-
-
-def makeDispersion3(win):
+    drawCursor(win, LCAO)
+        
+def makeDispersion3(win, LCAO):
     # for 3D plot
     global Dispersion
-    global Band
-    global BandUp
-    global BandDn
-    global RecCell
-    global Spin_i
-    global EF_Eh
-    global Dimension
-    global Xrange
-    global Yrange
-    global Xlength
-    global Ylength
-    global numPnts_kx
-    global numPnts_ky
 
     EMin=float(win.EMin.text())
     EMax=float(win.EMax.text())
     dE=float(win.dE.text())
     EPixel=float(win.EPixel.text())
 
-    tailIndex=math.floor(dE*Config.sigma_max/EPixel)
-    tailProfile=np.zeros((tailIndex+1,))
-    for i in range(0, tailIndex+1):
-        tailProfile[i]=norm.pdf(i*EPixel, loc=0, scale=dE)
+    tailProfile=genTailProfile(EPixel, dE)
 
     numPnts_E=math.ceil((EMax-EMin)/EPixel+1)
     if numPnts_E<0:
@@ -281,62 +216,55 @@ def makeDispersion3(win):
 
     win.eIndex.setMaximum(numPnts_E-1)
 
-    numBands=0
-    if Spin_i==1:
-        numBands=BandUp.shape[1]
-    else:
-        numBands=Band.shape[1]
+    print(("{0:d} points along the kx").format(LCAO.numPnts_kx))
+    print(("{0:d} points along the ky").format(LCAO.numPnts_ky))
 
-    print(("{0:d} points along the kx").format(numPnts_kx))
-    print(("{0:d} points along the ky").format(numPnts_ky))
-
-    if Dimension==2:
-        Dispersion=np.zeros((numPnts_kx, numPnts_ky, numPnts_E))
-        for i in range(0, numPnts_kx):
-            for j in range(0, numPnts_ky):
-                for n in range(0, numBands):
-                    if appendDispersion3(i, j, n, EMin, EPixel, tailProfile):
-                        continue
-                    else:
-                        break
-
-        dx_length=Xlength*(Xrange[1]-Xrange[0])/(numPnts_kx-1)
-        dy_length=Ylength*(Yrange[1]-Yrange[0])/(numPnts_ky-1)
-
-        tr_x=QtGui.QTransform()
-        tr_x.translate(Xlength*Xrange[0]-dx_length/2,EMin-EPixel/2)
-        tr_x.scale(dx_length, EPixel)
-        win.imgEx.setTransform(tr_x)
-
-        tr_y=QtGui.QTransform()
-        tr_y.translate(EMin-EPixel/2,Ylength*Yrange[0]-dy_length/2)
-        tr_y.rotate(-90)
-        tr_y.scale(-dy_length, EPixel)
-        win.imgEy.setTransform(tr_y)
-
-        tr_E=QtGui.QTransform()
-        tr_E.translate(Xlength*Xrange[0]-dx_length/2,Ylength*Yrange[0]-dy_length/2)
-        tr_E.scale(dx_length, dy_length)
-        win.imgxy.setTransform(tr_E)
-    else:
+    if LCAO.Dimension!=2:
+        print("Dimension error")
         return
+    
+    Dispersion=np.zeros((LCAO.numPnts_kx, LCAO.numPnts_ky, numPnts_E))
+    for i in range(0, LCAO.numPnts_kx):
+        for j in range(0, LCAO.numPnts_ky):
+            for n in range(0, LCAO.numBands):
+                if appendDispersion3(i, j, n, EMin, EPixel, tailProfile, LCAO):
+                    continue
+                else:
+                    break
+
+
+    tr_x=QtGui.QTransform()
+    tr_x.translate(LCAO.Xlength*LCAO.Xrange[0]-LCAO.dx_length/2,EMin-EPixel/2)
+    tr_x.scale(LCAO.dx_length, EPixel)
+    win.imgEx.setTransform(tr_x)
+
+    tr_y=QtGui.QTransform()
+    tr_y.translate(EMin-EPixel/2,LCAO.Ylength*LCAO.Yrange[0]-LCAO.dy_length/2)
+    tr_y.rotate(-90)
+    tr_y.scale(-LCAO.dy_length, EPixel)
+    win.imgEy.setTransform(tr_y)
+
+    tr_E=QtGui.QTransform()
+    tr_E.translate(LCAO.Xlength*LCAO.Xrange[0]-LCAO.dx_length/2,LCAO.Ylength*LCAO.Yrange[0]-LCAO.dy_length/2)
+    tr_E.scale(LCAO.dx_length, LCAO.dy_length)
+    win.imgxy.setTransform(tr_E)
 
     Maxpoint=Dispersion.max()
 
-    win.Cube=np.zeros((numPnts_kx, numPnts_ky, numPnts_E, 4))
+    win.Cube=np.zeros((LCAO.numPnts_kx, LCAO.numPnts_ky, numPnts_E, 4))
     win.Cube[:,:,:,0]=255
     win.Cube[:,:,:,1]=255
     win.Cube[:,:,:,2]=255
     win.Cube[:,:,:,3]=Dispersion/Maxpoint*100
     
     win.bandCube=gl.GLVolumeItem(win.Cube)
-    win.bandCube.scale(dx_length, dx_length, EPixel)    
-    win.bandCube.translate(Xlength*Xrange[0]-dx_length/2,Ylength*Yrange[0]-dy_length/2,0)
+    win.bandCube.scale(LCAO.dx_length, LCAO.dx_length, EPixel)    
+    win.bandCube.translate(LCAO.Xlength*LCAO.Xrange[0]-LCAO.dx_length/2,LCAO.Ylength*LCAO.Yrange[0]-LCAO.dy_length/2,0)
     win.plot3D.clear()
     win.plot3D.addItem(win.bandCube)
-    plot3(win)
+    plot3(win, LCAO)
 
-def plot3(win):
+def plot3(win, LCAO):
 
     global Dispersion
     Maxpoint=Dispersion.max()
@@ -378,27 +306,15 @@ def plot3(win):
     win.imgEy.setLevels([0,Maxpoint])
     win.imgxy.setLevels([0,Maxpoint])
 
-    drawCursor3(win)
+    drawCursor3(win, LCAO)
             
-def drawCursor(win):
-    global BandUp
-    global BandDn
-    global Band
-    global Spin_i
-    global RecCell
-    global Xrange
-    global Xlength
-    global EF_Eh
+def drawCursor(win, LCAO):
     
     k=win.kxIndex.value()
     b=win.bIndex.value()
     
-    numPnts_k=0
-    numBands=0
     UseUp=False
-    if Spin_i==1:
-        numPnts_k=BandUp.shape[0]
-        numBands=BandUp.shape[1]
+    if LCAO.Spin_i==1:
         if win.UpButton.isChecked():
             UseUp=True
         elif win.DnButton.isChecked():
@@ -406,24 +322,19 @@ def drawCursor(win):
         else:
             print("None of Up and Dn is checked")
             return
-    else:
-        numPnts_k=Band.shape[0]
-        numBands=Band.shape[1]
-
-    dx_length=Xlength*(Xrange[1]-Xrange[0])/(numPnts_k-1)
     
-    if 0<=k and k<numPnts_k and 0<=b and b<numBands:
-        k_value=Xlength*Xrange[0]+dx_length*k
+    if 0<=k and k<LCAO.numPnts_kx and 0<=b and b<LCAO.numBands:
+        k_value=LCAO.Xlength*LCAO.Xrange[0]+LCAO.dx_length*k
         b_value=0
-        if Spin_i==1:
+        if LCAO.Spin_i==1:
             if UseUp:
-                b_value=BandUp[k][b]
+                b_value=LCAO.BandUp[k][b]
             else:
-                b_value=BandDn[k][b]
+                b_value=LCAO.BandDn[k][b]
         else:
-            b_value=Band[k][b]
+            b_value=LCAO.Band[k][b]
 
-        b_value=(b_value-EF_Eh)*Config.Eh
+        b_value=(b_value-LCAO.EF_Eh)*Config.Eh
         win.vLine.setPos(k_value)
         win.hLine.setPos(b_value)
         win.kxValue.setText(("({0:.3f})").format(k_value))
@@ -433,23 +344,10 @@ def drawCursor(win):
         print("Index error")
         return
 
-    makeLCAOTable(win)
+    makeLCAOTable(win, LCAO)
 
             
-def drawCursor3(win):
-    global BandUp
-    global BandDn
-    global Band
-    global Spin_i
-    global RecCell
-    global Xrange
-    global Xlength
-    global Yrange
-    global Ylength
-    global EF_Eh
-    global numPnts_kx
-    global numPnts_ky
-
+def drawCursor3(win, LCAO):
     EMin=float(win.EMin.text())
     EPixel=float(win.EPixel.text())
     
@@ -457,11 +355,8 @@ def drawCursor3(win):
     ky=win.kyIndex.value()
     b=win.bIndex.value()
     ei=win.eIndex.value()
-    numPnts_k=numPnts_kx*numPnts_ky
-    numBands=0
     UseUp=False
-    if Spin_i==1:
-        numBands=BandUp.shape[1]
+    if LCAO.Spin_i==1:
         if win.UpButton.isChecked():
             UseUp=True
         elif win.DnButton.isChecked():
@@ -469,27 +364,23 @@ def drawCursor3(win):
         else:
             print("None of Up and Dn is checked")
             return
-    else:
-        numBands=Band.shape[1]
 
-    dx_length=Xlength*(Xrange[1]-Xrange[0])/(numPnts_kx-1)
-    dy_length=Ylength*(Yrange[1]-Yrange[0])/(numPnts_ky-1)
-    k=kx+ky*numPnts_kx
+    k=kx+ky*LCAO.numPnts_kx
 
-    if 0<=k and k<numPnts_k and 0<=b and b<numBands:
-        kx_value=Xlength*Xrange[0]+dx_length*kx
-        ky_value=Ylength*Yrange[0]+dy_length*ky
+    if 0<=k and k<LCAO.numPnts_k and 0<=b and b<LCAO.numBands:
+        kx_value=LCAO.Xlength*LCAO.Xrange[0]+LCAO.dx_length*kx
+        ky_value=LCAO.Ylength*LCAO.Yrange[0]+LCAO.dy_length*ky
         e_value=EMin+EPixel*ei
         b_value=0
-        if Spin_i==1:
+        if LCAO.Spin_i==1:
             if UseUp:
-                b_value=BandUp[k][b]
+                b_value=LCAO.BandUp[k][b]
             else:
-                b_value=BandDn[k][b]
+                b_value=LCAO.BandDn[k][b]
         else:
-            b_value=Band[k][b]
+            b_value=LCAO.Band[k][b]
 
-        b_value=(b_value-EF_Eh)*Config.Eh
+        b_value=(b_value-LCAO.EF_Eh)*Config.Eh
         win.vLineEx.setPos(kx_value)
         win.hLineEx.setPos(e_value)
         win.vLineEy.setPos(e_value)
@@ -507,40 +398,24 @@ def drawCursor3(win):
         print("Index error")
         return
 
-    makeLCAOTable(win)
+    makeLCAOTable(win, LCAO)
 
             
-def makeLCAOTable(win):
-    global BandUp
-    global BandDn
-    global Band
-    global Spin_i
-    global RecCell
-    global Xrange
-    global EF_Eh
-    global Atoms
-    global LCAO_labels
-    global LCAO
-    global numPnts_kx
-    global numPnts_ky
-    global Dimension
+def makeLCAOTable(win, LCAO):
     
     kx=win.kxIndex.value()
     ky=win.kyIndex.value()
     k=0
-    if Dimension==1:
+    if LCAO.Dimension==1:
         k=kx
-    elif Dimension==2:
-        k=kx+ky*numPnts_kx
+    elif LCAO.Dimension==2:
+        k=kx+ky*LCAO.numPnts_kx
 
     b=win.bIndex.value()
     at=win.Atom.currentIndex()
     
-    numPnts_k=numPnts_kx*numPnts_ky
-    numBands=0
     UseUp=False
-    if Spin_i==1:
-        numBands=BandUp.shape[1]
+    if LCAO.Spin_i==1:
         if win.UpButton.isChecked():
             UseUp=True
         elif win.DnButton.isChecked():
@@ -548,14 +423,12 @@ def makeLCAOTable(win):
         else:
             print("None of Up and Dn is checked")
             return
-    else:
-        numBands=Band.shape[1]
-
-    if len(LCAO_labels)!=len(Atoms):
+        
+    if len(LCAO.LCAO_labels)!=len(LCAO.Atoms):
         return
 
     win.LCAOTable.setRowCount(0)
-    if Spin_i==2:
+    if LCAO.Spin_i==2:
         win.LCAOTable.setColumnCount(4)
         win.LCAOTable.setHorizontalHeaderItem(0, QtGui.QTableWidgetItem("Up (raw)"))
         win.LCAOTable.setHorizontalHeaderItem(1, QtGui.QTableWidgetItem("Up (calc)"))
@@ -563,36 +436,34 @@ def makeLCAOTable(win):
         win.LCAOTable.setHorizontalHeaderItem(3, QtGui.QTableWidgetItem("Dn (calc)"))
     else:
         win.LCAOTable.setColumnCount(2)
-        if Spin_i==1:
+        if LCAO.Spin_i==1:
             win.LCAOTable.setHorizontalHeaderItem(0, QtGui.QTableWidgetItem(("{0:s} (raw)").format("Up" if UseUp else "Dn")))
             win.LCAOTable.setHorizontalHeaderItem(1, QtGui.QTableWidgetItem(("{0:s} (calc)").format("Up" if UseUp else "Dn")))
         else:
             win.LCAOTable.setHorizontalHeaderItem(0, QtGui.QTableWidgetItem("raw"))
             win.LCAOTable.setHorizontalHeaderItem(1, QtGui.QTableWidgetItem("calc"))
 
-                                              
-
     currentRow=0
-    if 0<=k and k<numPnts_k and 0<=b and b<numBands and 0<=at and at<len(Atoms):
+    if 0<=k and k<LCAO.numPnts_k and 0<=b and b<LCAO.numBands and 0<=at and at<len(LCAO.Atoms):
         orbitLabels=["s", "p", "d", "f"]
         for orbitLabel in orbitLabels:
             mul_index=0
             while(True):
                 LCAO_label=("{0:s}{1:1d}").format(orbitLabel, mul_index)
-                if Spin_i==1:
+                if LCAO.Spin_i==1:
                     if UseUp:
                         LCAO_label+="Up"
                     else:
                         LCAO_label+="Dn"
                     
                 LCAO_found=False
-                for i, LCAO_label_ref in enumerate(LCAO_labels[at]):
+                for i, LCAO_label_ref in enumerate(LCAO.LCAO_labels[at]):
                     if LCAO_label==LCAO_label_ref:
                         LCAO_found=True
 
-                        LCAO_disp=LCAO[at][i][k][b]
+                        LCAO_disp=LCAO.LCAO[at][i][k][b]
                         numSpin=1
-                        if Spin_i==2:
+                        if LCAO.Spin_i==2:
                             numSpin=2
                         if orbitLabel=="s":
                             currentRow+=1

@@ -33,6 +33,8 @@ class LCAO:
         self.Yvector=None # Y vector in the reciprocal coordinate
         self.Ylength=0 # length of the Y vector
         self.numPnts_k=0 # total number of points
+        self.dXlength=0 # distance between two points aligned along kx
+        self.dYlength=0 # distance between two points aligned along ky
         # /Output
         self.Spin="" # spin polarization: off, on, nc
         self.Spin_i=0 # index corresponding to the spin polarization: 0, 1, 2 respectively
@@ -90,6 +92,10 @@ class LCAO:
                 self.Ylength=math.sqrt(np.inner(self.Yvector, self.Yvector))
             ## total number of points
             self.numPnts_k=self.numPnts_kx*self.numPnts_ky
+            ## dx and dy
+            self.dx_length=self.Xlength*(self.Xrange[1]-self.Xrange[0])/(self.numPnts_kx-1)
+            if self.Dimension==2:
+                self.dy_length=self.Ylength*(self.Yrange[1]-self.Yrange[0])/(self.numPnts_ky-1)
             # /Output
             self.Spin=str(f["Output"].attrs["Spin"])
             self.EF_Eh=float(f["Output"].attrs["EF_Eh"])
@@ -108,6 +114,9 @@ class LCAO:
                 self.Band=np.array(f["Output"]["Band"])
                 self.numBands=self.Band.shape[1]
             ## LCAO coefficients
+            self.Atoms=[]
+            self.LCAO=[]
+            self.LCAO_labels=[]
             for atom in f["Output"]["LCAO"].keys():
                 self.Atoms.append(str(atom))
             for atom in self.Atoms:
