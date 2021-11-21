@@ -18,6 +18,9 @@ class MainWindow(QtWidgets.QMainWindow):
         font=QtGui.QFont()
         font.setFamilies(Config.fontFamilies)
         font.setPixelSize(Config.fontSize_normal)
+
+        bFont=QtGui.QFont(font)
+        bFont.setBold(True)
         
         vbox=QtGui.QVBoxLayout()
         vbox.setContentsMargins(*Config.ContentsMargins)
@@ -44,7 +47,8 @@ class MainWindow(QtWidgets.QMainWindow):
         vbox.addLayout(row2)
 
         ## Energy min and max
-        label2A=QtGui.QLabel("E-EF (min and max, eV)")
+        label2A=QtGui.QLabel("E-EF (min and max, eV):")
+        label2A.setFont(bFont)
         row2.addWidget(label2A)
         self.EMin=QtGui.QLineEdit()
         self.EMin.setText("-6.0")
@@ -54,24 +58,41 @@ class MainWindow(QtWidgets.QMainWindow):
         row2.addWidget(self.EMax)
 
         ## Gauss width 
-        label2B=QtGui.QLabel("dE (eV)")
+        label2B=QtGui.QLabel("dE (eV):")
+        label2B.setFont(bFont)
         row2.addWidget(label2B)
         self.dE=QtGui.QLineEdit()
         self.dE.setText("0.1")
         row2.addWidget(self.dE)
 
         ## pixel size (along the energy)
-        label2C=QtGui.QLabel("Pixel (eV)")
+        label2C=QtGui.QLabel("Pixel (eV):")
+        label2C.setFont(bFont)
         row2.addWidget(label2C)
         self.EPixel=QtGui.QLineEdit()
         self.EPixel.setText("0.05")
         row2.addWidget(self.EPixel)
 
-        # Row 3: configuration (final state)
+        # Row 3: configuration (initial and final states)
         row3=QtGui.QHBoxLayout()
         row3.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row3)
 
+        label3A=QtGui.QLabel("Initial state:")
+        label3A.setFont(bFont)
+        row3.addWidget(label3A)
+        self.initialState=QtGui.QButtonGroup()
+        self.AOButton=QtGui.QRadioButton("AO")
+        self.PAOButton=QtGui.QRadioButton("PAO")
+        row3.addWidget(self.AOButton)
+        row3.addWidget(self.PAOButton)
+        self.initialState.addButton(self.AOButton)
+        self.initialState.addButton(self.PAOButton)
+        self.AOButton.setChecked(True)
+
+        label3B=QtGui.QLabel("Final state:")
+        label3B.setFont(bFont)
+        row3.addWidget(label3B)
         self.finalState=QtGui.QButtonGroup()
         self.PWButton=QtGui.QRadioButton("Plane wave")
         self.CalcButton=QtGui.QRadioButton("Calculated")
@@ -81,8 +102,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.finalState.addButton(self.CalcButton)
         self.PWButton.setChecked(True)
 
-        label3A=QtGui.QLabel("Calc. step of the final states (a.u.^-1)")
-        row3.addWidget(label3A)
+        label3C=QtGui.QLabel("Calc. step of the final states (a.u.^-1)")
+        label3C.setFont(bFont)
+        row3.addWidget(label3C)
         self.finalStates_step=QtGui.QLineEdit()
         self.finalStates_step.setText("0.01")
         row3.addWidget(self.finalStates_step)
@@ -91,6 +113,10 @@ class MainWindow(QtWidgets.QMainWindow):
         row4=QtGui.QHBoxLayout()
         row4.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row4)
+
+        label4A=QtGui.QLabel("Polarization:")
+        label4A.setFont(bFont)
+        row4.addWidget(label4A)
 
         self.polarization=QtGui.QButtonGroup()
         self.linear=QtGui.QRadioButton("Linear")
@@ -104,13 +130,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.polarization.addButton(self.lCircular)
         self.linear.setChecked(True)
 
-        label4A=QtGui.QLabel("Theta (deg)")
-        row4.addWidget(label4A)
+        label4B=QtGui.QLabel("Theta (deg)")
+        row4.addWidget(label4B)
         self.theta=QtGui.QLineEdit()
         self.theta.setText("0.0")
         row4.addWidget(self.theta)
-        label4B=QtGui.QLabel("Phi (deg)")
-        row4.addWidget(label4B)
+        label4C=QtGui.QLabel("Phi (deg)")
+        row4.addWidget(label4C)
         self.phi=QtGui.QLineEdit()
         self.phi.setText("0.0")
         row4.addWidget(self.phi)
@@ -119,6 +145,10 @@ class MainWindow(QtWidgets.QMainWindow):
         row5=QtGui.QHBoxLayout()
         row5.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row5)
+
+        label5A=QtGui.QLabel("Data to plot:")
+        label5A.setFont(bFont)
+        row5.addWidget(label5A)
 
         self.dataToPlot=QtGui.QButtonGroup()
         self.plotDispersion=QtGui.QRadioButton("Band dispersion")
@@ -140,13 +170,19 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.graphTab=QtGui.QTabWidget()
         row6.addWidget(self.graphTab, 3)
-        
+
         ## 2D
         self.plot=pg.PlotWidget()
         self.img=pg.ImageItem()
         # row3.addWidget(self.plot)
-        self.graphTab.addTab(self.plot, "2D")
         self.plot.addItem(self.img)
+        self.graphTab.addTab(self.plot, "2D")
+
+        cmap=pg.colormap.get("CET-L9")
+        self.bar=pg.ColorBarItem(colorMap=cmap)
+        self.bar.setImageItem(self.img)
+                            
+
         
         labelStyle={"font-size":str(Config.fontSize_normal)+"px", "color": "white"}
         self.plot.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
@@ -202,6 +238,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plotEx.addItem(self.imgEx)
         self.plotEy.addItem(self.imgEy)
         self.plotxy.addItem(self.imgxy)
+        self.bar.setImageItem(self.imgEx)
+        self.bar.setImageItem(self.imgEy)
+        self.bar.setImageItem(self.imgxy)
 
         self.plotEx.setLabel(axis="left", text="E-EF (eV)")
         self.plotEy.setLabel(axis="bottom", text="E-EF (eV)")
@@ -296,7 +335,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.bIndex.setValue(self.bIndex.value()-1)
             else:
                 return
-            Events.plot3(win, LCAO)
                 
         self.plot.keyPressEvent=changeKBIndices
         self.plot3.keyPressEvent=changeKXYIndices
@@ -379,10 +417,50 @@ class MainWindow(QtWidgets.QMainWindow):
         self.Atom.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
         row6r4.addWidget(self.Atom)
 
-        ## row 5: LCAO table
-        self.LCAOTable=QtGui.QTableWidget()
-        vbox2.addWidget(self.LCAOTable)
+        ## row 5: data tab
+        row5r5=QtGui.QTabWidget()
+        vbox2.addWidget(row5r5)
         
+        ### LCAO table
+        self.LCAOTable=QtGui.QTableWidget()
+        row5r5.addTab(self.LCAOTable, "LCAO")
+
+        ### radial wavefunction
+        row6wfn=QtGui.QVBoxLayout()
+        row6wfn.setAlignment(QtCore.Qt.AlignTop)
+
+        row6wfnWidget=QtGui.QWidget()
+        row6wfnWidget.setLayout(row6wfn)
+        row5r5.addTab(row6wfnWidget, "Wavefunction")
+
+        #### row 1: select orbital
+        row6wfn1=QtGui.QHBoxLayout()
+        row6wfn1.setAlignment(QtCore.Qt.AlignLeft)
+        row6wfn.addLayout(row6wfn1)
+
+        label6wfn1A=QtGui.QLabel("Orbital")
+        row6wfn1.addWidget(label6wfn1A)
+        self.orbitalToPlot=QtGui.QComboBox()
+        self.orbitalToPlot.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
+        row6wfn1.addWidget(self.orbitalToPlot)
+        
+        #### graph
+        self.wfnPlot=pg.PlotWidget()
+        row6wfn.addWidget(self.wfnPlot)
+        
+        self.wfnPlot.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.wfnPlot.getAxis("bottom").setStyle(tickFont=font,tickLength=Config.tickLength)
+        self.wfnPlot.getAxis("left").setStyle(tickFont=font,tickLength=Config.tickLength)
+        self.wfnPlot.getAxis("bottom").setPen((255,255,255))
+        self.wfnPlot.getAxis("left").setPen((255,255,255))
+        self.wfnPlot.getAxis("bottom").setTextPen((255,255,255))
+        self.wfnPlot.getAxis("left").setTextPen((255,255,255))
+        self.wfnPlot.getAxis("bottom").setLabel(**labelStyle)
+        self.wfnPlot.getAxis("left").setLabel(**labelStyle)
+        self.wfnPlot.setLabel(axis="bottom", text="r (a.u.)")
+        self.wfnPlot.addLegend()
+
+        self.wfnPlot.showGrid(x=True, y=True, alpha=1.0)
 
 
 
@@ -395,14 +473,17 @@ font.setFamilies(Config.fontFamilies)
 win.setFont(font)
 
 LCAO=objs.LCAO()
-win.openFileButton.clicked.connect(lambda: Events.openFile(win, LCAO))
+Wfns={}
+PSFobj=objs.PSF(LCAO, Wfns)
+win.openFileButton.clicked.connect(lambda: Events.openFile(win, LCAO, Wfns))
 
 def plotEvent():
     if LCAO.Dimension==1:
-        Events.plot(win, LCAO)
+        Events.plot(win, LCAO, PSFobj)
         win.graphTab.setCurrentIndex(0)
     elif LCAO.Dimension==2:
-        Events.makeDispersion3(win, LCAO)
+        Events.makeDispersion3(win, LCAO, PSFobj)
+        Events.plot3(win, LCAO)
         win.graphTab.setCurrentIndex(1)
     else:
         print("Dimension error")
@@ -412,10 +493,22 @@ def cursorEvent():
     if LCAO.Dimension==1:
         Events.drawCursor(win, LCAO)
     elif LCAO.Dimension==2:
+        Events.plot3(win, LCAO)
         Events.drawCursor3(win, LCAO)
     else:
         print("Dimension error")
         return
+    Events.plotOrbital(win, LCAO, Wfns, PSFobj)
+    Events.makeLCAOTable(win, LCAO)
+
+def atomEvent():
+    Events.makeLCAOTable(win, LCAO)
+    Events.makeOrbitalList(win, LCAO, Wfns)
+    Events.plotOrbital(win, LCAO, Wfns, PSFobj)
+
+def orbitalEvent():
+    Events.plotOrbital(win, LCAO, Wfns, PSFobj)
+
 
 win.plotButton.clicked.connect(plotEvent)
 
@@ -425,7 +518,8 @@ win.bIndex.valueChanged.connect(cursorEvent)
 win.eIndex.valueChanged.connect(cursorEvent)
 win.UpButton.clicked.connect(cursorEvent)
 win.DnButton.clicked.connect(cursorEvent)
-win.Atom.currentIndexChanged.connect(lambda: Events.makeLCAOTable(win, LCAO))
+win.Atom.currentIndexChanged.connect(atomEvent)
+win.orbitalToPlot.currentIndexChanged.connect(orbitalEvent)
 
 pg.setConfigOptions(antialias=True)
 win.show()

@@ -9,18 +9,26 @@ import math
 from scipy.stats import norm
 
 import pyqtgraph.opengl as gl
+from lib import physical_tools as pt
+from lib import objs
 
 import Config
 
 Dispersion=None # dispersion calculated in the specified energy range (numpy array)
 
-def openFile(win, LCAO):
+def openFile(win, LCAO, Wfns):
     currentFile=win.filePath.text()
     selectedFile, _filter=QtGui.QFileDialog.getOpenFileName(caption="Open file", directory=currentFile)
     if selectedFile!="":
         # valid
         win.filePath.setText(selectedFile)
         LCAO.open(selectedFile)
+        print("Finished loading LCAO file")
+
+        Wfns.clear()
+        for key, value in LCAO.Atom_specs.items():
+            Wfns[key]=objs.Wfn(value)
+        print("Finished loading AO and PAO file")
 
         win.plot.setLabel(axis="bottom", text=("Wavevector ({0:s}^-1)").format(LCAO.unit))
         win.plotEx.setLabel(axis="bottom", text=("Wavevector ({0:s}^-1)").format(LCAO.unit))
@@ -33,8 +41,9 @@ def openFile(win, LCAO):
         win.bIndex.setMaximum(LCAO.numBands-1)
         
         win.Atom.clear()
-        for atom in LCAO.Atoms:
+        for atom in LCAO.LCAO_atoms:
             win.Atom.addItem(atom)
+        makeOrbitalList(win, LCAO, Wfns)
 
         print(("Dimension: {0:d}").format(LCAO.Dimension))
         print(("Spin: {0:s}").format(LCAO.Spin))
@@ -61,11 +70,18 @@ def openFile(win, LCAO):
         else:
             win.UpButton.setCheckable(False)
             win.DnButton.setCheckable(False)
+        print((" in unit of {0:s}^-1").format(LCAO.unit))
 
         print("Atoms:")
-        print(LCAO.Atoms)
+        for i, atom in enumerate(LCAO.Atoms):
+            print(("{0:d} {1:s} {2:s} {3:s}").format(i, atom, LCAO.Atom_specs[atom][0], LCAO.Atom_specs[atom][1]))
+            
 
-def appendDispersion(i, n, EMin, EPixel, tailProfile, LCAO):
+        print("Coordinates of atoms:")
+        print(LCAO.Atom_coordinates)
+        print((" in unit of {0:s}").format(LCAO.Atom_unit))
+
+def appendDispersion(i, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFobj):
     global Dispersion
 
     ret=0
@@ -100,13 +116,17 @@ def appendDispersion(i, n, EMin, EPixel, tailProfile, LCAO):
         eigen_index=round((eigen-EMin)/EPixel)
         if eigen_index-tailSize>=Esize:
             return False
+        PSF=1.0
+        if plotPSF==True and eigen_index+tailSize-1>=0:
+            PSF=PSFobj.calc(i, n)
+            
         for j in range(-tailSize+1, tailSize):
             if eigen_index+j>=0 and eigen_index+j<Esize:
-                Dispersion[i][eigen_index+j]+=tailProfile[abs(j)]
+                Dispersion[i][eigen_index+j]+=tailProfile[abs(j)]*PSF
         return True
         
 
-def appendDispersion3(ix, iy, n, EMin, EPixel, tailProfile, LCAO):
+def appendDispersion3(ix, iy, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFobj):
     global Dispersion
 
     ret=0
@@ -144,9 +164,14 @@ def appendDispersion3(ix, iy, n, EMin, EPixel, tailProfile, LCAO):
         eigen_index=round((eigen-EMin)/EPixel)
         if eigen_index-tailSize>=Esize:
             return False
+        PSF=1.0
+        if plotPSF==True and eigen_index+tailSize-1>=0:
+            PSF=PSFobj.calc(i, n)
+            
         for j in range(-tailSize+1, tailSize):
             if eigen_index+j>=0 and eigen_index+j<Esize:
-                Dispersion[ix][iy][eigen_index+j]+=tailProfile[abs(j)]
+                Dispersion[ix][iy][eigen_index+j]+=tailProfile[abs(j)]*PSF
+                
         return True
                 
 
@@ -157,8 +182,9 @@ def genTailProfile(EPixel, dE):
         ret[i]=norm.pdf(i*EPixel, loc=0, scale=dE)
 
     return ret
-    
-def plot(win, LCAO):
+
+
+def plot(win, LCAO, PSFobj):
     # for 2D plot
     global Dispersion
 
@@ -174,6 +200,63 @@ def plot(win, LCAO):
         print("Energy range error")
         return
 
+    plotPSF=False
+    initialStates_i=0 # 0->AO, 1->PAO
+    finalStates_i=0 # 0->Plane wave, 1->Calculated
+    polarization_i=0 # 0->Linear, 1->Right circular, 2->Left circular
+    finalStates_step=0.0
+    theta=0.0
+    phi=0.0
+    Y_coeff=[0, 0, 0] # coeffcients of operators r Y_{1,m} [m=-1, m=0, m=1]
+    if win.plotDispersion.isChecked():
+        print("Plot the band dispersion")
+    elif win.plotPSF.isChecked():
+        plotPSF=True
+        print("Plot the PSF")
+        # initial state
+        if win.AOButton.isChecked():
+            print("Initial state: atomic orbital")
+        elif win.PAOButton.isChecked():
+            print("Initial state: pseudo-atomic orbital")
+            initialStates_i=1
+        else:
+            print("Error: AO or PAO should be selected")
+            return        
+        # final state
+        if win.PWButton.isChecked():
+            print("Final state: plane wave")
+        elif win.CalcButton.isChecked():
+            print("Final state: calculated wavefunction")
+            finalStates_i=1
+            finalStates_step=float(win.finalStates_step.text())
+        else:
+            print("Error: final state is not selected")
+            return
+        # polarization
+        if win.linear.isChecked():
+            print("Polarization: linear")
+        elif win.rCircular.isChecked():
+            print("Polarization: right circular")
+            polarization_i=1
+        elif win.lCircular.isChecked():
+            print("Polarization: left circular")
+            polarization_i=2
+        else:
+            print("Error: polarization is not selected")
+            return
+        # angle
+        theta=float(win.theta.text())
+        phi=float(win.phi.text())
+        print(("Angle: theta={0:.2f} deg, phi={1:.2f} deg").format(theta, phi))
+            
+        pt.calcOperatorCoeff(Y_coeff, polarization_i, theta, phi)
+        PSFobj.setSystem(initialStates_i, finalStates_i, finalStates_step, Y_coeff)
+            
+    else:
+        print("Error: Band dispersion or PSF should be checked")
+        return
+    
+
     print(("{0:d} points along the energy").format(numPnts_E))
     print(("{0:d} points along the kx").format(LCAO.numPnts_kx))
 
@@ -182,9 +265,11 @@ def plot(win, LCAO):
         return
     
     Dispersion=np.zeros((LCAO.numPnts_kx, numPnts_E))
+    
     for i in range(0, LCAO.numPnts_kx):
+        print(("Calculating k = {0:6d}").format(i))
         for n in range(0, LCAO.numBands):
-            if appendDispersion(i, n, EMin, EPixel, tailProfile, LCAO):
+            if appendDispersion(i, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFobj):
                 continue
             else:
                 break
@@ -194,9 +279,11 @@ def plot(win, LCAO):
     tr.scale(LCAO.dx_length, EPixel)
     win.img.setTransform(tr)
     win.img.setImage(Dispersion)
-    drawCursor(win, LCAO)
-        
-def makeDispersion3(win, LCAO):
+
+    maxpoint=Dispersion.max()
+    win.bar.setLevels((0, maxpoint))
+            
+def makeDispersion3(win, LCAO, PSFobj):
     # for 3D plot
     global Dispersion
 
@@ -212,6 +299,62 @@ def makeDispersion3(win, LCAO):
         print("Energy range error")
         return
 
+    plotPSF=False
+    initialStates_i=0 # 0->AO, 1->PAO
+    finalStates_i=0 # 0->Plane wave, 1->Calculated
+    polarization_i=0 # 0->Linear, 1->Right circular, 2->Left circular
+    finalStates_step=0.0
+    theta=0.0
+    phi=0.0
+    Y_coeff=[0, 0, 0] # coeffcients of operators r Y_{1,m} [m=-1, m=0, m=1]
+    if win.plotDispersion.isChecked():
+        print("Plot the band dispersion")
+    elif win.plotPSF.isChecked():
+        plotPSF=True
+        print("Plot the PSF")
+        # initial state
+        if win.AOButton.isChecked():
+            print("Initial state: atomic orbital")
+        elif win.PAOButton.isChecked():
+            print("Initial state: pseudo-atomic orbital")
+            initialStates_i=1
+        else:
+            print("Error: AO or PAO should be selected")
+            return        
+        # final state
+        if win.PWButton.isChecked():
+            print("Final state: plane wave")
+        elif win.CalcButton.isChecked():
+            print("Final state: calculated wavefunction")
+            finalStates_i=1
+            finalStates_step=float(win.finalStates_step.text())
+        else:
+            print("Error: final state is not selected")
+            return
+        # polarization
+        if win.linear.isChecked():
+            print("Polarization: linear")
+        elif win.rCircular.isChecked():
+            print("Polarization: right circular")
+            polarization_i=1
+        elif win.lCircular.isChecked():
+            print("Polarization: left circular")
+            polarization_i=2
+        else:
+            print("Error: polarization is not selected")
+            return
+        # angle
+        theta=float(win.theta.text())
+        phi=float(win.phi.text())
+        print(("Angle: theta={0:.2f} deg, phi={1:.2f} deg").format(theta, phi))
+            
+        pt.calcOperatorCoeff(Y_coeff, polarization_i, theta, phi)
+        PSFobj.setSystem(initialStates_i, finalStates_i, finalStates_step, Y_coeff)
+            
+    else:
+        print("Error: Band dispersion or PSF should be checked")
+        return
+    
     print(("{0:d} points along the energy").format(numPnts_E))
 
     win.eIndex.setMaximum(numPnts_E-1)
@@ -225,9 +368,11 @@ def makeDispersion3(win, LCAO):
     
     Dispersion=np.zeros((LCAO.numPnts_kx, LCAO.numPnts_ky, numPnts_E))
     for i in range(0, LCAO.numPnts_kx):
+        print(("Calculating kx = {0:6d}").format(i))
         for j in range(0, LCAO.numPnts_ky):
+            # print(("  Calculating ky = {0:6d}").format(j))
             for n in range(0, LCAO.numBands):
-                if appendDispersion3(i, j, n, EMin, EPixel, tailProfile, LCAO):
+                if appendDispersion3(i, j, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFobj):
                     continue
                 else:
                     break
@@ -262,7 +407,6 @@ def makeDispersion3(win, LCAO):
     win.bandCube.translate(LCAO.Xlength*LCAO.Xrange[0]-LCAO.dx_length/2,LCAO.Ylength*LCAO.Yrange[0]-LCAO.dy_length/2,0)
     win.plot3D.clear()
     win.plot3D.addItem(win.bandCube)
-    plot3(win, LCAO)
 
 def plot3(win, LCAO):
 
@@ -301,12 +445,9 @@ def plot3(win, LCAO):
     ExMax=Dispersion[:,ky,:].max()
     EyMax=Dispersion[kx,:,:].max()
     xyMax=Dispersion[:,:,ei].max()
-    Maxpoint=max(ExMax, EyMax, xyMax)
-    win.imgEx.setLevels([0,Maxpoint])
-    win.imgEy.setLevels([0,Maxpoint])
-    win.imgxy.setLevels([0,Maxpoint])
+    MaxPoint=max(ExMax, EyMax, xyMax)
+    win.bar.setLevels((0, MaxPoint))
 
-    drawCursor3(win, LCAO)
             
 def drawCursor(win, LCAO):
     
@@ -343,9 +484,6 @@ def drawCursor(win, LCAO):
     else:
         print("Index error")
         return
-
-    makeLCAOTable(win, LCAO)
-
             
 def drawCursor3(win, LCAO):
     EMin=float(win.EMin.text())
@@ -398,9 +536,61 @@ def drawCursor3(win, LCAO):
         print("Index error")
         return
 
-    makeLCAOTable(win, LCAO)
+def makeOrbitalList(win, LCAO, Wfns):
+    win.orbitalToPlot.clear()
 
-            
+    at=win.Atom.currentIndex()
+    at_label=LCAO.Atoms[at]
+    orbits=Wfns[at_label].Orbits
+    for orbit in orbits:
+        win.orbitalToPlot.addItem(orbit)
+
+
+def plotOrbital(win, LCAO, Wfns, PSFobj):
+    at=win.Atom.currentIndex()
+    at_label=LCAO.Atoms[at]
+    orb=win.orbitalToPlot.currentIndex()
+    
+    kx=win.kxIndex.value()
+    ky=win.kyIndex.value()
+    k=0
+    if LCAO.Dimension==1:
+        k=kx
+    elif LCAO.Dimension==2:
+        k=kx+ky*LCAO.numPnts_kx
+    
+    k_au=LCAO.Kpath_au[k]
+    k_length=math.sqrt(np.inner(k_au, k_au))
+        
+    wfn=Wfns[at_label].Wfn[orb]
+    wfn_finalp1=np.zeros((Wfns[at_label].length,))
+    wfn_finalm1=np.zeros((Wfns[at_label].length,))
+    orbit_label=Wfns[at_label].Orbits[orb]
+    l=0
+    if orbit_label[0]=="s":
+        pass
+    elif orbit_label[0]=="p":
+        l=1
+    elif orbit_label[0]=="d":
+        l=2
+    elif orbit_label[0]=="f":
+        l=3
+ 
+    r=Wfns[at_label].r
+    PSFobj.calcFinalState(wfn_finalp1, l+1, k_length, r)
+    if l-1>=0:
+        PSFobj.calcFinalState(wfn_finalm1, l-1, k_length, r)
+
+    win.wfnPlot.clear()
+
+    win.wfnPlot.plot(y=wfn[:][1], x=r, name="PAO", pen=Config.pen_PAO)
+    win.wfnPlot.plot(y=wfn[:][0], x=r, name="AO", pen=Config.pen_AO)
+    win.wfnPlot.plot(y=wfn_finalp1, x=r, name="Final (l+1)", pen=Config.pen_finalp1)
+    if l-1>=0:
+        win.wfnPlot.plot(y=wfn_finalm1, x=r, name="Final (l-1)", pen=Config.pen_finalm1)
+    
+
+    
 def makeLCAOTable(win, LCAO):
     
     kx=win.kxIndex.value()
@@ -476,6 +666,7 @@ def makeLCAOTable(win, LCAO):
                         win.LCAOTable.setRowCount(currentRow)
                         for s in range(0, numSpin):
                             s2=s*2
+                            # see OpenMX/source/AngularF.c for the order of the spherical harmonics
                             if orbitLabel=="s":
                                 # s orbital: nothing to calculate
                                 item1=QtGui.QTableWidgetItem(("s ({0:.2f}, {1:.2f})").format(LCAO_disp[0][0+s2], LCAO_disp[0][1+s2]))
@@ -490,9 +681,7 @@ def makeLCAOTable(win, LCAO):
                                 px=LCAO_disp[0][0+s2]+LCAO_disp[0][1+s2]*1j
                                 py=LCAO_disp[1][0+s2]+LCAO_disp[1][1+s2]*1j
                                 pz=LCAO_disp[2][0+s2]+LCAO_disp[2][1+s2]*1j
-                                pm1=(px-1j*py)/math.sqrt(2)
-                                pp0=pz
-                                pp1=(px+1j*py)/math.sqrt(2)
+                                p_conv=pt.convertLCAO_p(px, py, pz)
                                 # table
                                 item1=QtGui.QTableWidgetItem(("px ({0:.2f}, {1:.2f})").format(LCAO_disp[0][0+s2], LCAO_disp[0][1+s2]))
                                 item2=QtGui.QTableWidgetItem(("py ({0:.2f}, {1:.2f})").format(LCAO_disp[1][0+s2], LCAO_disp[1][1+s2]))
@@ -500,9 +689,9 @@ def makeLCAOTable(win, LCAO):
                                 win.LCAOTable.setItem(currentRow-3, 0+s2, item1)
                                 win.LCAOTable.setItem(currentRow-2, 0+s2, item2)
                                 win.LCAOTable.setItem(currentRow-1, 0+s2, item3)
-                                item1=QtGui.QTableWidgetItem(("p(-1) ({0:.2f}, {1:.2f})").format(pm1.real, pm1.imag))
-                                item2=QtGui.QTableWidgetItem(("p(+0) ({0:.2f}, {1:.2f})").format(pp0.real, pp0.imag))
-                                item3=QtGui.QTableWidgetItem(("p(+1) ({0:.2f}, {1:.2f})").format(pp1.real, pp1.imag))
+                                item1=QtGui.QTableWidgetItem(("p(-1) ({0:.2f}, {1:.2f})").format(p_conv[0].real, p_conv[0].imag))
+                                item2=QtGui.QTableWidgetItem(("p(+0) ({0:.2f}, {1:.2f})").format(p_conv[1].real, p_conv[1].imag))
+                                item3=QtGui.QTableWidgetItem(("p(+1) ({0:.2f}, {1:.2f})").format(p_conv[2].real, p_conv[2].imag))
                                 win.LCAOTable.setItem(currentRow-3, 1+s2, item1)
                                 win.LCAOTable.setItem(currentRow-2, 1+s2, item2)
                                 win.LCAOTable.setItem(currentRow-1, 1+s2, item3)
@@ -520,11 +709,7 @@ def makeLCAOTable(win, LCAO):
                                 dxy   =LCAO_disp[2][0+s2]+LCAO_disp[2][1+s2]*1j
                                 dxz   =LCAO_disp[3][0+s2]+LCAO_disp[3][1+s2]*1j
                                 dyz   =LCAO_disp[4][0+s2]+LCAO_disp[4][1+s2]*1j
-                                dm2=(dx2y2-1j*dxy)/math.sqrt(2)
-                                dm1=(dxz-1j*dyz)/math.sqrt(2)
-                                dp0=d3z2r2
-                                dp1=(dxz+1j*dyz)/math.sqrt(2)
-                                dp2=(dx2y2+1j*dxy)/math.sqrt(2)
+                                d_conv=pt.convertLCAO_d(d3z2r2, dx2y2, dxy, dxz, dyz)
                                 # table
                                 item1=QtGui.QTableWidgetItem(("d3z2r2 ({0:.2f}, {1:.2f})").format(LCAO_disp[0][0+s2], LCAO_disp[0][1+s2]))
                                 item2=QtGui.QTableWidgetItem(("dx2y2  ({0:.2f}, {1:.2f})").format(LCAO_disp[1][0+s2], LCAO_disp[1][1+s2]))
@@ -536,11 +721,11 @@ def makeLCAOTable(win, LCAO):
                                 win.LCAOTable.setItem(currentRow-3, 0+s2, item3)
                                 win.LCAOTable.setItem(currentRow-2, 0+s2, item4)
                                 win.LCAOTable.setItem(currentRow-1, 0+s2, item5)
-                                item1=QtGui.QTableWidgetItem(("d(-2) ({0:.2f}, {1:.2f})").format(dm2.real, dm2.imag))
-                                item2=QtGui.QTableWidgetItem(("d(-1) ({0:.2f}, {1:.2f})").format(dm1.real, dm1.imag))
-                                item3=QtGui.QTableWidgetItem(("d(+0) ({0:.2f}, {1:.2f})").format(dp0.real, dp0.imag))
-                                item4=QtGui.QTableWidgetItem(("d(+1) ({0:.2f}, {1:.2f})").format(dp1.real, dp1.imag))
-                                item5=QtGui.QTableWidgetItem(("d(+2) ({0:.2f}, {1:.2f})").format(dp2.real, dp2.imag))
+                                item1=QtGui.QTableWidgetItem(("d(-2) ({0:.2f}, {1:.2f})").format(d_conv[0].real, d_conv[0].imag))
+                                item2=QtGui.QTableWidgetItem(("d(-1) ({0:.2f}, {1:.2f})").format(d_conv[1].real, d_conv[1].imag))
+                                item3=QtGui.QTableWidgetItem(("d(+0) ({0:.2f}, {1:.2f})").format(d_conv[2].real, d_conv[2].imag))
+                                item4=QtGui.QTableWidgetItem(("d(+1) ({0:.2f}, {1:.2f})").format(d_conv[3].real, d_conv[3].imag))
+                                item5=QtGui.QTableWidgetItem(("d(+2) ({0:.2f}, {1:.2f})").format(d_conv[4].real, d_conv[4].imag))
                                 win.LCAOTable.setItem(currentRow-5, 1+s2, item1)
                                 win.LCAOTable.setItem(currentRow-4, 1+s2, item2)
                                 win.LCAOTable.setItem(currentRow-3, 1+s2, item3)
@@ -567,13 +752,7 @@ def makeLCAOTable(win, LCAO):
                                 fxyz    =LCAO_disp[4][0+s2]+LCAO_disp[4][1+s2]*1j
                                 fx33xy2 =LCAO_disp[5][0+s2]+LCAO_disp[5][1+s2]*1j
                                 f3yx2y3 =LCAO_disp[6][0+s2]+LCAO_disp[6][1+s2]*1j
-                                fm3=(fx33xy2-1j*f3yx2y3)/math.sqrt(2)
-                                fm2=(fzx2zy2-1j*fxyz)/math.sqrt(2)
-                                fm1=(f5xy2xr2-1j*f5yz2yr2)/math.sqrt(2)
-                                fp0=f5z23r2
-                                fp1=(f5xy2xr2+1j*f5yz2yr2)/math.sqrt(2)
-                                fp2=(fzx2zy2+1j*fxyz)/math.sqrt(2)
-                                fp3=(fx33xy2+1j*f3yx2y3)/math.sqrt(2)
+                                f_conv=pt.convertLCAO_f(f5z23r2, f5xy2xr2, f5yz2yr2, fzx2zy2, fxyz, fx33xy2, f3yx2y3)
                                 # table
                                 item1=QtGui.QTableWidgetItem(("f5z23r2  ({0:.2f}, {1:.2f})").format(LCAO_disp[0][0+s2], LCAO_disp[0][1+s2]))
                                 item2=QtGui.QTableWidgetItem(("f5xy2xr2 ({0:.2f}, {1:.2f})").format(LCAO_disp[1][0+s2], LCAO_disp[1][1+s2]))
@@ -589,13 +768,13 @@ def makeLCAOTable(win, LCAO):
                                 win.LCAOTable.setItem(currentRow-3, 0+s2, item5)
                                 win.LCAOTable.setItem(currentRow-2, 0+s2, item6)
                                 win.LCAOTable.setItem(currentRow-1, 0+s2, item7)
-                                item1=QtGui.QTableWidgetItem(("f(-3) ({0:.2f}, {1:.2f})").format(fm3.real, fm3.imag))
-                                item2=QtGui.QTableWidgetItem(("f(-2) ({0:.2f}, {1:.2f})").format(fm2.real, fm2.imag))
-                                item3=QtGui.QTableWidgetItem(("f(-1) ({0:.2f}, {1:.2f})").format(fm1.real, fm1.imag))
-                                item4=QtGui.QTableWidgetItem(("f(+0) ({0:.2f}, {1:.2f})").format(fp0.real, fp0.imag))
-                                item5=QtGui.QTableWidgetItem(("f(+1) ({0:.2f}, {1:.2f})").format(fp1.real, fp1.imag))
-                                item6=QtGui.QTableWidgetItem(("f(+2) ({0:.2f}, {1:.2f})").format(fp2.real, fp2.imag))
-                                item7=QtGui.QTableWidgetItem(("f(+3) ({0:.2f}, {1:.2f})").format(fp3.real, fp3.imag))
+                                item1=QtGui.QTableWidgetItem(("f(-3) ({0:.2f}, {1:.2f})").format(f_conv[0].real, f_conv[0].imag))
+                                item2=QtGui.QTableWidgetItem(("f(-2) ({0:.2f}, {1:.2f})").format(f_conv[1].real, f_conv[1].imag))
+                                item3=QtGui.QTableWidgetItem(("f(-1) ({0:.2f}, {1:.2f})").format(f_conv[2].real, f_conv[2].imag))
+                                item4=QtGui.QTableWidgetItem(("f(+0) ({0:.2f}, {1:.2f})").format(f_conv[3].real, f_conv[3].imag))
+                                item5=QtGui.QTableWidgetItem(("f(+1) ({0:.2f}, {1:.2f})").format(f_conv[4].real, f_conv[4].imag))
+                                item6=QtGui.QTableWidgetItem(("f(+2) ({0:.2f}, {1:.2f})").format(f_conv[5].real, f_conv[5].imag))
+                                item7=QtGui.QTableWidgetItem(("f(+3) ({0:.2f}, {1:.2f})").format(f_conv[6].real, f_conv[6].imag))
                                 win.LCAOTable.setItem(currentRow-7, 1+s2, item1)
                                 win.LCAOTable.setItem(currentRow-6, 1+s2, item2)
                                 win.LCAOTable.setItem(currentRow-5, 1+s2, item3)
