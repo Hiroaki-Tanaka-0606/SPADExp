@@ -189,7 +189,7 @@ def sphericalHarmonics(l, m, r):
         if m==-2:
             # d(-2): 1/4 sqrt(15/2pi) sin^2(T)(cos(2P)-i*sin(2P))
             return (1.0/4.0)*math.sqrt(15.0/(2.0*math.pi))*sinT**2*(cos2P-1j*sin2P)
-        elif m==-2:
+        elif m==-1:
             # d(-1): 1/2 sqrt(15/2pi) sin(T)cos(T)(cos(P)-i*sin(P))
             return (1.0/2.0)*math.sqrt(15.0/(2.0*math.pi))*sinT*cosT*(cosP-1j*sinP)
         elif m==0:

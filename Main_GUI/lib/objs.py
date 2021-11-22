@@ -275,6 +275,11 @@ class PSF:
             Ylm_k.append([])
             for mp in range(-lp, lp+1):
                 Ylm_k[lp].append(pt.sphericalHarmonics(lp, mp, k_au))
+
+        # for debug
+        # if ik==14825:
+        #     print(k_au)
+        #     print(Ylm_k)
         
         for ia in range(0, self.LCAO.numAtoms):
             atom_label=self.LCAO.Atoms[ia]
