@@ -264,7 +264,8 @@ class PSF:
         # j: magnetic quantum number of the perturbation, j=jp1-1
 
         dls=[-1, 1]
-        
+        # dls=[1]
+
         k_au=self.LCAO.Kpath_au[ik]
         k_length=math.sqrt(np.inner(k_au, k_au))
         ret=0.0
