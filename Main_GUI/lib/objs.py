@@ -264,7 +264,8 @@ class PSF:
         # j: magnetic quantum number of the perturbation, j=jp1-1
 
         dls=[-1, 1]
-        
+        # dls=[1]
+
         k_au=self.LCAO.Kpath_au[ik]
         k_length=math.sqrt(np.inner(k_au, k_au))
         ret=0.0
@@ -273,6 +274,10 @@ class PSF:
         for lp in range(0, 5):
             for mp in range(-lp, lp+1):
                 Ylm_k[lp][mp+lp]=pt.sphericalHarmonics(lp, mp, k_au)
+        # for debug
+        # if ik==14825:
+        #     print(k_au)
+        #     print(Ylm_k)
         
         for ia in range(0, self.LCAO.numAtoms):
             atom_label=self.LCAO.Atoms[ia]
