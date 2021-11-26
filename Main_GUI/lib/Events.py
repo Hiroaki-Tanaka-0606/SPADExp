@@ -201,7 +201,7 @@ def plot(win, LCAO, PSFobj):
         return
 
     plotPSF=False
-    initialStates_i=0 # 0->AO, 1->PAO
+    initialStates_i=1 # 0->PAO, 1->AO
     finalStates_i=0 # 0->Plane wave, 1->Calculated
     polarization_i=0 # 0->Linear, 1->Right circular, 2->Left circular
     finalStates_step=0.0
@@ -218,7 +218,7 @@ def plot(win, LCAO, PSFobj):
             print("Initial state: atomic orbital")
         elif win.PAOButton.isChecked():
             print("Initial state: pseudo-atomic orbital")
-            initialStates_i=1
+            initialStates_i=0
         else:
             print("Error: AO or PAO should be selected")
             return        
@@ -300,7 +300,7 @@ def makeDispersion3(win, LCAO, PSFobj):
         return
 
     plotPSF=False
-    initialStates_i=0 # 0->AO, 1->PAO
+    initialStates_i=1 # 0->PAO, 1->AO
     finalStates_i=0 # 0->Plane wave, 1->Calculated
     polarization_i=0 # 0->Linear, 1->Right circular, 2->Left circular
     finalStates_step=0.0
@@ -317,9 +317,9 @@ def makeDispersion3(win, LCAO, PSFobj):
             print("Initial state: atomic orbital")
         elif win.PAOButton.isChecked():
             print("Initial state: pseudo-atomic orbital")
-            initialStates_i=1
+            initialStates_i=0
         else:
-            print("Error: AO or PAO should be selected")
+            print("Error: PAO or AO should be selected")
             return        
         # final state
         if win.PWButton.isChecked():
@@ -583,8 +583,8 @@ def plotOrbital(win, LCAO, Wfns, PSFobj):
 
     win.wfnPlot.clear()
 
-    win.wfnPlot.plot(y=wfn[:][1], x=r, name="PAO", pen=Config.pen_PAO)
-    win.wfnPlot.plot(y=wfn[:][0], x=r, name="AO", pen=Config.pen_AO)
+    win.wfnPlot.plot(y=wfn[:][0], x=r, name="PAO", pen=Config.pen_PAO)
+    win.wfnPlot.plot(y=wfn[:][1], x=r, name="AO", pen=Config.pen_AO)
     win.wfnPlot.plot(y=wfn_finalp1, x=r, name="Final (l+1)", pen=Config.pen_finalp1)
     if l-1>=0:
         win.wfnPlot.plot(y=wfn_finalm1, x=r, name="Final (l-1)", pen=Config.pen_finalm1)

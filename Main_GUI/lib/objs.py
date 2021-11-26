@@ -219,7 +219,7 @@ class PSF:
     def __init__(self, LCAO, Wfns):
         self.LCAO=LCAO
         self.Wfns=Wfns
-        self.initialStates_i=0 # 0->AO, 1->PAO
+        self.initialStates_i=0 # 0->PAO, 1->AO
         self.finalStates_i=0 # 0->Plane wave, 1->Calculated
         self.finalStates_step=0.0
         self.Y_coeff=[0, 0, 0]
@@ -269,11 +269,10 @@ class PSF:
         k_length=math.sqrt(np.inner(k_au, k_au))
         ret=0.0
         # prepare spherical harmonics
-        Ylm_k=[]
+        Ylm_k=np.zeros((5,11), dtype=complex)
         for lp in range(0, 5):
-            Ylm_k.append([])
             for mp in range(-lp, lp+1):
-                Ylm_k[lp].append(pt.sphericalHarmonics(lp, mp, k_au))
+                Ylm_k[lp][mp+lp]=pt.sphericalHarmonics(lp, mp, k_au)
         
         for ia in range(0, self.LCAO.numAtoms):
             atom_label=self.LCAO.Atoms[ia]

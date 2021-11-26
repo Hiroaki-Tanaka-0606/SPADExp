@@ -155,8 +155,11 @@ def sphericalHarmonics(l, m, r):
     r_length=math.sqrt(np.inner(r, r))
     cosT=r[2]/r_length
     sinT=math.sqrt(r[0]**2+r[1]**2)/r_length
-    cosP=r[0]/(r_length*sinT)
-    sinP=r[1]/(r_length*sinT)
+    cosP=1
+    sinP=0
+    if abs(sinT)>1e-5:
+        cosP=r[0]/(r_length*sinT)
+        sinP=r[1]/(r_length*sinT)
 
     cos2P=cosP**2-sinP**2
     sin2P=2*sinP*cosP
