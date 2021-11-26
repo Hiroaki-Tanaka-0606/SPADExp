@@ -7,6 +7,7 @@ import math
 
 import Config
 from lib import physical_tools as pt
+import time
     
 class LCAO:
     def __init__(self):
@@ -58,7 +59,8 @@ class LCAO:
         self.numBands=0 # number of bands in the data
         self.LCAO_atoms=[] # labels "{:d}_{:s}"
         self.LCAO=[] # LCAO coefficients [atom index][orbital index](numpy[k][band][m][Re, Im])
-        self.LCAO_labels=[] # LCAO labels, related to orbital index, probably alphabetic order 
+        self.LCAO_labels=[] # LCAO labels, related to orbital index, probably alphabetic order
+        self.LCAO_index=[] # [i] is inversion of self.LCAO_labels[i]
         
 
     def open(self, filePath):
@@ -184,6 +186,12 @@ class LCAO:
                     lcao_tmp.append(np.array(f["Output"]["LCAO"][atom][lcao_key]))
                 self.LCAO.append(lcao_tmp)
                 self.LCAO_labels.append(lcao_label_tmp)
+                
+            for LCAO_label1 in self.LCAO_labels:
+                inv_LCAO_label={}
+                for j, LCAO_label2 in enumerate(LCAO_label1):
+                    inv_LCAO_label[LCAO_label2]=j
+                self.LCAO_index.append(inv_LCAO_label)
 
 
 class Wfn:
@@ -194,16 +202,20 @@ class Wfn:
         self.Orbits_str=specs[2] # like "s2p2d1"
         self.length=0 # data length
         self.r=None # numpy[length], values of r
-        self.Wfn=[] # list of [r][AO or PAO], the order follws Orbits
+        self.dr=None # numpy[length], dr[i]=r[i+1]-r[i], dr[-1]=0
+        self.Wfn=[] # list of [r][PAO or AO], the order follws Orbits
 
         # decomposition of Orbits_str
         self.Orbits=[] # like "s0", "s1", "p0", "p1", "d0", "d1"
+        self.l=[] # like 0, 0, 1, 1, 2, 2
+        lList={"s": 0, "p": 1, "d": 2, "f": 3}
         i=0
         while i<len(self.Orbits_str):
             orbit_label=self.Orbits_str[i]
             mul=int(self.Orbits_str[i+1])
             for j in range(0, mul):
                 self.Orbits.append(("{0:s}{1:1d}").format(orbit_label, j))
+                self.l.append(lList[orbit_label])
             i+=2
 
         groupName=self.PAO+"&"+self.PP
@@ -212,8 +224,11 @@ class Wfn:
             g=f[groupName]
             self.length=g.attrs["length"]
             self.r=np.array(g.attrs["r"])
+            self.dr=np.zeros(self.r.shape)
             for orbit in self.Orbits:
                 self.Wfn.append(np.array(g[orbit]))
+            for i in range(0, self.length-1):
+                self.dr[i]=self.r[i+1]-self.r[i]
             
 class PSF:
     def __init__(self, LCAO, Wfns):
@@ -224,12 +239,12 @@ class PSF:
         self.finalStates_step=0.0
         self.Y_coeff=[0, 0, 0]
         self.configured=False
-        self.Gaunt=np.zeros((5,11,4,9)) # [lp][mp+lp][l][m+l]
+        self.Gaunt=np.zeros((4,9,5,11)) # [l][m+l][lp][mp+lp]
         for lp in range(0, 5):
             for mp in range(-lp, lp+1):
                 for l in range(0, 4):
                     for m in range(-l, l+1):
-                        self.Gaunt[lp][mp+lp][l][m+l]=pt.Gaunt(lp, mp, l, m)
+                        self.Gaunt[l][m+l][lp][mp+lp]=pt.Gaunt(lp, mp, l, m)
 
     def setSystem(self, initialStates_i, finalStates_i, finalStates_step, Y_coeff):
         self.initialStates_i=initialStates_i
@@ -265,21 +280,24 @@ class PSF:
 
         dls=[-1, 1]
         # dls=[1]
+        m1jlp=[-1j, -1, 1j, 1, -1j]
 
         k_au=self.LCAO.Kpath_au[ik]
         k_length=math.sqrt(np.inner(k_au, k_au))
         ret=0.0
         # prepare spherical harmonics
-        Ylm_k=np.zeros((5,11), dtype=complex)
-        for lp in range(0, 5):
-            for mp in range(-lp, lp+1):
-                Ylm_k[lp][mp+lp]=pt.sphericalHarmonics(lp, mp, k_au)
+        Ylm_k=pt.sphericalHarmonics(k_au)
+        
         # for debug
-        # if ik==14825:
+        # if ik==0:
         #     print(k_au)
         #     print(Ylm_k)
-        
+
+        time1=time.time()
         for ia in range(0, self.LCAO.numAtoms):
+            # time2=time.time()
+            # print(("calc {0:d}").format(ia), time2-time1) # 0.0035 sec 
+            # time1=time2
             atom_label=self.LCAO.Atoms[ia]
             wfnObj=self.Wfns[atom_label]
             kt=np.inner(k_au, self.LCAO.Atom_au[ia])
@@ -290,44 +308,25 @@ class PSF:
                 self.calcFinalState(finalStates[lp], lp, k_length, wfnObj.r)
                     
             for io, orbit_label in enumerate(wfnObj.Orbits):
-                l=0
-                if orbit_label[0]=="s":
-                    pass
-                elif orbit_label[0]=="p":
-                    l=1
-                elif orbit_label[0]=="d":
-                    l=2
-                elif orbit_label[0]=="f":
-                    l=3
-                else:
-                    print("Error: invalid azimuthal quantum label")
-                    return 0.0
-                iL=0
-                iL_found=False
-                for il, LCAO_label in enumerate(self.LCAO.LCAO_labels[ia]):
-                    if LCAO_label==orbit_label:
-                        iL=il
-                        iL_found=True
-                        break
-                if iL_found==False:
-                    return 0.0
+                l=wfnObj.l[io]
+                iL=self.LCAO.LCAO_index[ia][orbit_label]
                 LCAO_iL=self.LCAO.LCAO[ia][iL][ik][ib]
-                LCAO_iL_conv=[]
+                LCAO_iL_conv=np.zeros((7,), dtype=complex)
                 # conversion of LCAO coefficients
                 if l==0:
-                    LCAO_iL_conv.append(LCAO_iL[0][0]+LCAO_iL[0][1]*1j)
+                    LCAO_iL_conv[0]=LCAO_iL[0][0]+LCAO_iL[0][1]*1j
                 elif l==1:
                     p1=LCAO_iL[0][0]+LCAO_iL[0][1]*1j
                     p2=LCAO_iL[1][0]+LCAO_iL[1][1]*1j
                     p3=LCAO_iL[2][0]+LCAO_iL[2][1]*1j
-                    LCAO_iL_conv=pt.convertLCAO_p(p1, p2, p3)
+                    pt.convertLCAO_p(p1, p2, p3, LCAO_iL_conv)
                 elif l==2:
                     d1=LCAO_iL[0][0]+LCAO_iL[0][1]*1j
                     d2=LCAO_iL[1][0]+LCAO_iL[1][1]*1j
                     d3=LCAO_iL[2][0]+LCAO_iL[2][1]*1j
                     d4=LCAO_iL[3][0]+LCAO_iL[3][1]*1j
                     d5=LCAO_iL[4][0]+LCAO_iL[4][1]*1j
-                    LCAO_iL_conv=pt.convertLCAO_d(d1, d2, d3, d4, d5)
+                    pt.convertLCAO_d(d1, d2, d3, d4, d5, LCAO_iL_conv)
                 elif l==3:
                     f1=LCAO_iL[0][0]+LCAO_iL[0][1]*1j
                     f2=LCAO_iL[1][0]+LCAO_iL[1][1]*1j
@@ -336,24 +335,33 @@ class PSF:
                     f5=LCAO_iL[4][0]+LCAO_iL[4][1]*1j
                     f6=LCAO_iL[5][0]+LCAO_iL[5][1]*1j
                     f7=LCAO_iL[6][0]+LCAO_iL[6][1]*1j
-                    LCAO_iL_conv=pt.convertLCAO_f(f1, f2, f3, f4, f5, f6, f7)
-                    
+                    pt.convertLCAO_f(f1, f2, f3, f4, f5, f6, f7, LCAO_iL_conv)
                 wfn_initial=wfnObj.Wfn[io][:][self.initialStates_i]
                 for dl in dls:
                     lp=l+dl
                     if lp<0:
                         continue
-                    radialPart=pt.radialIntegral(wfn_initial, finalStates[lp], wfnObj.r)
+                    radialPart=(wfn_initial*finalStates[lp]*wfnObj.r*wfnObj.dr).sum()                    
+
+                    coeffs=np.zeros((7,), dtype=complex)
                     for mpl in range(0, 2*l+1):
                         m=mpl-l
-                        for jp1 in range(0, 3):
-                            j=jp1-1
-                            if m+j<-lp or m+j>lp:
-                                continue
-                            gaunt_coeff=self.Gaunt[lp][m+j+lp][l][m+l]
-                            Ylpmp=Ylm_k[lp][m+j+lp]
-                            ret+=((-1j)**lp)*Ylpmp*atom_phase*self.Y_coeff[jp1]*LCAO_iL_conv[mpl]*gaunt_coeff*radialPart
-                        
-                
-                    
+
+                        jp1St=max(-1, -(m+lp))+1 # Min of j+1
+                        jp1En=min(1, lp-m)+2     # Max of j+1+1
+                        mpjplpSt=jp1St-1+m+lp    # Min of m+j+lp
+                        mpjplpEn=jp1En-1+m+lp    # Max of m+j+lp+1
+                        # for jp1 in range(0, 3):
+                        #    j=jp1-1
+                        #    if m+j<-lp or m+j>lp:
+                        #        continue
+                        #    gaunt_coeff=self.Gaunt[lp][l][m+j+lp][m+l]
+                        #    Ylpmp=Ylm_k[lp][m+j+lp]
+                        #    ret2+=Ylpmp*self.Y_coeff[jp1]*gaunt_coeff
+                        # ret1+=ret2*LCAO_iL_conv[mpl]
+
+                        coeffs[mpl]=(Ylm_k[lp][mpjplpSt:mpjplpEn]*self.Gaunt[l][mpl][lp][mpjplpSt:mpjplpEn]*self.Y_coeff[jp1St:jp1En]).sum()
+                            
+                    ret+=(LCAO_iL_conv*coeffs).sum()*m1jlp[lp]*radialPart*atom_phase
+                                    
         return ret.real**2+ret.imag**2

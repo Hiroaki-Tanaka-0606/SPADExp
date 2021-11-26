@@ -12,6 +12,8 @@ import pyqtgraph.opengl as gl
 from lib import physical_tools as pt
 from lib import objs
 
+import time
+
 import Config
 
 Dispersion=None # dispersion calculated in the specified energy range (numpy array)
@@ -166,7 +168,10 @@ def appendDispersion3(ix, iy, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFob
             return False
         PSF=1.0
         if plotPSF==True and eigen_index+tailSize-1>=0:
-            PSF=PSFobj.calc(i, n)
+            # time1=time.time()
+            PSF=PSFobj.calc(i, n) 
+            # time2=time.time()
+            # print("PSF", time2-time1) about 0.013 sec
             
         for j in range(-tailSize+1, tailSize):
             if eigen_index+j>=0 and eigen_index+j<Esize:
@@ -367,11 +372,15 @@ def makeDispersion3(win, LCAO, PSFobj):
         return
     
     Dispersion=np.zeros((LCAO.numPnts_kx, LCAO.numPnts_ky, numPnts_E))
+    # time1=time.time()
     for i in range(0, LCAO.numPnts_kx):
         print(("Calculating kx = {0:6d}").format(i))
         for j in range(0, LCAO.numPnts_ky):
             # print(("  Calculating ky = {0:6d}").format(j))
             for n in range(0, LCAO.numBands):
+                # time2=time.time()
+                # print(time2-time1) about 0.013 sec
+                # time1=time2
                 if appendDispersion3(i, j, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFobj):
                     continue
                 else:
@@ -411,15 +420,19 @@ def makeDispersion3(win, LCAO, PSFobj):
 def plot3(win, LCAO):
 
     global Dispersion
-    Maxpoint=Dispersion.max()
 
     kx=win.kxIndex.value()
     ky=win.kyIndex.value()
     ei=win.eIndex.value()
+    ExMax=Dispersion[:,ky,:].max()
+    EyMax=Dispersion[kx,:,:].max()
+    xyMax=Dispersion[:,:,ei].max()
+    MaxPoint=max(ExMax, EyMax, xyMax)
     win.imgEx.setImage(Dispersion[:,ky,:])
     win.imgEy.setImage(Dispersion[kx,:,:])
     win.imgxy.setImage(Dispersion[:,:,ei])
 
+    Maxpoint=Dispersion.max()
     win.Cube[:,:,:,0]=255
     win.Cube[:,:,:,1]=255
     win.Cube[:,:,:,2]=255
@@ -441,13 +454,6 @@ def plot3(win, LCAO):
     win.Cube[:,:,ei,3]=Config.gridAlpha
 
     win.bandCube.setData(win.Cube)
-
-    ExMax=Dispersion[:,ky,:].max()
-    EyMax=Dispersion[kx,:,:].max()
-    xyMax=Dispersion[:,:,ei].max()
-    MaxPoint=max(ExMax, EyMax, xyMax)
-    win.bar.setLevels((0, MaxPoint))
-
             
 def drawCursor(win, LCAO):
     
@@ -664,6 +670,7 @@ def makeLCAOTable(win, LCAO):
                         elif orbitLabel=="f":
                             currentRow+=7
                         win.LCAOTable.setRowCount(currentRow)
+                        LCAO_conv=np.zeros((7,), dtype=complex)
                         for s in range(0, numSpin):
                             s2=s*2
                             # see OpenMX/source/AngularF.c for the order of the spherical harmonics
@@ -681,7 +688,7 @@ def makeLCAOTable(win, LCAO):
                                 px=LCAO_disp[0][0+s2]+LCAO_disp[0][1+s2]*1j
                                 py=LCAO_disp[1][0+s2]+LCAO_disp[1][1+s2]*1j
                                 pz=LCAO_disp[2][0+s2]+LCAO_disp[2][1+s2]*1j
-                                p_conv=pt.convertLCAO_p(px, py, pz)
+                                pt.convertLCAO_p(px, py, pz, LCAO_conv)
                                 # table
                                 item1=QtGui.QTableWidgetItem(("px ({0:.2f}, {1:.2f})").format(LCAO_disp[0][0+s2], LCAO_disp[0][1+s2]))
                                 item2=QtGui.QTableWidgetItem(("py ({0:.2f}, {1:.2f})").format(LCAO_disp[1][0+s2], LCAO_disp[1][1+s2]))
@@ -689,9 +696,9 @@ def makeLCAOTable(win, LCAO):
                                 win.LCAOTable.setItem(currentRow-3, 0+s2, item1)
                                 win.LCAOTable.setItem(currentRow-2, 0+s2, item2)
                                 win.LCAOTable.setItem(currentRow-1, 0+s2, item3)
-                                item1=QtGui.QTableWidgetItem(("p(-1) ({0:.2f}, {1:.2f})").format(p_conv[0].real, p_conv[0].imag))
-                                item2=QtGui.QTableWidgetItem(("p(+0) ({0:.2f}, {1:.2f})").format(p_conv[1].real, p_conv[1].imag))
-                                item3=QtGui.QTableWidgetItem(("p(+1) ({0:.2f}, {1:.2f})").format(p_conv[2].real, p_conv[2].imag))
+                                item1=QtGui.QTableWidgetItem(("p(-1) ({0:.2f}, {1:.2f})").format(LCAO_conv[0].real, LCAO_conv[0].imag))
+                                item2=QtGui.QTableWidgetItem(("p(+0) ({0:.2f}, {1:.2f})").format(LCAO_conv[1].real, LCAO_conv[1].imag))
+                                item3=QtGui.QTableWidgetItem(("p(+1) ({0:.2f}, {1:.2f})").format(LCAO_conv[2].real, LCAO_conv[2].imag))
                                 win.LCAOTable.setItem(currentRow-3, 1+s2, item1)
                                 win.LCAOTable.setItem(currentRow-2, 1+s2, item2)
                                 win.LCAOTable.setItem(currentRow-1, 1+s2, item3)
@@ -709,7 +716,7 @@ def makeLCAOTable(win, LCAO):
                                 dxy   =LCAO_disp[2][0+s2]+LCAO_disp[2][1+s2]*1j
                                 dxz   =LCAO_disp[3][0+s2]+LCAO_disp[3][1+s2]*1j
                                 dyz   =LCAO_disp[4][0+s2]+LCAO_disp[4][1+s2]*1j
-                                d_conv=pt.convertLCAO_d(d3z2r2, dx2y2, dxy, dxz, dyz)
+                                pt.convertLCAO_d(d3z2r2, dx2y2, dxy, dxz, dyz, LCAO_conv)
                                 # table
                                 item1=QtGui.QTableWidgetItem(("d3z2r2 ({0:.2f}, {1:.2f})").format(LCAO_disp[0][0+s2], LCAO_disp[0][1+s2]))
                                 item2=QtGui.QTableWidgetItem(("dx2y2  ({0:.2f}, {1:.2f})").format(LCAO_disp[1][0+s2], LCAO_disp[1][1+s2]))
@@ -721,11 +728,11 @@ def makeLCAOTable(win, LCAO):
                                 win.LCAOTable.setItem(currentRow-3, 0+s2, item3)
                                 win.LCAOTable.setItem(currentRow-2, 0+s2, item4)
                                 win.LCAOTable.setItem(currentRow-1, 0+s2, item5)
-                                item1=QtGui.QTableWidgetItem(("d(-2) ({0:.2f}, {1:.2f})").format(d_conv[0].real, d_conv[0].imag))
-                                item2=QtGui.QTableWidgetItem(("d(-1) ({0:.2f}, {1:.2f})").format(d_conv[1].real, d_conv[1].imag))
-                                item3=QtGui.QTableWidgetItem(("d(+0) ({0:.2f}, {1:.2f})").format(d_conv[2].real, d_conv[2].imag))
-                                item4=QtGui.QTableWidgetItem(("d(+1) ({0:.2f}, {1:.2f})").format(d_conv[3].real, d_conv[3].imag))
-                                item5=QtGui.QTableWidgetItem(("d(+2) ({0:.2f}, {1:.2f})").format(d_conv[4].real, d_conv[4].imag))
+                                item1=QtGui.QTableWidgetItem(("d(-2) ({0:.2f}, {1:.2f})").format(LCAO_conv[0].real, LCAO_conv[0].imag))
+                                item2=QtGui.QTableWidgetItem(("d(-1) ({0:.2f}, {1:.2f})").format(LCAO_conv[1].real, LCAO_conv[1].imag))
+                                item3=QtGui.QTableWidgetItem(("d(+0) ({0:.2f}, {1:.2f})").format(LCAO_conv[2].real, LCAO_conv[2].imag))
+                                item4=QtGui.QTableWidgetItem(("d(+1) ({0:.2f}, {1:.2f})").format(LCAO_conv[3].real, LCAO_conv[3].imag))
+                                item5=QtGui.QTableWidgetItem(("d(+2) ({0:.2f}, {1:.2f})").format(LCAO_conv[4].real, LCAO_conv[4].imag))
                                 win.LCAOTable.setItem(currentRow-5, 1+s2, item1)
                                 win.LCAOTable.setItem(currentRow-4, 1+s2, item2)
                                 win.LCAOTable.setItem(currentRow-3, 1+s2, item3)
@@ -752,7 +759,7 @@ def makeLCAOTable(win, LCAO):
                                 fxyz    =LCAO_disp[4][0+s2]+LCAO_disp[4][1+s2]*1j
                                 fx33xy2 =LCAO_disp[5][0+s2]+LCAO_disp[5][1+s2]*1j
                                 f3yx2y3 =LCAO_disp[6][0+s2]+LCAO_disp[6][1+s2]*1j
-                                f_conv=pt.convertLCAO_f(f5z23r2, f5xy2xr2, f5yz2yr2, fzx2zy2, fxyz, fx33xy2, f3yx2y3)
+                                pt.convertLCAO_f(f5z23r2, f5xy2xr2, f5yz2yr2, fzx2zy2, fxyz, fx33xy2, f3yx2y3, LCAO_conv)
                                 # table
                                 item1=QtGui.QTableWidgetItem(("f5z23r2  ({0:.2f}, {1:.2f})").format(LCAO_disp[0][0+s2], LCAO_disp[0][1+s2]))
                                 item2=QtGui.QTableWidgetItem(("f5xy2xr2 ({0:.2f}, {1:.2f})").format(LCAO_disp[1][0+s2], LCAO_disp[1][1+s2]))
@@ -768,13 +775,13 @@ def makeLCAOTable(win, LCAO):
                                 win.LCAOTable.setItem(currentRow-3, 0+s2, item5)
                                 win.LCAOTable.setItem(currentRow-2, 0+s2, item6)
                                 win.LCAOTable.setItem(currentRow-1, 0+s2, item7)
-                                item1=QtGui.QTableWidgetItem(("f(-3) ({0:.2f}, {1:.2f})").format(f_conv[0].real, f_conv[0].imag))
-                                item2=QtGui.QTableWidgetItem(("f(-2) ({0:.2f}, {1:.2f})").format(f_conv[1].real, f_conv[1].imag))
-                                item3=QtGui.QTableWidgetItem(("f(-1) ({0:.2f}, {1:.2f})").format(f_conv[2].real, f_conv[2].imag))
-                                item4=QtGui.QTableWidgetItem(("f(+0) ({0:.2f}, {1:.2f})").format(f_conv[3].real, f_conv[3].imag))
-                                item5=QtGui.QTableWidgetItem(("f(+1) ({0:.2f}, {1:.2f})").format(f_conv[4].real, f_conv[4].imag))
-                                item6=QtGui.QTableWidgetItem(("f(+2) ({0:.2f}, {1:.2f})").format(f_conv[5].real, f_conv[5].imag))
-                                item7=QtGui.QTableWidgetItem(("f(+3) ({0:.2f}, {1:.2f})").format(f_conv[6].real, f_conv[6].imag))
+                                item1=QtGui.QTableWidgetItem(("f(-3) ({0:.2f}, {1:.2f})").format(LCAO_conv[0].real, LCAO_conv[0].imag))
+                                item2=QtGui.QTableWidgetItem(("f(-2) ({0:.2f}, {1:.2f})").format(LCAO_conv[1].real, LCAO_conv[1].imag))
+                                item3=QtGui.QTableWidgetItem(("f(-1) ({0:.2f}, {1:.2f})").format(LCAO_conv[2].real, LCAO_conv[2].imag))
+                                item4=QtGui.QTableWidgetItem(("f(+0) ({0:.2f}, {1:.2f})").format(LCAO_conv[3].real, LCAO_conv[3].imag))
+                                item5=QtGui.QTableWidgetItem(("f(+1) ({0:.2f}, {1:.2f})").format(LCAO_conv[4].real, LCAO_conv[4].imag))
+                                item6=QtGui.QTableWidgetItem(("f(+2) ({0:.2f}, {1:.2f})").format(LCAO_conv[5].real, LCAO_conv[5].imag))
+                                item7=QtGui.QTableWidgetItem(("f(+3) ({0:.2f}, {1:.2f})").format(LCAO_conv[6].real, LCAO_conv[6].imag))
                                 win.LCAOTable.setItem(currentRow-7, 1+s2, item1)
                                 win.LCAOTable.setItem(currentRow-6, 1+s2, item2)
                                 win.LCAOTable.setItem(currentRow-5, 1+s2, item3)
