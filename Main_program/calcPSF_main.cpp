@@ -13,6 +13,8 @@
 #include "calculation_Thomas_Fermi.hpp"
 #include "validation_atomic_wfn.hpp"
 #include "calculation_atomic_wfn.hpp"
+#include "validation_psf.hpp"
+#include "calculation_psf.hpp"
 #include "log.hpp"
 
 //namespace
@@ -91,6 +93,10 @@ int main(int argc, const char** argv){
 		if(validation_result==1){
 			sequence_atomic_wfn();
 		}
+	}else if(strcmp(Calculation, "PSF")==0){
+		// Photoemission structure factor calculation
+		write_log((char*)"----Photoemission structure factor calculation----");
+		PSF_test();
 	}else{
 		cout << "Error: invalid calculation" << endl;
 		goto FINALIZATION;
