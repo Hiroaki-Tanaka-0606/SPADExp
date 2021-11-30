@@ -98,9 +98,13 @@ def appendDispersion(i, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFobj):
             pass
         else:
             continueFlag=True
+            PSF=1.0
+            if plotPSF==True and eigen_index+tailSize-1>=0:
+                PSF=PSFobj.calc(i, n, useUp=True)
+                
             for j in range(-tailSize+1, tailSize):
                 if eigen_index+j>=0 and eigen_index+j<Esize:
-                    Dispersion[i][eigen_index+j]+=tailProfile[abs(j)]
+                    Dispersion[i][eigen_index+j]+=tailProfile[abs(j)]*PSF
         # spin Dn
         eigen=(LCAO.BandDn[i][n]-LCAO.EF_Eh)*Config.Eh
         eigen_index=round((eigen-EMin)/EPixel)
@@ -108,9 +112,13 @@ def appendDispersion(i, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFobj):
             pass
         else:
             continueFlag=True
+            PSF=1.0
+            if plotPSF==True and eigen_index+tailSize-1>=0:
+                PSF=PSFobj.calc(i, n, useUp=False)
+                
             for j in range(-tailSize+1, tailSize):
                 if eigen_index+j>=0 and eigen_index+j<Esize:
-                    Dispersion[i][eigen_index+j]+=tailProfile[abs(j)]
+                    Dispersion[i][eigen_index+j]+=tailProfile[abs(j)]*PSF
 
         return continueFlag
     else:
@@ -145,9 +153,13 @@ def appendDispersion3(ix, iy, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFob
             pass
         else:
             continueFlag=True
+            PSF=1.0
+            if plotPSF==True and eigen_index+tailSize-1>=0:
+                PSF=PSFobj.calc(i, n, useUp=True)
+                
             for j in range(-tailSize+1, tailSize):
                 if eigen_index+j>=0 and eigen_index+j<Esize:
-                    Dispersion[ix][iy][eigen_index+j]+=tailProfile[abs(j)]
+                    Dispersion[ix][iy][eigen_index+j]+=tailProfile[abs(j)]*PSF
         
         eigen=(LCAO.BandDn[i][n]-LCAO.EF_Eh)*Config.Eh
         eigen_index=round((eigen-EMin)/EPixel)
@@ -155,9 +167,13 @@ def appendDispersion3(ix, iy, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFob
             pass
         else:
             continueFlag=True
+            PSF=1.0
+            if plotPSF==True and eigen_index+tailSize-1>=0:
+                PSF=PSFobj.calc(i, n, useUp=False)
+                
             for j in range(-tailSize+1, tailSize):
                 if eigen_index+j>=0 and eigen_index+j<Esize:
-                    Dispersion[ix][iy][eigen_index+j]+=tailProfile[abs(j)]
+                    Dispersion[ix][iy][eigen_index+j]+=tailProfile[abs(j)]*PSF
 
         return continueFlag
 

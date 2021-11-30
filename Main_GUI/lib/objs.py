@@ -176,6 +176,7 @@ class LCAO:
             self.LCAO_atoms=[]
             self.LCAO=[]
             self.LCAO_labels=[]
+            self.LCAO_index=[]
             for atom in f["Output"]["LCAO"].keys():
                 self.LCAO_atoms.append(str(atom))
             for atom in self.LCAO_atoms:
@@ -192,7 +193,6 @@ class LCAO:
                 for j, LCAO_label2 in enumerate(LCAO_label1):
                     inv_LCAO_label[LCAO_label2]=j
                 self.LCAO_index.append(inv_LCAO_label)
-
 
 class Wfn:
     def __init__(self, specs):
@@ -263,7 +263,7 @@ class PSF:
             for i, ri in enumerate(r):
                 wfn_final[i]=ri*pt.spBessel(l, k*ri)
     
-    def calc(self, ik, ib):
+    def calc(self, ik, ib, useUp=True):
         # ik: kpoint
         # ib: band
         # ia: atom
@@ -285,6 +285,7 @@ class PSF:
         k_au=self.LCAO.Kpath_au[ik]
         k_length=math.sqrt(np.inner(k_au, k_au))
         ret=0.0
+        ret2=0.0
         # prepare spherical harmonics
         Ylm_k=pt.sphericalHarmonics(k_au)
         
@@ -293,7 +294,7 @@ class PSF:
         #     print(k_au)
         #     print(Ylm_k)
 
-        time1=time.time()
+        # time1=time.time()
         for ia in range(0, self.LCAO.numAtoms):
             # time2=time.time()
             # print(("calc {0:d}").format(ia), time2-time1) # 0.0035 sec 
@@ -308,18 +309,39 @@ class PSF:
                 self.calcFinalState(finalStates[lp], lp, k_length, wfnObj.r)
                     
             for io, orbit_label in enumerate(wfnObj.Orbits):
+                if self.LCAO.Spin_i==1:
+                    # collinear spin
+                    # either of Up or Dn is used (depending on argument useUp)
+                    if useUp==True and orbit_label[2:]=="Dn":
+                        continue
+                    if useUp==False and orbit_label[2:]=="Up":
+                        continue
+
+                    if useUp==True:
+                        orbit_label+="Up"
+                    else:
+                        orbit_label+="Dn"
+                        
                 l=wfnObj.l[io]
                 iL=self.LCAO.LCAO_index[ia][orbit_label]
                 LCAO_iL=self.LCAO.LCAO[ia][iL][ik][ib]
                 LCAO_iL_conv=np.zeros((7,), dtype=complex)
+                LCAO_iL_conv2=np.zeros((7,), dtype=complex) # for noncollinear spin
                 # conversion of LCAO coefficients
                 if l==0:
                     LCAO_iL_conv[0]=LCAO_iL[0][0]+LCAO_iL[0][1]*1j
+                    if self.LCAO.Spin_i==2:
+                        LCAO_iL_conv2[0]=LCAO_iL[0][2]+LCAO_iL[0][3]*1j
                 elif l==1:
                     p1=LCAO_iL[0][0]+LCAO_iL[0][1]*1j
                     p2=LCAO_iL[1][0]+LCAO_iL[1][1]*1j
                     p3=LCAO_iL[2][0]+LCAO_iL[2][1]*1j
                     pt.convertLCAO_p(p1, p2, p3, LCAO_iL_conv)
+                    if self.LCAO.Spin_i==2:
+                        p1=LCAO_iL[0][2]+LCAO_iL[0][3]*1j
+                        p2=LCAO_iL[1][2]+LCAO_iL[1][3]*1j
+                        p3=LCAO_iL[2][2]+LCAO_iL[2][3]*1j
+                        pt.convertLCAO_p(p1, p2, p3, LCAO_iL_conv2)                        
                 elif l==2:
                     d1=LCAO_iL[0][0]+LCAO_iL[0][1]*1j
                     d2=LCAO_iL[1][0]+LCAO_iL[1][1]*1j
@@ -327,6 +349,13 @@ class PSF:
                     d4=LCAO_iL[3][0]+LCAO_iL[3][1]*1j
                     d5=LCAO_iL[4][0]+LCAO_iL[4][1]*1j
                     pt.convertLCAO_d(d1, d2, d3, d4, d5, LCAO_iL_conv)
+                    if self.LCAO.Spin_i==2:                        
+                        d1=LCAO_iL[0][2]+LCAO_iL[0][3]*1j
+                        d2=LCAO_iL[1][2]+LCAO_iL[1][3]*1j
+                        d3=LCAO_iL[2][2]+LCAO_iL[2][3]*1j
+                        d4=LCAO_iL[3][2]+LCAO_iL[3][3]*1j
+                        d5=LCAO_iL[4][2]+LCAO_iL[4][3]*1j
+                        pt.convertLCAO_d(d1, d2, d3, d4, d5, LCAO_iL_conv2)
                 elif l==3:
                     f1=LCAO_iL[0][0]+LCAO_iL[0][1]*1j
                     f2=LCAO_iL[1][0]+LCAO_iL[1][1]*1j
@@ -336,6 +365,15 @@ class PSF:
                     f6=LCAO_iL[5][0]+LCAO_iL[5][1]*1j
                     f7=LCAO_iL[6][0]+LCAO_iL[6][1]*1j
                     pt.convertLCAO_f(f1, f2, f3, f4, f5, f6, f7, LCAO_iL_conv)
+                    if self.LCAO.Spin_i==3:                        
+                        f1=LCAO_iL[0][2]+LCAO_iL[0][3]*1j
+                        f2=LCAO_iL[1][2]+LCAO_iL[1][3]*1j
+                        f3=LCAO_iL[2][2]+LCAO_iL[2][3]*1j
+                        f4=LCAO_iL[3][2]+LCAO_iL[3][3]*1j
+                        f5=LCAO_iL[4][2]+LCAO_iL[4][3]*1j
+                        f6=LCAO_iL[5][2]+LCAO_iL[5][3]*1j
+                        f7=LCAO_iL[6][2]+LCAO_iL[6][3]*1j
+                        pt.convertLCAO_f(f1, f2, f3, f4, f5, f6, f7, LCAO_iL_conv2)
                 wfn_initial=wfnObj.Wfn[io][:][self.initialStates_i]
                 for dl in dls:
                     lp=l+dl
@@ -363,5 +401,10 @@ class PSF:
                         coeffs[mpl]=(Ylm_k[lp][mpjplpSt:mpjplpEn]*self.Gaunt[l][mpl][lp][mpjplpSt:mpjplpEn]*self.Y_coeff[jp1St:jp1En]).sum()
                             
                     ret+=(LCAO_iL_conv*coeffs).sum()*m1jlp[lp]*radialPart*atom_phase
-                                    
-        return ret.real**2+ret.imag**2
+                    if self.LCAO.Spin_i==2:
+                        ret2+=(LCAO_iL_conv2*coeffs).sum()*m1jlp[lp]*radialPart*atom_phase
+                        
+        if self.LCAO.Spin_i!=2:
+            return ret.real**2+ret.imag**2
+        else:
+            return ret.real**2+ret.imag**2+ret2.real**2+ret2.imag**2
