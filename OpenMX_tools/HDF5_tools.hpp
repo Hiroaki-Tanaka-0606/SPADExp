@@ -1,7 +1,7 @@
 // calcPSF tools for OpenMX
 // HDF5_tools
 
-#include "H5Cpp.h"
+#include <H5Cpp.h>
 #include <string>
 
 using namespace std;

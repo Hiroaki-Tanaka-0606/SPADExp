@@ -1,6 +1,31 @@
-option = -lm
 library = inputTools.o
-h5cpp = ~/hdf5-1.12.1/hdf5/bin/h5c++
+# directory specified by --prefix=DIR in ./configure of HDF5
+# written in config.log
+# hdf5-x.y.z/hdf5 by default
+hdf5 = /home/hiroaki/hdf5-1.12.1/hdf5
+
+# compile option can be checked by
+# >$(hdf5)/bin/h5c++ (filename) -show
+# >$(hdf5)/bin/h5c++ (filename) -c -show
+
+# common option
+commonOption = -DOLD_HEADER_FILENAME -DHDF_NO_NAMESPACE -DNO_STATIC_CAST 
+
+# compile option: $(hdf5)/include contains the header file "H5Cpp.h"
+compileOption = $(commonOption) -I $(hdf5)/include
+
+# link option 1: -L addes the path where libraries are searched
+linkOption1 = -L $(hdf5)/lib
+
+# link option 2: necessary libraries in HDF5
+# -l XX addes the library libXX.a (static) or libXX.so (shared)
+# -Wl,-rpath,$(hdf5)/lib tells "ld" command to search $(hdf5)/lib directory 
+linkOption2 = -l hdf5_hl_cpp -l hdf5_cpp -l hdf5_hl -l hdf5 -Wl,-rpath,$(hdf5)/lib
+
+# link option 3: other necessary libraries
+linkOption3 = -lz -ldl -lm
+
+linkOption = $(commonOption) $(linkOption1) $(linkOption2) $(linkOption3)
 
 all: preproc.o postproc.o
 
@@ -8,16 +33,10 @@ preproc.o: preproc_main.o $(library)
 	$(CXX) preproc_main.o $(library) -o preproc.o
 
 postproc.o: postproc_main.o HDF5_tools.o $(library)
-	$(h5cpp) postproc_main.o HDF5_tools.o $(library) -o postproc.o
+	$(CXX) postproc_main.o HDF5_tools.o $(library) $(linkOption) -o postproc.o
 
 .cpp.o:
-	$(CXX) -c $<
-
-postproc_main.o: postproc_main.cpp
-	$(h5cpp) -c postproc_main.cpp
-
-HDF5_tools.o: HDF5_tools.cpp
-	$(h5cpp) -c HDF5_tools.cpp
+	$(CXX) $(compileOption) -c $<
 
 preproc.o: inputTools.hpp
 postproc.o: inputTools.hpp HDF5_tools.hpp

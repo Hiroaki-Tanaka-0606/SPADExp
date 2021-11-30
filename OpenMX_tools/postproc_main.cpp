@@ -10,7 +10,7 @@
 #include <string>
 #include <ctime>
 #include <complex>
-#include "H5Cpp.h"
+#include <H5Cpp.h>
 
 // include libraries from current directory
 #include "inputTools.hpp"
