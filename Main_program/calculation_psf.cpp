@@ -71,7 +71,7 @@ void PSF_test(){
 
 	
 	complex<double> dot_product;
-	int tMax=1000000;
+	int tMax=10000;
 	int t;
 	chrono::system_clock::time_point start=chrono::system_clock::now();
 	for(t=0; t<tMax; t++){

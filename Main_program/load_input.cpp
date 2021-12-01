@@ -106,6 +106,12 @@ int load_input(){
 				}
 				Radial_grid_intervals=new double[Radial_grid_count];
 				Radial_grid_points=new int[Radial_grid_count];
+			}else if(*block_name==string("PSF")){
+				// PS: Photoemission structure factor (PSF)
+				if(PS_block_appeared){
+					output_error(line_number, (char*)"block 'PSF' already appeared"); status=0; goto FINALIZATION;
+				}
+				PS_block_appeared=true;
 			}else{
 				// none of the above
 				output_error(line_number, (char*)"invalid block name"); status=0; goto FINALIZATION;
@@ -469,6 +475,130 @@ int load_input(){
 				}
 			  At_radius_factor_set=true; continue;
 			}
+		}else if(*block_name==string("PSF")){
+			// PS block
+			/// Input_file (PS_input_file): char[]
+			if(strcmp(keyword_buffer, "Input_file")==0){
+				if(PS_input_file_set){
+					output_error(line_number, (char*)"keyword Input_file already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_char(input_line_c, (char*)"Input_file", PS_input_file, HDF5_file_length, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Input_file"); status=0; goto FINALIZATION;
+				}
+				PS_input_file_set=true; continue;
+			}
+			/// E_min (PS_E_min): double
+			if(strcmp(keyword_buffer, "E_min")==0){
+				if(PS_E_min_set){
+					output_error(line_number, (char*)"keyword E_min already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PS_E_min);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of E_min"); status=0; goto FINALIZATION;
+				}
+			  PS_E_min_set=true; continue;
+			}
+			/// E_max (PS_E_max): double
+			if(strcmp(keyword_buffer, "E_max")==0){
+				if(PS_E_max_set){
+					output_error(line_number, (char*)"keyword E_max already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PS_E_max);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of E_max"); status=0; goto FINALIZATION;
+				}
+			  PS_E_max_set=true; continue;
+			}
+			/// dE (PS_dE): double
+			if(strcmp(keyword_buffer, "dE")==0){
+				if(PS_dE_set){
+					output_error(line_number, (char*)"keyword dE already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PS_dE);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of dE"); status=0; goto FINALIZATION;
+				}
+			  PS_dE_set=true; continue;
+			}
+			/// E_pixel (PS_E_pixel): double
+			if(strcmp(keyword_buffer, "E_pixel")==0){
+				if(PS_E_pixel_set){
+					output_error(line_number, (char*)"keyword E_pixel already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PS_E_pixel);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of E_pixel"); status=0; goto FINALIZATION;
+				}
+			  PS_E_pixel_set=true; continue;
+			}
+			/// Initial_state (PS_initial_state): char[]
+			if(strcmp(keyword_buffer, "Initial_state")==0){
+				if(PS_initial_state_set){
+					output_error(line_number, (char*)"keyword Initial_state already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_char(input_line_c, (char*)"Initial_state", PS_initial_state, PS_state_length, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Initial_state"); status=0; goto FINALIZATION;
+				}
+				PS_initial_state_set=true; continue;
+			}
+			/// Final_state (PS_final_state): char[]
+			if(strcmp(keyword_buffer, "Final_state")==0){
+				if(PS_final_state_set){
+					output_error(line_number, (char*)"keyword Final_state already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_char(input_line_c, (char*)"Final_state", PS_final_state, PS_state_length, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Final_state"); status=0; goto FINALIZATION;
+				}
+				PS_final_state_set=true; continue;
+			}
+			/// Polarization (PS_polarization): char[]
+			if(strcmp(keyword_buffer, "Polarization")==0){
+				if(PS_polarization_set){
+					output_error(line_number, (char*)"keyword Polarization already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_char(input_line_c, (char*)"Polarization", PS_polarization, PS_state_length, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Polarization"); status=0; goto FINALIZATION;
+				}
+				PS_polarization_set=true; continue;
+			}
+			/// Theta (PS_theta): double
+			if(strcmp(keyword_buffer, "Theta")==0){
+				if(PS_theta_set){
+					output_error(line_number, (char*)"keyword Theta already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PS_theta);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Theta"); status=0; goto FINALIZATION;
+				}
+			  PS_theta_set=true; continue;
+			}
+			/// Phi (PS_phi): double
+			if(strcmp(keyword_buffer, "Phi")==0){
+				if(PS_phi_set){
+					output_error(line_number, (char*)"keyword Phi already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PS_phi);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Phi"); status=0; goto FINALIZATION;
+				}
+			  PS_phi_set=true; continue;
+			}
+			/// Atomic_orbitals_file (PS_AO_file): char[]
+			if(strcmp(keyword_buffer, "Atomic_orbitals_file")==0){
+				if(PS_AO_file_set){
+					output_error(line_number, (char*)"keyword Atomic_orbitals_file already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_char(input_line_c, (char*)"Atomic_orbitals_file", PS_AO_file, HDF5_file_length, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Atomic_orbitals_file"); status=0; goto FINALIZATION;
+				}
+				PS_AO_file_set=true; continue;
+			}
+			
 		}else{
 			// none of the above, which should not happen
 			output_error(line_number, (char*)"unexpected block name error");

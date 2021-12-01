@@ -12,6 +12,8 @@ extern int Solution_length;
 extern int Potential_length;
 extern int Potential_file_length;
 extern double Data_read_error;
+extern int HDF5_file_length;
+extern int PS_state_length;
 
 // variables
 /// blocks
@@ -19,6 +21,7 @@ extern bool Ct_block_appeared;
 extern bool TF_block_appeared;
 extern bool Rg_block_appeared;
 extern bool At_block_appeared;
+extern bool PS_block_appeared;
 /// Ct block
 extern char* Calculation;
 extern bool Calculation_set;
@@ -92,6 +95,29 @@ extern double* At_v_x;
 extern double At_bisection_threshold;
 extern int At_min_iteration;
 extern int At_max_iteration;
+/// PS block
+extern char* PS_input_file;
+extern bool PS_input_file_set;
+extern double PS_E_min;
+extern bool PS_E_min_set;
+extern double PS_E_max;
+extern bool PS_E_max_set;
+extern double PS_dE;
+extern bool PS_dE_set;
+extern double PS_E_pixel;
+extern bool PS_E_pixel_set;
+extern char* PS_initial_state;
+extern bool PS_initial_state_set;
+extern char* PS_final_state;
+extern bool PS_final_state_set;
+extern char* PS_polarization;
+extern bool PS_polarization_set;
+extern double PS_theta;
+extern double PS_phi;
+extern bool PS_theta_set;
+extern bool PS_phi_set;
+extern char* PS_AO_file;
+extern bool PS_AO_file_set;
 
 /// files
 extern FILE* Log_file_obj;

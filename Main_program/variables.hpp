@@ -11,6 +11,8 @@ int Solution_length;      // size of the char* TF_solution, At_solution
 int Potential_length;     // size of the char* At_potential
 int Potential_file_length;// size of the char* At_potential_file
 double Data_read_error;   // tolerable error in file reading (such as x_coordinates)
+int HDF5_file_length;     // size of the char* PS_input_file, PS_AO_file
+int PS_state_length;      // size of the char* PS_initial_stte, PS_final_state
 
 // variables
 /// blocks
@@ -18,6 +20,7 @@ bool Ct_block_appeared;        // true: the block "Control" appeared, false: not
 bool TF_block_appeared;        // similar to Ct_block_appeared (description is ignored hereafter)
 bool Rg_block_appeared;
 bool At_block_appeared;
+bool PS_block_appeared;
 /// Ct block
 char* Calculation;             // name of the calculation
 bool Calculation_set;          // true: variable Calculation has a value in the input file
@@ -92,6 +95,30 @@ double* At_v_x;                // scaled potential energy
 double At_bisection_threshold;
 int At_min_iteration;
 int At_max_iteration;
+/// PS block
+char* PS_input_file;           // input file (.hdf5), output of the postproc.o
+bool PS_input_file_set;
+double PS_E_min;               // energy to start the calculation of the dispersion
+bool PS_E_min_set;
+double PS_E_max;               // energy to end the calculation of the dispersion
+bool PS_E_max_set;
+double PS_dE;                  // width of Gauss broadening of the dispersion
+bool PS_dE_set;
+double PS_E_pixel;             // delta E of the calculation of the dispersion
+bool PS_E_pixel_set;
+char* PS_initial_state;        // initial state ("PAO" or "AO")
+bool PS_initial_state_set;
+char* PS_final_state;          // final state ("PW" or "Calc")
+bool PS_final_state_set;
+char* PS_polarization;         // polarization ("Linear", "RCircular", or "LCircular")
+bool PS_polarization_set;
+double PS_theta;               // polarization angle
+double PS_phi;
+bool PS_theta_set;
+bool PS_phi_set;
+char* PS_AO_file;              // PAO and AO file
+bool PS_AO_file_set;
+
 
 /// files
 FILE* Log_file_obj;            // log file object

@@ -20,6 +20,8 @@ void initialize(){
 	Potential_length=32;
 	Potential_file_length=1024;
 	Data_read_error=0.01;
+	HDF5_file_length=1024;
+	PS_state_length=64;
 	
 	// variables
 	/// blocks
@@ -78,7 +80,23 @@ void initialize(){
 	At_bisection_threshold=1.01;
 	At_min_iteration=100;
 	At_max_iteration=1000;
-		
+	/// PS block
+	PS_input_file_set=false;
+	PS_input_file=new char[HDF5_file_length+1];
+	PS_E_min_set=false;
+	PS_E_max_set=false;
+	PS_dE_set=false;
+	PS_E_pixel_set=false;
+	PS_initial_state_set=false;
+	PS_initial_state=new char[PS_state_length+1];
+	PS_final_state_set=false;
+	PS_final_state=new char[PS_state_length+1];
+	PS_polarization_set=false;
+	PS_polarization=new char[PS_state_length+1];
+	PS_theta_set=false;
+	PS_phi_set=false;
+	PS_AO_file_set=false;
+	PS_AO_file=new char[HDF5_file_length+1];		
 }
 
 void finalize(){
@@ -97,6 +115,7 @@ void finalize(){
 		delete Radial_grid_intervals;
 		delete Radial_grid_points;
 	}
+	delete PS_input_file;
 }
 
 void initialize_radial_grid(){
