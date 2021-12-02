@@ -11,7 +11,7 @@
 #include "log.hpp"
 #include "variables_ext.hpp"
 #include "HDF5_tools.hpp"
-#include "convert_LCAO.hpp"
+#include "physical_tools.hpp"
 
 using namespace std;
 using namespace H5;
@@ -58,10 +58,12 @@ void calculate_PSF(){
 	// 1. load input
 	write_log((char*)"----Load input data----");
 	char* sprintf_buffer=new char[Log_length+1];
-	string fileName(PS_input_file);
-	H5File input(fileName, H5F_ACC_RDONLY);
+	string file_name(PS_input_file);
+	H5File input(file_name, H5F_ACC_RDONLY);
 	int size1, size2, size3, size4, length;
 	int i, j;
+
+	int item_size=32;
 	
 	Group InputG(input.openGroup("/Input"));
 	/// 1-1. Atomic.Species
@@ -90,6 +92,46 @@ void calculate_PSF(){
 		sprintf(sprintf_buffer, "%32s : %s&%s, %s", atom_spec_label[i], atom_spec_PAO[i], atom_spec_PS[i], atom_spec_orbits[i]);
 		write_log(sprintf_buffer);
 	}
+	//// analysis of orbitals
+	int num_orbits[atom_spec_length];
+	int* l_list[atom_spec_length];
+	char** orbital_list[atom_spec_length];
+	for(i=0; i<atom_spec_length; i++){
+		int orbit_length=strlen(atom_spec_orbits[i]);
+		int num_orbits_calc=0;
+		for(j=0; j<orbit_length; j+=2){
+			char num_label[2]={atom_spec_orbits[i][j+1], '\0'};
+			num_orbits_calc+=atoi(num_label);
+		}
+		num_orbits[i]=num_orbits_calc;
+		l_list[i]=new int[num_orbits_calc];
+		orbital_list[i]=new char*[num_orbits_calc];
+		int io=0;
+		for(j=0; j<orbit_length; j+=2){
+			char l_char=atom_spec_orbits[i][j];
+			int l_int=0;
+			if(l_char=='s'){
+				l_int=0;
+			}else if(l_char=='p'){
+				l_int=1;
+			}else if(l_char=='d'){
+				l_int=2;
+			}else if(l_char=='f'){
+				l_int=3;
+			}else{
+				return;
+			}
+			char num_label[2]={atom_spec_orbits[i][j+1], '\0'};
+			int num_label_i=atoi(num_label);
+			for(int p=0; p<num_label_i; p++){
+				l_list[i][io]=l_int;
+				orbital_list[i][io]=new char[item_size];
+				sprintf(orbital_list[i][io], "%c%d", l_char, p);
+				io++;
+			}						
+		}
+	}
+	
 
 	/// 1-2. Atoms.SpeciesAndCoordinates
 	Group AtomG(InputG.openGroup("Atoms.SpeciesAndCoordinates"));
@@ -221,11 +263,11 @@ void calculate_PSF(){
 	double** band_dn;
 	write_log((char*)"----Loading band dispersion----");
 	// size of the first index is total_count
-	int numBands; // size of the second index
+	int num_bands; // size of the second index
 	if(spin_i==0 || spin_i==2){
 		// off or nc: use band
 		s_data_2d(OutputG, "Band", &size1, &size2);
-		numBands=size2;
+		num_bands=size2;
 		double* band_alloc=new double[size1*size2];
 		r_data_2d(OutputG, "Band", size1, size2, (double**) band_alloc);
 		band=new double*[size1];
@@ -235,7 +277,7 @@ void calculate_PSF(){
 	}else{
 		// on: use band_up and band_dn
 		s_data_2d(OutputG, "BandUp", &size1, &size2);
-		numBands=size2;
+		num_bands=size2;
 		double* band_up_alloc=new double[size1*size2];
 		double* band_dn_alloc=new double[size1*size2];
 		r_data_2d(OutputG, "BandUp", size1, size2, (double**) band_up_alloc);
@@ -256,92 +298,64 @@ void calculate_PSF(){
 	int ia; // for atom
 	int is; // for species
 	int io; // for orbit letter index
-	int im; // for multiplicity of the orbit label
 	int is_search; // for searching species
 	int ip; // for orbit index in LCAO[ia], s0, s1, p0, p1, ... or s0Up, s0Dn, s1Up, s1Dn, ...
-	char groupName[32];
-	char dsName[32];
+	char group_name[item_size];
+	char ds_name[item_size];
 
 	complex<double>****** LCAO=new complex<double>*****[atom_length];
-	int numOrbits[atom_length];
-	int* lList[atom_length];
+	int atom_spec_index[atom_length];
 	for(ia=0; ia<atom_length; ia++){
 		for(is_search=0; is_search<atom_spec_length; is_search++){
 			if(strcmp(atom_labels[ia], atom_spec_label[is_search])==0){
 				is=is_search;
+				atom_spec_index[ia]=is_search;
 				break;
 			}	
 		}
-		sprintf(groupName, "%d_%s", (ia+1), atom_labels[ia]);
-		Group atomG(LCAOG.openGroup(groupName));
-		int orbitLength=strlen(atom_spec_orbits[is]);
-		int numOrbits_calc=0;
-		for(io=0; io<orbitLength; io+=2){
-			char numLabel[2]={atom_spec_orbits[is][io+1], '\0'};
-			numOrbits_calc+=atoi(numLabel);
+		sprintf(group_name, "%d_%s", (ia+1), atom_labels[ia]);
+		Group atomG(LCAOG.openGroup(group_name));
+		int num_orbits2=num_orbits[is];
+		if(spin_i==1){
+			num_orbits2*=2;
 		}
-		if(spin_i==0 || spin_i==2){
-			numOrbits[ia]=numOrbits_calc;
-		}else{
-			numOrbits[ia]=2*numOrbits_calc;
-		}
-		LCAO[ia]=new complex<double>****[numOrbits[ia]];
-		lList[ia]=new int[numOrbits[ia]];
-		ip=0;
-		for(io=0; io<orbitLength; io+=2){
-			char orbitLabel=atom_spec_orbits[is][io];
-			char numLabel[2]={atom_spec_orbits[is][io+1], '\0'};
-			int numLabel_i=atoi(numLabel);
-			int twoLp1;
-			if(orbitLabel=='s'){
-				twoLp1=1;
-			}else if(orbitLabel=='p'){
-				twoLp1=3;
-			}else if(orbitLabel=='d'){
-				twoLp1=5;
-			}else if(orbitLabel=='f'){
-				twoLp1=7;
-			}else{
-				write_log((char*)"Orbit label error");
-				return;
-			}
-			for(im=0; im<numLabel_i; im++){
-				// LCAO data: [total_count][numBands][twoLp1][digit]
-				// digit=2 [re, im] in on and off, 4 [re_up, im_up, re_dn, im_dn] in nc
-				// LCAO after conversion is complex<double>[total_count][numBands][twoLp1][digit/2]
-				if(spin_i==0 || spin_i==2){
-					sprintf(dsName, "%c%d", orbitLabel, im);
-					// cout << dsName << endl;
-					s_data_4d(atomG, dsName, &size1, &size2, &size3, &size4);
-					if(size1!=total_count || size2!=numBands || size3!=twoLp1){
-						write_log((char*)"LCAO size mismatch");
-						return;
-					}
-					double* LCAO_raw=new double[size1*size2*size3*size4];
-					r_data_4d(atomG, dsName, size1, size2, size3, size4, (double****) LCAO_raw);
-					LCAO[ia][ip]=convert_LCAO(size1, size2, size3, size4, LCAO_raw);
-					delete LCAO_raw;
-					/*
+		LCAO[ia]=new complex<double>****[num_orbits2];
+		for(io=0; io<num_orbits[is]; io++){
+			int twoLp1=l_list[is][io]*2+1;
+			// LCAO data: [total_count][numBands][twoLp1][digit]
+			// digit=2 [re, im] in on and off, 4 [re_up, im_up, re_dn, im_dn] in nc
+			// LCAO after conversion is complex<double>[total_count][numBands][twoLp1][digit/2]
+			if(spin_i==0 || spin_i==2){
+				sprintf(ds_name, "%s", orbital_list[is][io]);
+				// cout << ds_name << endl;
+				s_data_4d(atomG, ds_name, &size1, &size2, &size3, &size4);
+				if(size1!=total_count || size2!=num_bands || size3!=twoLp1){
+					write_log((char*)"LCAO size mismatch");
+					return;
+				}
+				double* LCAO_raw=new double[size1*size2*size3*size4];
+				r_data_4d(atomG, ds_name, size1, size2, size3, size4, (double****) LCAO_raw);
+				LCAO[ia][io]=convert_LCAO(size1, size2, size3, size4, LCAO_raw);
+				delete LCAO_raw;
+				/*
 					if(ia==0){
-						for(int iii=0; iii<size3; iii++){
-							for(int jjj=0; jjj<size4/2; jjj++){
-								cout << LCAO[ia][ip][0][0][iii][jjj];
-							}
-							cout << endl;
-						}
-						}*/
-					lList[ia][ip]=(twoLp1-1)/2;
-					ip++;
+					for(int iii=0; iii<size3; iii++){
+					for(int jjj=0; jjj<size4/2; jjj++){
+					cout << LCAO[ia][io][0][0][iii][jjj];
+					}
+					cout << endl;
+					}
+					}*/
 				}else{
-					sprintf(dsName, "%c%dUp", orbitLabel, im);
-					s_data_4d(atomG, dsName, &size1, &size2, &size3, &size4);
-					if(size1!=total_count || size2!=numBands || size3!=twoLp1){
+					sprintf(ds_name, "%sUp", orbital_list[is][io]);
+					s_data_4d(atomG, ds_name, &size1, &size2, &size3, &size4);
+					if(size1!=total_count || size2!=num_bands || size3!=twoLp1){
 						write_log((char*)"LCAO size mismatch");
 						return;
 					}
 					double* LCAO_rawUp=new double[size1*size2*size3*size4];
-					r_data_4d(atomG, dsName, size1, size2, size3, size4, (double****) LCAO_rawUp);
-					LCAO[ia][ip]=convert_LCAO(size1, size2, size3, size4, LCAO_rawUp);
+					r_data_4d(atomG, ds_name, size1, size2, size3, size4, (double****) LCAO_rawUp);
+					LCAO[ia][io*2]=convert_LCAO(size1, size2, size3, size4, LCAO_rawUp);
 					/*
 					if(ia==0){
 						for(int iii=0; iii<size3; iii++){
@@ -351,30 +365,74 @@ void calculate_PSF(){
 							cout << endl;
 						}
 						}*/
-					lList[ia][ip]=(twoLp1-1)/2;
-					ip++;
 					delete LCAO_rawUp;
 					
-					sprintf(dsName, "%c%dDn", orbitLabel, im);
-					s_data_4d(atomG, dsName, &size1, &size2, &size3, &size4);
-					if(size1!=total_count || size2!=numBands || size3!=twoLp1){
+					sprintf(ds_name, "%sDn", orbital_list[is][io]);
+					s_data_4d(atomG, ds_name, &size1, &size2, &size3, &size4);
+					if(size1!=total_count || size2!=num_bands || size3!=twoLp1){
 						write_log((char*)"LCAO size mismatch");
 						return;
 					}
 				  double* LCAO_rawDn=new double[size1*size2*size3*size4];
-					r_data_4d(atomG, dsName, size1, size2, size3, size4, (double****) LCAO_rawDn);
-					LCAO[ia][ip]=convert_LCAO(size1, size2, size3, size4, LCAO_rawDn);
-					delete LCAO_rawDn;
-					lList[ia][ip]=(twoLp1-1)/2;
-					ip++;
-							
-				}
+					r_data_4d(atomG, ds_name, size1, size2, size3, size4, (double****) LCAO_rawDn);
+					LCAO[ia][io*2+1]=convert_LCAO(size1, size2, size3, size4, LCAO_rawDn);
+					delete LCAO_rawDn;							
 			}
 		}
 	}
 	chrono::system_clock::time_point end=chrono::system_clock::now();
 	double duration=chrono::duration_cast<chrono::milliseconds>(end-start).count();
-	printf("LCAO load time: %.3f [ms]\n", duration);	
+	sprintf(sprintf_buffer, "LCAO load time: %.3f [ms]", duration);
+	write_log(sprintf_buffer);
+
+	/*
+	for(i=0; i<atom_length; i++){
+		for(j=0; j<num_orbits[i]; j++){
+			cout << orbital_list[i][j] << " ";
+		}
+		cout << endl;
+		}*/
+	
+	
+	// 2. load initial state
+	write_log((char*)"----Load initial states----");
+
+	double*** wfn_phi_rdr=new double**[atom_spec_length];
+	double** wfn_r=new double*[atom_spec_length];
+	char AO_group_name[item_size*2];
+
+	string AO_file_name(PS_AO_file);
+	H5File AO_file(AO_file_name, H5F_ACC_RDONLY);
+	
+	for(is=0; is<atom_spec_length; is++){
+		wfn_phi_rdr[is]=new double*[num_orbits[is]];
+		sprintf(AO_group_name, "%s&%s", atom_spec_PAO[is], atom_spec_PS[is]);
+		sprintf(sprintf_buffer, "----Open %s----", AO_group_name);
+		write_log(sprintf_buffer);
+		Group AOG(AO_file.openGroup(AO_group_name));
+		int wfn_length=r_att_int(AOG, "length");
+		wfn_r[is]=new double[wfn_length];
+		r_att_1d(AOG, "r", wfn_length, &wfn_r[is][0]);
+		for(io=0; io<num_orbits[is]; io++){
+			s_data_2d(AOG, orbital_list[is][io], &size1, &size2);
+			if(size2!=wfn_length){
+				cout << "Size error" << endl;
+				return;
+			}
+			double wfn_both[2][wfn_length];
+			r_data_2d(AOG, orbital_list[is][io], 2, wfn_length, (double**) wfn_both);
+			wfn_phi_rdr[is][io]=new double[wfn_length];
+			for(j=0; j<wfn_length-1; j++){
+				if(strcmp(PS_initial_state, "PAO")==0){
+					wfn_phi_rdr[is][io][j]=wfn_both[0][j]*wfn_r[is][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
+				}else{
+					wfn_phi_rdr[is][io][j]=wfn_both[1][j]*wfn_r[is][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
+				}
+			}
+			wfn_phi_rdr[is][io][wfn_length-1]=0;
+		} 
+	}
+
 	return;
 }
 
