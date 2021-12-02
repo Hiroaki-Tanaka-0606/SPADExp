@@ -1,3 +1,3 @@
 // calcPSF photoemission structure factor calculation
 
-void PSF_test();
+void calculate_PSF();

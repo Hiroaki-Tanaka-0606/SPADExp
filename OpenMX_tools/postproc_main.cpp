@@ -835,7 +835,7 @@ int main(int argc, const char** argv){
 		Group atomG(LCAOG.createGroup(groupName));
 		for(j=0; j<strlen(species[specIndex][2]); j+=2){
 			char orbitLabel=species[specIndex][2][j];
-			char numLabel[1]={species[specIndex][2][j+1]};
+			char numLabel[2]={species[specIndex][2][j+1], '\0'};
 			for(k=0; k<atoi(numLabel); k++){
 				// printf("%s %c %d\n", atoms[i], orbitLabel, k);
 				if(orbitLabel=='s'){

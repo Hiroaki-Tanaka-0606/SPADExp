@@ -98,7 +98,7 @@ int main(int argc, const char** argv){
 		write_log((char*)"----Photoemission structure factor calculation----");
 		validation_result=validation_PSF();
 		if(validation_result==1){
-			PSF_test();
+			calculate_PSF();
 		}
 	}else{
 		cout << "Error: invalid calculation" << endl;
