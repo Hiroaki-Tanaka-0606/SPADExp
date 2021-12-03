@@ -22,6 +22,8 @@ void initialize(){
 	Data_read_error=0.01;
 	HDF5_file_length=1024;
 	PS_state_length=64;
+	au_ang=0.529177; // (Ang)
+	Eh=27.2114; // (eV)
 	
 	// variables
 	/// blocks
@@ -96,7 +98,8 @@ void initialize(){
 	PS_theta_set=false;
 	PS_phi_set=false;
 	PS_AO_file_set=false;
-	PS_AO_file=new char[HDF5_file_length+1];		
+	PS_AO_file=new char[HDF5_file_length+1];
+	PS_sigma_max=5.0;
 }
 
 void finalize(){

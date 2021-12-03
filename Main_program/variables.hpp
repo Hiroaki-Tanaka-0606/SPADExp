@@ -13,6 +13,8 @@ int Potential_file_length;// size of the char* At_potential_file
 double Data_read_error;   // tolerable error in file reading (such as x_coordinates)
 int HDF5_file_length;     // size of the char* PS_input_file, PS_AO_file
 int PS_state_length;      // size of the char* PS_initial_stte, PS_final_state
+double au_ang;            // 1 bohr (Ang)
+double Eh;                // 1 Hartree (eV)
 
 // variables
 /// blocks
@@ -118,6 +120,7 @@ bool PS_theta_set;
 bool PS_phi_set;
 char* PS_AO_file;              // PAO and AO file
 bool PS_AO_file_set;
+double PS_sigma_max;           // max sigma of the envelope Gauss function
 
 
 /// files

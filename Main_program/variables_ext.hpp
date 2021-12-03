@@ -14,6 +14,8 @@ extern int Potential_file_length;
 extern double Data_read_error;
 extern int HDF5_file_length;
 extern int PS_state_length;
+extern double au_ang;
+extern double Eh;
 
 // variables
 /// blocks
@@ -118,6 +120,7 @@ extern bool PS_theta_set;
 extern bool PS_phi_set;
 extern char* PS_AO_file;
 extern bool PS_AO_file_set;
+extern double PS_sigma_max;
 
 /// files
 extern FILE* Log_file_obj;

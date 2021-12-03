@@ -280,7 +280,7 @@ class PSF:
 
         dls=[-1, 1]
         # dls=[1]
-        m1jlp=[-1j, -1, 1j, 1, -1j]
+        m1jlp=[1, -1j, -1, 1j, 1]
 
         k_au=self.LCAO.Kpath_au[ik]
         k_length=math.sqrt(np.inner(k_au, k_au))
@@ -302,6 +302,7 @@ class PSF:
             atom_label=self.LCAO.Atoms[ia]
             wfnObj=self.Wfns[atom_label]
             kt=np.inner(k_au, self.LCAO.Atom_au[ia])
+            # print(kt)
             atom_phase=math.cos(kt)-math.sin(kt)*1j
             # prepare final states, atom dependent in case of calculated final states
             finalStates=np.zeros((5, wfnObj.length))
@@ -379,7 +380,7 @@ class PSF:
                     lp=l+dl
                     if lp<0:
                         continue
-                    radialPart=(wfn_initial*finalStates[lp]*wfnObj.r*wfnObj.dr).sum()                    
+                    radialPart=(wfn_initial*finalStates[lp]*wfnObj.r*wfnObj.dr).sum()
 
                     coeffs=np.zeros((7,), dtype=complex)
                     for mpl in range(0, 2*l+1):
@@ -399,11 +400,12 @@ class PSF:
                         # ret1+=ret2*LCAO_iL_conv[mpl]
 
                         coeffs[mpl]=(Ylm_k[lp][mpjplpSt:mpjplpEn]*self.Gaunt[l][mpl][lp][mpjplpSt:mpjplpEn]*self.Y_coeff[jp1St:jp1En]).sum()
-                            
+
+                    # print(coeffs)
                     ret+=(LCAO_iL_conv*coeffs).sum()*m1jlp[lp]*radialPart*atom_phase
                     if self.LCAO.Spin_i==2:
                         ret2+=(LCAO_iL_conv2*coeffs).sum()*m1jlp[lp]*radialPart*atom_phase
-                        
+        # print(ret)
         if self.LCAO.Spin_i!=2:
             return ret.real**2+ret.imag**2
         else:

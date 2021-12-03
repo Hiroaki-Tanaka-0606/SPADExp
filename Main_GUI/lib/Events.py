@@ -302,6 +302,7 @@ def plot(win, LCAO, PSFobj):
     win.img.setImage(Dispersion)
 
     maxpoint=Dispersion.max()
+    print(("Max point: {0:8.3e}").format(maxpoint))
     win.bar.setLevels((0, maxpoint))
             
 def makeDispersion3(win, LCAO, PSFobj):
