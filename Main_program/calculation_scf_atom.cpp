@@ -4,11 +4,13 @@
 #include <cmath>
 #include <cstring>
 #include <iostream>
+#include <H5Cpp.h>
 
 #include "variables_ext.hpp"
 #include "log.hpp"
 #include "setup.hpp"
 #include "calculation_atomic_wfn.hpp"
+#include "HDF5_tools.hpp"
 
 using namespace std;
 
@@ -21,6 +23,8 @@ double calc_criterion_b(double* v1_x, double* v2_x, double mu);
 void scf_calc_atom(){
 	char* sprintf_buffer=new char[Log_length+1];
 	int i,j;
+	int item_size=32;
+	int val_size=128;
 
 	write_log((char*)"----SCF calculation of an atom----");
 	int Z=Z_single;
@@ -87,6 +91,25 @@ void scf_calc_atom(){
 		sprintf(sprintf_buffer, "%8.3f %8.5f", x_coordinates[i], -At_v_x_next[i]*mu*x_coordinates[i]/Z);
 		write_log(sprintf_buffer);
 		}*/
+
+	// output
+	write_log((char*)"----Output----");
+	H5File output(Output_file, H5F_ACC_RDWR);
+	
+	time_t datetime_now=time(NULL);
+	struct tm *timeptr=localtime(&datetime_now);
+	char time_str[val_size+1];
+	strftime(time_str, val_size, "%Y-%m-%d %H:%M:%S", timeptr);
+	w_att_str(output.openGroup("/"), "Datetime", time_str);
+
+	char* group_name=new char[item_size+1];
+	sprintf(group_name, "%03d", Z);
+	Group atomG(output.createGroup(group_name));
+
+	w_data_1d(atomG, "Potential", x_count, &At_v_x_next[0]);
+	w_att_1d(atomG, "x", x_count, &x_coordinates[0]);
+	w_att_int(atomG, "length", x_count);
+	w_att_double(atomG, "mu", mu);	
 	delete sprintf_buffer;
 }
 
