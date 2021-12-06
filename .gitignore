@@ -2,6 +2,7 @@
 *.o
 *.dat
 *.hdf5
+*.log
 Test/
 Config.py
 __pycache__
