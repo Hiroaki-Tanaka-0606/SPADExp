@@ -13,8 +13,11 @@
 #include "calculation_Thomas_Fermi.hpp"
 #include "validation_atomic_wfn.hpp"
 #include "calculation_atomic_wfn.hpp"
+#include "validation_scf_atom.hpp"
+#include "calculation_scf_atom.hpp"
 #include "validation_psf.hpp"
 #include "calculation_psf.hpp"
+
 #include "log.hpp"
 
 //namespace
@@ -92,6 +95,13 @@ int main(int argc, const char** argv){
 		validation_result=validation_atomic_wfn();
 		if(validation_result==1){
 			sequence_atomic_wfn();
+		}
+	}else if(strcmp(Calculation, "SCF-atom")==0){
+		// self-consistent field calculation of an atom
+		write_log((char*)"----SCF calculation of an atom----");
+		validation_result=validation_scf_atom();
+		if(validation_result==1){
+			scf_calc_atom();
 		}
 	}else if(strcmp(Calculation, "PSF")==0){
 		// Photoemission structure factor calculation

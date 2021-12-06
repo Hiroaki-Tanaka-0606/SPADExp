@@ -30,6 +30,10 @@ void initialize(){
 	Ct_block_appeared=false;
 	TF_block_appeared=false;
 	At_block_appeared=false;
+	Rg_block_appeared=false;
+	SC_block_appeared=false;
+	Oc_block_appeared=false;
+	PS_block_appeared=false;
 	/// Ct block
 	Calculation=new char[Calculation_length+1];
 	Calculation_set=false;
@@ -82,6 +86,14 @@ void initialize(){
 	At_bisection_threshold=1.01;
 	At_min_iteration=100;
 	At_max_iteration=1000;
+	/// SC block
+	SC_mix_weight=0.5;
+	SC_mix_weight_set=false;
+	SC_criterion_a=0.001;
+	SC_criterion_a_set=false;
+	SC_criterion_b=0.001;
+	SC_criterion_b_set=false;
+	SC_orbital_count=0;
 	/// PS block
 	PS_input_file_set=false;
 	PS_input_file=new char[HDF5_file_length+1];
@@ -205,7 +217,7 @@ int setup_potential(int Z, double mu){
 			if(i==0){
 				At_v_x[i]=0;
 			}else{
-				At_v_x[i]=-Z/(mu*x_coordinates[i]);
+				At_v_x[i]=-Z*1.0/(mu*x_coordinates[i]);
 			}
 		}
 	}else if(strcmp(At_potential, "Thomas-Fermi")==0 || strcmp(At_potential, "file")==0){
@@ -239,14 +251,6 @@ int setup_potential(int Z, double mu){
 						write_log((char*)"Error: x coordinate mismatch");
 						status=0; goto FINALIZATION;
 					}
-					if(strcmp(At_potential, "Thomas-Fermi")==0){
-						// only for Thomas-Fermi potential
-						if(At_v_x[current_index]>1.0/Z){
-							At_v_x[current_index]*=-Z/(mu*x_coordinates[current_index]);
-						}else{
-							At_v_x[current_index]=-1.0/(mu*x_coordinates[current_index]);
-						}
-					}
 				}else{
 					At_v_x[current_index]=0;
 				}
@@ -262,4 +266,17 @@ int setup_potential(int Z, double mu){
  FINALIZATION:
 	delete input_line_c;
 	return status;
+}
+
+void modify_potential(int Z, double mu){
+	if(strcmp(At_potential, "Thomas-Fermi")==0){
+		for(int i=0; i<x_count; i++){
+			// only for Thomas-Fermi potential
+			if(At_v_x[i]>1.0/Z){
+				At_v_x[i]*=-Z*1.0/(mu*x_coordinates[i]);
+			}else{
+				At_v_x[i]=-1.0/(mu*x_coordinates[i]);
+			}
+		}
+	}
 }

@@ -12,7 +12,7 @@ int Potential_length;     // size of the char* At_potential
 int Potential_file_length;// size of the char* At_potential_file
 double Data_read_error;   // tolerable error in file reading (such as x_coordinates)
 int HDF5_file_length;     // size of the char* PS_input_file, PS_AO_file
-int PS_state_length;      // size of the char* PS_initial_stte, PS_final_state
+int PS_state_length;      // size of the char* PS_initial_state, PS_final_state
 double au_ang;            // 1 bohr (Ang)
 double Eh;                // 1 Hartree (eV)
 
@@ -22,6 +22,8 @@ bool Ct_block_appeared;        // true: the block "Control" appeared, false: not
 bool TF_block_appeared;        // similar to Ct_block_appeared (description is ignored hereafter)
 bool Rg_block_appeared;
 bool At_block_appeared;
+bool SC_block_appeared;
+bool Oc_block_appeared;
 bool PS_block_appeared;
 /// Ct block
 char* Calculation;             // name of the calculation
@@ -97,6 +99,22 @@ double* At_v_x;                // scaled potential energy
 double At_bisection_threshold;
 int At_min_iteration;
 int At_max_iteration;
+/// SC block
+double SC_mix_weight;          // mixing weight for the next iteration
+bool SC_mix_weight_set;
+double SC_criterion_a;         // SCF criterion alpha
+bool SC_criterion_a_set;
+double SC_criterion_b;         // SCF criterion beta
+bool SC_criterion_b_set;
+double* SC_sigma_x;            // number density, integrated in the angles
+int SC_orbital_count;          // number of occupied orbitals
+int* SC_n_list;                // list of n and l
+int* SC_l_list;
+double* SC_eigen_list;          // list of eigenvalues
+double** SC_p_x;               // list of P(x)
+/// Oc block
+int Occupation_count;
+int** At_occupation;
 /// PS block
 char* PS_input_file;           // input file (.hdf5), output of the postproc.o
 bool PS_input_file_set;

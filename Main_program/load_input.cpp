@@ -29,6 +29,7 @@ int load_input(){
 	bool in_the_block=false; // true when the line is in the block, false when not
 	string* block_name;      // name of the block which the line is being in
 	int Radial_grid_index=0; // current index of the radial grid configuration
+	int Oc_orbital_index=0;  // current index of the occupation configuration
 
 	while(getline(cin, input_line_s)){
 		// cout << input_line_s << endl;
@@ -106,6 +107,31 @@ int load_input(){
 				}
 				Radial_grid_intervals=new double[Radial_grid_count];
 				Radial_grid_points=new int[Radial_grid_count];
+			}else if(*block_name==string("SCF-atom")){
+				// SC: SCF-atom
+				if(SC_block_appeared){
+					output_error(line_number, (char*)"block 'SCF-atom' already appeared"); status=0; goto FINALIZATION;
+				}
+				SC_block_appeared=true;
+			}else if(*block_name==string("Occupation")){
+				// Oc: Occupation of an atom
+				if(Oc_block_appeared){
+					output_error(line_number, (char*)"block 'Occupation' already appeared"); status=0; goto FINALIZATION;
+				}
+				Oc_block_appeared=true;
+				/// read the number of rows
+				sscanf_status=sscanf(input_line_c, "%*s %d", &Occupation_count);
+				if(sscanf_status<1 || Occupation_count<1){
+					output_error(line_number, (char*)"invalid number of Occupation_count"); status=0; goto FINALIZATION;
+				}
+				int* At_occupation_alloc=new int[Occupation_count*Occupation_count];
+				for(int i=0; i<Occupation_count*Occupation_count; i++){
+					At_occupation_alloc[i]=0;
+				}
+			  At_occupation=new int*[Occupation_count];
+				for(int i=0; i<Occupation_count; i++){
+					At_occupation[i]=&At_occupation_alloc[i*Occupation_count];
+				}
 			}else if(*block_name==string("PSF")){
 				// PS: Photoemission structure factor (PSF)
 				if(PS_block_appeared){
@@ -126,6 +152,10 @@ int load_input(){
 			if(*block_name==string("Radial-grid") && Radial_grid_index!=Radial_grid_count){
 				output_error(line_number, (char*)"inequal number of radial grids"); status=0; goto FINALIZATION;
 			}
+			if(*block_name==string("Occupation") && Oc_orbital_index!=Occupation_count){
+				output_error(line_number, (char*)"inequal number of orbital indices"); status=0; goto FINALIZATION;
+			}
+			
 			continue;
 		}
 		/// something invalid, out of the block
@@ -146,6 +176,30 @@ int load_input(){
 				output_error(line_number, (char*)"invalid value(s) of a radial grid"); status=0; goto FINALIZATION;
 			}
 			Radial_grid_index++;
+			continue;
+		}	  
+		if(*block_name==string("Occupation")){
+			// Oc: (s orbital) (p orbital) (d orbtital) ...
+			if(Oc_orbital_index>=Occupation_count){
+				output_error(line_number, (char*)"too much configurations in the Occupation block"); status=0; goto FINALIZATION;
+			}
+			int number_of_targets=Oc_orbital_index+1;
+			char* sscanf_template=new char[buffer_length+1];
+			int i, j;
+			for(i=0; i<number_of_targets; i++){
+				sscanf_template[0]='\0';
+				for(j=0; j<=i-1; j++){
+					sprintf(sscanf_template, "%s %%*d", sscanf_template);
+				}
+				sprintf(sscanf_template, "%s %%d", sscanf_template);
+				sscanf_status=sscanf(input_line_c, sscanf_template, &At_occupation[Oc_orbital_index][i]);
+			
+				if(sscanf_status<1 || At_occupation[Oc_orbital_index][i]<0){
+					output_error(line_number, (char*)"invalid value(s) of a occupation number"); status=0; goto FINALIZATION;
+				}
+			}
+			Oc_orbital_index++;
+			delete sscanf_template;
 			continue;
 		}
 
@@ -474,6 +528,42 @@ int load_input(){
 					output_error(line_number, (char*)"invalid value of Radius_factor"); status=0; goto FINALIZATION;
 				}
 			  At_radius_factor_set=true; continue;
+			}
+			
+		}else if(*block_name==string("SCF-atom")){
+			// SC block
+			/// Mix_weight (SC_mix_weight): double
+			if(strcmp(keyword_buffer, "Mix_weight")==0){
+				if(SC_mix_weight_set){
+					output_error(line_number, (char*)"keyword Mix_weight already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &SC_mix_weight);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Mix_weight"); status=0; goto FINALIZATION;
+				}
+			  SC_mix_weight_set=true; continue;
+			}
+			/// Criterion_a (SC_criterion_a): double
+			if(strcmp(keyword_buffer, "Criterion_a")==0){
+				if(SC_criterion_a_set){
+					output_error(line_number, (char*)"keyword Criterion_a already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &SC_criterion_a);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of SC_criterion_a"); status=0; goto FINALIZATION;
+				}
+			  SC_criterion_a_set=true; continue;
+			}
+			/// Criterion_b (SC_criterion_b): double
+			if(strcmp(keyword_buffer, "Criterion_b")==0){
+				if(SC_criterion_b_set){
+					output_error(line_number, (char*)"keyword Criterion_b already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &SC_criterion_b);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of SC_criterion_b"); status=0; goto FINALIZATION;
+				}
+			  SC_criterion_b_set=true; continue;
 			}
 		}else if(*block_name==string("PSF")){
 			// PS block

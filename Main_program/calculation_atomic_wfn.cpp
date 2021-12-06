@@ -13,6 +13,7 @@ double calc_atomic_wfn(double mu, int l, int nodes);
 int count_nodes(int i_max);
 int matching_radius_index(double mu, int l, double E);
 double calc_second_deriv_coeff(double mu, int l, double E, int index);
+double calc_atomic_wfn2(double mu, int l, int nodes, double eigen_guess);
 
 using namespace std;
 
@@ -51,6 +52,7 @@ void sequence_atomic_wfn(){
 		if(setup_result!=1){
 			return;
 		}
+		modify_potential(Z_current, mu);
 		/*
 		 for(i=0; i<x_count; i++){
 			sprintf(sprintf_buffer, "v(%8.3f) = %10.5e", x_coordinates[i], At_v_x[i]);
@@ -156,9 +158,21 @@ double calc_atomic_wfn(double mu, int l, int nodes){
 	}
 	sprintf(sprintf_buffer, "Step %3d: E = %12.5e, nodes = %3d", current_trials, E_center, num_nodes);
 	write_log(sprintf_buffer);
+	
+	return calc_atomic_wfn2(mu, l, nodes, E_center);
+}
 
+double calc_atomic_wfn2(double mu, int l, int nodes, double eigen_guess){
+	char* sprintf_buffer=new char[Log_length+1];
+	// integration to the outward
+	double E_center=eigen_guess;
+	int matching_index=matching_radius_index(mu, l, E_center);
+  Atomic_wfn_evolution(mu, l, E_center, false);
+	int num_nodes=count_nodes(matching_index);
+
+	
 	write_log((char*)"Search the eigenvalue by perturbation");
-	current_trials=1;
+	int current_trials=1;
 
 	double E_diff=At_E_threshold*2;
 	double log_diff_outward, log_diff_inward, int_outward, int_inward;
@@ -234,7 +248,7 @@ double calc_atomic_wfn(double mu, int l, int nodes){
 	for(i=matching_index; i<x_count; i++){
 		At_p_x[i]/=coef;
 	}
-	/// normalization
+	/// normalization w.r.t. r (not x)
 	double p_int=0.0;
 	for(i=0; i<matching_index; i++){
 		p_int+=pow(At_p_outward[i], 2)*(x_coordinates[i+1]-x_coordinates[i]);
@@ -242,7 +256,7 @@ double calc_atomic_wfn(double mu, int l, int nodes){
 	for(i=matching_index; i<x_count; i++){
 		p_int+=pow(At_p_x[i], 2)*(x_coordinates[i+1]-x_coordinates[i]);
 	}
-	coef=sqrt(p_int);
+	coef=sqrt(p_int*mu);
 	for(i=0; i<matching_index; i++){
 		At_p_x[i]=At_p_outward[i]/coef;
 	}

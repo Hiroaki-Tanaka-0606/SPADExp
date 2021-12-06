@@ -156,17 +156,18 @@ int validation_atomic_wfn(){
 		write_log((char*)"Error: Bisection_step should be larger than 0");
 		status=0; goto FINALIZATION;
 	}
-	sprintf(sprintf_buffer, "%32s = %-8.3e", "Bisection_step", Bisection_step);
+	sprintf(sprintf_buffer, "%32s = %-10.3e", "Bisection_step", Bisection_step);
 	write_log(sprintf_buffer);
 
 	/// Threshold
-	sprintf(sprintf_buffer, "%32s = %-8.3e", "E_Threshold", At_E_threshold);
+	sprintf(sprintf_buffer, "%32s = %-10.3e", "E_Threshold", At_E_threshold);
 	write_log(sprintf_buffer);
 	if(At_E_threshold<0){
 		write_log((char*)"Error: E_Threshold should be positive");
 		status=0; goto FINALIZATION;
 	}
-	sprintf(sprintf_buffer, "%32s = %-8.3e", "Radius_factor", At_radius_factor);
+	/// Radius_factor
+	sprintf(sprintf_buffer, "%32s = %-10.3e", "Radius_factor", At_radius_factor);
 	write_log(sprintf_buffer);
 	if(At_radius_factor<0){
 		write_log((char*)"Error: Radius_factor should be positive");
