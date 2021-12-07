@@ -83,8 +83,8 @@ int main(int argc, const char** argv){
 		return 0;
 	}
 
-	if(load_str("System.CurrentDir", currentDir, valSize)==1){
-		printf("System.CurrentDir is %s\n", currentDir);
+	if(load_str("System.CurrentDirectory", currentDir, valSize)==1){
+		printf("System.CurrentDirectory is %s\n", currentDir);
 	}else{
 		strcpy(currentDir, "./");
 	}
