@@ -588,8 +588,8 @@ void calculate_PSF(){
   duration=chrono::duration_cast<chrono::milliseconds>(end-start).count();
 	sprintf(sprintf_buffer, "PSF preparation time: %.3f [ms]", duration);
 	write_log(sprintf_buffer);
-	//#pragma omp parallel firstprivate(Y_coeff, sp_max, num_bands, EF_Eh, Eh, PS_E_min, PS_E_pixel, num_points_E, tail_index,  m1jlp, Gaunt_arr, atom_length, atom_spec_index, num_orbits, spin_i,  atom_coordinates) private(ib, sp, Ylm_k, ia, is, io, il, ir, j)
-	//#pragma omp for
+#pragma omp parallel firstprivate(Y_coeff, sp_max, num_bands, EF_Eh, Eh, PS_E_min, PS_E_pixel, num_points_E, tail_index,  m1jlp, Gaunt_arr, atom_length, atom_spec_index, num_orbits, spin_i,  atom_coordinates) private(ib, sp, Ylm_k, ia, is, io, il, ir, j)
+#pragma omp for
 	for(ik=0; ik<total_count; ik++){
 		// cout << ik << endl;
 		spherical_harmonics(k_points[ik], &Ylm_k[0][0]);
