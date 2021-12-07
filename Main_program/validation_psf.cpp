@@ -91,7 +91,15 @@ int validation_PSF(){
 		sprintf(sprintf_buffer, "%32s = %s", "Atomic_orbitals_file", PS_AO_file);
 		write_log(sprintf_buffer);
 	}
-		
+	/// Extend
+	if(PS_ext_set){
+		if(PS_ext_up<0 || PS_ext_ri<0 || PS_ext_dn<0 || PS_ext_le<0){
+			write_log((char*)"Error: Extend should not be negative");
+			status=0; goto FINALIZATION;
+		}
+		sprintf(sprintf_buffer, "%32s = %d %d %d %d", "Extend", PS_ext_up, PS_ext_ri, PS_ext_dn, PS_ext_le);
+		write_log(sprintf_buffer);
+	}
 	goto FINALIZATION;
  FINALIZATION:
 	delete sprintf_buffer;

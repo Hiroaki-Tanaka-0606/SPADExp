@@ -136,6 +136,11 @@ double PS_theta;               // polarization angle
 double PS_phi;
 bool PS_theta_set;
 bool PS_phi_set;
+int PS_ext_up;                 // extend length to the up, right, down, left
+int PS_ext_ri;
+int PS_ext_dn;
+int PS_ext_le;
+bool PS_ext_set;
 char* PS_AO_file;              // PAO and AO file
 bool PS_AO_file_set;
 double PS_sigma_max;           // max sigma of the envelope Gauss function

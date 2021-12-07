@@ -688,6 +688,18 @@ int load_input(){
 				}
 				PS_AO_file_set=true; continue;
 			}
+			/// Extend (PS_ext_(up|ri|dn|le)): int[4]
+			/// if dimension==1, only right and left are used
+			if(strcmp(keyword_buffer, "Extend")==0){
+				if(PS_ext_set){
+					output_error(line_number, (char*)"keyword Extend already appeared"); status=0; goto FINALIZATION;
+				}
+				sscanf_status=sscanf(input_line_c, "%*s %d %d %d %d", &PS_ext_up, &PS_ext_ri, &PS_ext_dn, &PS_ext_le);
+				if(sscanf_status!=4){
+					output_error(line_number, (char*)"invalid value of Extend"); status=0; goto FINALIZATION;
+				}
+				PS_ext_set=true; continue;
+			}
 			
 		}else{
 			// none of the above, which should not happen

@@ -489,6 +489,8 @@ void calculate_PSF(){
 	double y_length;
 	double dx_length;
 	double dy_length;
+	double x_distance[3];
+	double y_distance[3];
 	for(i=0; i<3; i++){
 		for(j=0; j<3; j++){
 			x_vector[j]+=x_frac[i]*rec_cell[i][j];
@@ -497,6 +499,13 @@ void calculate_PSF(){
 			}
 		}
 	}
+	for(i=0; i<3; i++){
+		x_distance[i]=x_vector[i]*(x_range[1]-x_range[0]);
+		if(dimension==2){
+			y_distance[i]=y_vector[i]*(y_range[1]-y_range[0]);
+		}
+	}
+	
 	x_length=sqrt(inner_product(x_vector, x_vector));
 	dx_length=x_length/x_count;
 	if(dimension==2){
@@ -533,6 +542,7 @@ void calculate_PSF(){
 		sprintf(sprintf_buffer, "%8.3f %8.3f %8.3f", atom_coordinates[i][0], atom_coordinates[i][1], atom_coordinates[i][2]);
 		write_log(sprintf_buffer);
 		}*/
+	
 	/// k points
 	for(i=0; i<total_count; i++){
 		double k_points_frac[3];
@@ -543,6 +553,62 @@ void calculate_PSF(){
 		for(j=0; j<3; j++){
 			for(k=0; k<3; k++){
 				k_points[i][k]+=k_points_frac[j]*rec_cell[j][k];
+			}
+		}
+	}
+	/// extend k space (or path)
+	double** k_points_ext;
+	int* k_index_reduced;
+	int total_count_ext=total_count;
+	int x_count_ext=x_count;
+	int y_count_ext=y_count;
+	if(PS_ext_set){
+		if(curved){
+			write_log((char*)"Error: Extend cannot be used in the curved dispersion");
+			return;
+		}
+		if(dimension==1){
+			// E-k: use ext_ri and ext_le
+			total_count_ext=(total_count-1)*(1+PS_ext_ri+PS_ext_le)+1;
+			double* k_points_ext_alloc=new double[total_count_ext*3];
+			k_points_ext=new double*[total_count_ext];
+			k_index_reduced=new int[total_count_ext];
+			for(i=-PS_ext_le; i<=PS_ext_ri; i++){
+				for(j=0; j<total_count; j++){
+					int index_ext=(i+PS_ext_le)*(total_count-1)+j;
+					k_index_reduced[index_ext]=j;
+					k_points_ext[index_ext]=&k_points_ext_alloc[3*index_ext];
+					for(k=0; k<3; k++){
+						k_points_ext[index_ext][k]=k_points[j][k]+i*x_distance[k];
+					}
+				}
+			}/*
+			for(i=0; i<total_count_ext; i++){
+				cout << k_index_reduced[i] << endl;
+				}*/
+		}else{
+			// E-k-k: use ext_up, ri, dn, and le
+			x_count_ext=((x_count-1)*(1+PS_ext_ri+PS_ext_le)+1);
+			y_count_ext=((y_count-1)*(1+PS_ext_up+PS_ext_dn)+1);
+			total_count_ext=x_count_ext*y_count_ext;
+			double* k_points_ext_alloc=new double[total_count_ext*3];
+			k_points_ext=new double*[total_count_ext];
+			k_index_reduced=new int[total_count_ext];
+			int ix, jx, iy, jy;
+			for(iy=-PS_ext_dn; iy<=PS_ext_up; iy++){
+				for(jy=0; jy<y_count; jy++){
+					for(ix=-PS_ext_le; ix<=PS_ext_ri; ix++){
+						for(jx=0; jx<x_count; jx++){
+							int index_original=jy*x_count+jx;
+							int index_ext=((iy+PS_ext_dn)*(y_count-1)+jy)*x_count_ext+(ix+PS_ext_le)*(x_count-1)+jx;
+							k_index_reduced[index_ext]=index_original;
+							k_points_ext[index_ext]=&k_points_ext_alloc[3*index_ext];
+							for(k=0; k<3; k++){
+								k_points_ext[index_ext][k]=k_points[index_original][k]+iy*y_distance[k]+ix*x_distance[k];
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -564,7 +630,7 @@ void calculate_PSF(){
 	}
   
 	/// 4-4. calculation for each k point
-	double dispersion2[total_count][num_points_E]={0};
+	double dispersion2[total_count_ext][num_points_E]={0};
 	int ik; // for k point
 	int ib; // for band index
 	int sp; // for spin: 0=Up, 1=Dn
@@ -588,12 +654,20 @@ void calculate_PSF(){
   duration=chrono::duration_cast<chrono::milliseconds>(end-start).count();
 	sprintf(sprintf_buffer, "PSF preparation time: %.3f [ms]", duration);
 	write_log(sprintf_buffer);
-#pragma omp parallel firstprivate(Y_coeff, sp_max, num_bands, EF_Eh, Eh, PS_E_min, PS_E_pixel, num_points_E, tail_index,  m1jlp, Gaunt_arr, atom_length, atom_spec_index, num_orbits, spin_i,  atom_coordinates) private(ib, sp, Ylm_k, ia, is, io, il, ir, j)
+#pragma omp parallel firstprivate(Y_coeff, sp_max, num_bands, EF_Eh, Eh, PS_E_min, PS_E_pixel, num_points_E, tail_index,  m1jlp, Gaunt_arr, atom_length, atom_spec_index, num_orbits, spin_i,  atom_coordinates, PS_ext_set) private(ib, sp, Ylm_k, ia, is, io, il, ir, j)
 #pragma omp for
-	for(ik=0; ik<total_count; ik++){
+	for(ik=0; ik<total_count_ext; ik++){
 		// cout << ik << endl;
-		spherical_harmonics(k_points[ik], &Ylm_k[0][0]);
-		double k_length=sqrt(inner_product(k_points[ik], k_points[ik]));
+		int ik_reduced=ik;
+		double* k_point;
+		if(PS_ext_set){
+			ik_reduced=k_index_reduced[ik];
+			k_point=k_points_ext[ik];
+		}else{
+			k_point=k_points[ik];
+		}
+		double k_length=sqrt(inner_product(k_point, k_point));
+		spherical_harmonics(k_point, &Ylm_k[0][0]);
 		/*
 		for(int ii=0; ii<5; ii++){
 			for(int jj=0; jj<9; jj++){
@@ -607,11 +681,11 @@ void calculate_PSF(){
 			for(ib=0; ib<num_bands; ib++){
 				double eigen;
 				if(spin_i==0 || spin_i==2){
-					eigen=(band[ik][ib]-EF_Eh)*Eh;
+					eigen=(band[ik_reduced][ib]-EF_Eh)*Eh;
 				}else if(sp==0){
-					eigen=(band_up[ik][ib]-EF_Eh)*Eh;
+					eigen=(band_up[ik_reduced][ib]-EF_Eh)*Eh;
 				}else{
-					eigen=(band_dn[ik][ib]-EF_Eh)*Eh;
+					eigen=(band_dn[ik_reduced][ib]-EF_Eh)*Eh;
 				}
 				
 				int eigen_index=round((eigen-PS_E_min)/PS_E_pixel);
@@ -624,7 +698,7 @@ void calculate_PSF(){
 				complex<double> PSF_1(0, 0);
 				complex<double> PSF_2(0, 0);
 				for(ia=0; ia<atom_length; ia++){
-					double kt=inner_product(k_points[ik], atom_coordinates[ia]);
+					double kt=inner_product(k_point, atom_coordinates[ia]);
 					complex<double> atom_phase(cos(kt), -sin(kt));
 					// cout << kt << endl;
 					is=atom_spec_index[ia];
@@ -652,7 +726,7 @@ void calculate_PSF(){
 							}
 							io2=io/2;
 						}
-						complex<double>** LCAO_use=LCAO[ia][io][ik][ib]; // [twoLp1][digit]
+						complex<double>** LCAO_use=LCAO[ia][io][ik_reduced][ib]; // [twoLp1][digit]
 						// l: azimuthal quantum number of initial state
 						// lp: of final state, lp=l+dl
 						// m: magnetic quantum number of initial state
@@ -700,6 +774,7 @@ void calculate_PSF(){
 				if(spin_i==2){
 					PSF_norm+=norm(PSF_2);
 				}
+				// cout << "!" << PSF_norm << endl;
 				for(j=-tail_index; j<=tail_index; j++){
 					if(eigen_index+j>=0 && eigen_index+j<num_points_E){
 						dispersion2[ik][eigen_index+j]+=tail[abs(j)]*PSF_norm;
@@ -716,7 +791,7 @@ void calculate_PSF(){
 	write_log(sprintf_buffer);
 
 	double disp_max=0.0;
-	for(i=0; i<total_count; i++){
+	for(i=0; i<total_count_ext; i++){
 		for(j=0; j<num_points_E; j++){
 			if(disp_max<dispersion2[i][j]){
 				disp_max=dispersion2[i][j];
@@ -730,18 +805,18 @@ void calculate_PSF(){
 	/// 4-5 redimension (if dimension==2)
 	double*** dispersion3;
 	if(dimension==2){
-		double* dispersion3_alloc=new double[total_count*num_points_E];
-		dispersion3=new double**[x_count];
-		for(i=0; i<x_count; i++){
-			dispersion3[i]=new double*[y_count];
-			for(j=0; j<y_count; j++){
-				dispersion3[i][j]=&dispersion3_alloc[i*y_count*num_points_E+j*num_points_E];
+		double* dispersion3_alloc=new double[total_count_ext*num_points_E];
+		dispersion3=new double**[x_count_ext];
+		for(i=0; i<x_count_ext; i++){
+			dispersion3[i]=new double*[y_count_ext];
+			for(j=0; j<y_count_ext; j++){
+				dispersion3[i][j]=&dispersion3_alloc[i*y_count_ext*num_points_E+j*num_points_E];
 			}
 		}
-		for(i=0; i<x_count; i++){
-			for(j=0; j<y_count; j++){
+		for(i=0; i<x_count_ext; i++){
+			for(j=0; j<y_count_ext; j++){
 				for(k=0; k<num_points_E; k++){
-					dispersion3[i][j][k]=dispersion2[i+j*x_count][k];
+					dispersion3[i][j][k]=dispersion2[i+j*x_count_ext][k];
 				}
 			}
 		}
@@ -759,9 +834,9 @@ void calculate_PSF(){
 	w_att_str(output.openGroup("/"), "Datetime", time_str);
 
 	if(dimension==1){
-		w_data_2d(output.openGroup("/"), "Dispersion", total_count, num_points_E, (double**) dispersion2);
+		w_data_2d(output.openGroup("/"), "Dispersion", total_count_ext, num_points_E, (double**) dispersion2);
 	}else{
-		w_data_3d(output.openGroup("/"), "Dispersion", x_count, y_count, num_points_E, (double***) &dispersion3[0][0][0]);
+		w_data_3d(output.openGroup("/"), "Dispersion", x_count_ext, y_count_ext, num_points_E, (double***) &dispersion3[0][0][0]);
 	}
 
 	return;

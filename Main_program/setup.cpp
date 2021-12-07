@@ -112,6 +112,11 @@ void initialize(){
 	PS_AO_file_set=false;
 	PS_AO_file=new char[HDF5_file_length+1];
 	PS_sigma_max=5.0;
+	PS_ext_up=0;
+	PS_ext_ri=0;
+	PS_ext_dn=0;
+	PS_ext_le=0;
+	PS_ext_set=false;
 }
 
 void finalize(){
