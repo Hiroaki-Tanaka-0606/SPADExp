@@ -15,7 +15,7 @@
 using namespace std;
 
 void calc_atom(double mu, double* v_x, bool first_calculation, bool use_guess);
-void calc_potential(int Z, double mu, double* v_x_unmod, double* v_x);
+int calc_potential(int Z, double mu, double* v_x_unmod, double* v_x);
 void mix_potential(double* v_x, double* v_x_next);
 double calc_criterion_a(double* v1_X, double* v2_x);
 double calc_criterion_b(double* v1_x, double* v2_x, double mu);
@@ -65,6 +65,7 @@ void scf_calc_atom(){
 	sprintf(sprintf_buffer, "Criterion a = %8.3e, b = %8.3e", alpha, beta);
 	write_log(sprintf_buffer);
 	int trial_count=0;
+	int mod_start_index;
 	while(alpha>SC_criterion_a || beta>SC_criterion_b){
 		trial_count++;
 		sprintf(sprintf_buffer, "----Trial N=%d ----", trial_count);
@@ -75,7 +76,7 @@ void scf_calc_atom(){
 		for(i=0; i<x_count; i++){
 			At_v_x_unmod[i]=At_v_x_next_unmod[i];
 		}
-		calc_potential(Z, mu, At_v_x_next_unmod, At_v_x_next);
+		mod_start_index=calc_potential(Z, mu, At_v_x_next_unmod, At_v_x_next);
 		mix_potential(At_v_x, At_v_x_next);
 		mix_potential(At_v_x_unmod, At_v_x_next_unmod);
 		
@@ -87,8 +88,8 @@ void scf_calc_atom(){
 		// break;
 	}
 	/*
-	for(i=0; i<x_count; i+=4){
-		sprintf(sprintf_buffer, "%8.3f %8.5f", x_coordinates[i], -At_v_x_next[i]*mu*x_coordinates[i]/Z);
+	for(i=0; i<x_count; i++){
+		sprintf(sprintf_buffer, "%8.3f %8.5f", x_coordinates[i], At_v_x_next[i]);
 		write_log(sprintf_buffer);
 		}*/
 
@@ -109,7 +110,17 @@ void scf_calc_atom(){
 	w_data_1d(atomG, "Potential", x_count, &At_v_x_next[0]);
 	w_att_1d(atomG, "x", x_count, &x_coordinates[0]);
 	w_att_int(atomG, "length", x_count);
-	w_att_double(atomG, "mu", mu);	
+	w_att_double(atomG, "mu", mu);
+	w_att_int(atomG, "mod_start_index", mod_start_index);
+	w_data_1d(atomG, "Eigenenergies", SC_orbital_count, &SC_eigen_list[0]);
+
+	char orbital_list[SC_orbital_count][3];
+	char orbital_label[4]={'s', 'p', 'd', 'f'};
+	for(i=0; i<SC_orbital_count; i++){
+		sprintf(orbital_list[i], "%1d%c", SC_n_list[i], orbital_label[SC_l_list[i]]);
+	}
+	w_data_1c(atomG, "Orbitals", SC_orbital_count, 3, (char**) &orbital_list[0][0]);
+	
 	delete sprintf_buffer;
 }
 
@@ -160,7 +171,7 @@ void calc_atom(double mu, double* v_x, bool first_calculation, bool use_guess){
 	}
 }
 
-void calc_potential(int Z, double mu, double* v_x_unmod, double* v_x){
+int calc_potential(int Z, double mu, double* v_x_unmod, double* v_x){
 	// V=-Z/r                     potential from nucleus
 	//   +1/r int_0^r sigma(R) dR Hartree potential from the inside
 	//   +int_r^inf sigma(R)/R dR Hartree potential from the outside
@@ -190,14 +201,21 @@ void calc_potential(int Z, double mu, double* v_x_unmod, double* v_x){
 	}
 
 	// modification
+	int mod_start_index=x_count-1;
+	bool mod_started=false;
 	for(i=1; i<x_count; i++){
 		double v_x_threshold=-1.0/(mu*x_coordinates[i]);
 		if(v_x_unmod[i]>v_x_threshold){
 			v_x[i]=v_x_threshold;
+			if(mod_started==false){
+				mod_start_index=i;
+				mod_started=true;
+			}
 		}else{
 			v_x[i]=v_x_unmod[i];
 		}
 	}
+	return mod_start_index;
 }
 
 void mix_potential(double* v_x, double* v_x_next){

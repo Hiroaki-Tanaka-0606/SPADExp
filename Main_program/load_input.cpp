@@ -30,6 +30,10 @@ int load_input(){
 	string* block_name;      // name of the block which the line is being in
 	int Radial_grid_index=0; // current index of the radial grid configuration
 	int Oc_orbital_index=0;  // current index of the occupation configuration
+	int Ex_energy_index=0;   // current index of the excitation energy configuration
+	int Ph_orbital_index=0;  // current index of the orbital configuration
+
+	int i;
 
 	while(getline(cin, input_line_s)){
 		// cout << input_line_s << endl;
@@ -132,6 +136,41 @@ int load_input(){
 				for(int i=0; i<Occupation_count; i++){
 					At_occupation[i]=&At_occupation_alloc[i*Occupation_count];
 				}
+			}else if(*block_name==string("Excitation-energy")){
+				// Ex: Excitation energies
+				if(Ex_block_appeared){
+					output_error(line_number, (char*)"block 'Excitation-energy' already appeared"); status=0; goto FINALIZATION;
+				}
+				Ex_block_appeared=true;
+				/// read the number of rows
+				sscanf_status=sscanf(input_line_c, "%*s %d", &Ex_energy_count);
+				if(sscanf_status<1 || Ex_energy_count<1){
+					output_error(line_number, (char*)"invalid number of Ex_energy_count"); status=0; goto FINALIZATION;
+				}
+				Ex_energies=new double[Ex_energy_count];
+			}else if(*block_name==string("Orbital")){
+				// Or: orbitals to calculate phase shift
+				if(Or_block_appeared){
+					output_error(line_number, (char*)"block 'Orbital' already appeared"); status=0; goto FINALIZATION;
+				}
+				Or_block_appeared=true;
+				/// read the number of rows
+				sscanf_status=sscanf(input_line_c, "%*s %d", &Ph_orbital_count);
+				if(sscanf_status<1 || Ph_orbital_count<1){
+					output_error(line_number, (char*)"invalid number of Ph_orbital_count"); status=0; goto FINALIZATION;
+				}
+				Ph_orbital_labels=new char*[Ph_orbital_count];
+				for(i=0; i<Ph_orbital_count; i++){
+					Ph_orbital_labels[i]=new char[Ph_label_length+1];
+				}
+				Ph_l_list=new int[Ph_orbital_count];
+				Ph_binding_energies=new double[Ph_orbital_count];
+			}else if(*block_name==string("Phase-shift")){
+				// Ph: Phase-shift
+				if(Ph_block_appeared){
+					output_error(line_number, (char*)"block 'Phase-shift' already appeared"); status=0; goto FINALIZATION;
+				}
+				Ph_block_appeared=true;
 			}else if(*block_name==string("PSF")){
 				// PS: Photoemission structure factor (PSF)
 				if(PS_block_appeared){
@@ -155,7 +194,12 @@ int load_input(){
 			if(*block_name==string("Occupation") && Oc_orbital_index!=Occupation_count){
 				output_error(line_number, (char*)"inequal number of orbital indices"); status=0; goto FINALIZATION;
 			}
-			
+			if(*block_name==string("Excitation-energy") && Ex_energy_index!=Ex_energy_count){
+				output_error(line_number, (char*)"inequal number of excitation energies"); status=0; goto FINALIZATION;
+			}
+			if(*block_name==string("Orbital") && Ph_orbital_index!=Ph_orbital_count){
+				output_error(line_number, (char*)"inequal number of orbitals"); status=0; goto FINALIZATION;
+			}			
 			continue;
 		}
 		/// something invalid, out of the block
@@ -202,6 +246,50 @@ int load_input(){
 			delete sscanf_template;
 			continue;
 		}
+		if(*block_name==string("Excitation-energy")){
+			// Ex: (energy (eV))
+			// Ex_energies[i] is in Eh
+			if(Ex_energy_index>=Ex_energy_count){
+				output_error(line_number, (char*)"too much configurations in the Excitation-energy block"); status=0; goto FINALIZATION;
+			}
+			double energy_eV;
+			sscanf_status=sscanf(input_line_c,"%lf", &energy_eV);
+			if(sscanf_status<1){
+				output_error(line_number, (char*)"invalid value of an excitation energy"); status=0; goto FINALIZATION;
+			}
+			Ex_energies[Ex_energy_index]=energy_eV/Eh;
+			Ex_energy_index++;
+			continue;
+		}
+		if(*block_name==string("Orbital")){
+			// Or: (label) (binding energy (eV)
+			// Ph_binding_energies[i] is in Eh
+			if(Ph_orbital_index>=Ph_orbital_count){
+				output_error(line_number, (char*)"too much configurations in the Orbital block"); status=0; goto FINALIZATION;
+			}
+			double energy_eV;
+			sscanf_status=sscanf(input_line_c,"%s %lf", Ph_orbital_labels[Ph_orbital_index], &energy_eV);
+			if(sscanf_status<2){
+				output_error(line_number, (char*)"invalid value(s) of an orbital"); status=0; goto FINALIZATION;
+			}
+			Ph_binding_energies[Ph_orbital_index]=energy_eV/Eh;
+			if(strlen(Ph_orbital_labels[Ph_orbital_index])>Ph_label_length){
+				output_error(line_number, (char*)"Error: too long orbital label"); status=0; goto FINALIZATION;
+			}
+			if(Ph_orbital_labels[Ph_orbital_index][1]=='s'){
+				Ph_l_list[Ph_orbital_index]=0;
+			}else if(Ph_orbital_labels[Ph_orbital_index][1]=='p'){
+				Ph_l_list[Ph_orbital_index]=1;
+			}else if(Ph_orbital_labels[Ph_orbital_index][1]=='d'){
+				Ph_l_list[Ph_orbital_index]=2;
+			}else if(Ph_orbital_labels[Ph_orbital_index][1]=='f'){
+				Ph_l_list[Ph_orbital_index]=3;
+			}else{
+				output_error(line_number, (char*)"Error: invalid orbital"); status=0; goto FINALIZATION;
+			}
+			Ph_orbital_index++;
+			continue;
+		}	    
 
 		/// usual block, "(keyword) (value)"
 		/* template
@@ -700,7 +788,30 @@ int load_input(){
 				}
 				PS_ext_set=true; continue;
 			}
-			
+		}else if(*block_name==string("Phase-shift")){
+			// Ph block
+			/// Skip_points (Ph_skip_points): int
+			if(strcmp(keyword_buffer, "Skip_points")==0){
+				if(Ph_skip_points_set){
+					output_error(line_number, (char*)"keyword Skip_points already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_int(input_line_c, &Ph_skip_points);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Skip_points"); status=0; goto FINALIZATION;
+				}
+				Ph_skip_points_set=true; continue;
+			}
+			/// Calc_points (Ph_calc_points): int
+			if(strcmp(keyword_buffer, "Calc_points")==0){
+				if(Ph_calc_points_set){
+					output_error(line_number, (char*)"keyword Calc_points already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_int(input_line_c, &Ph_calc_points);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Calc_points"); status=0; goto FINALIZATION;
+				}
+				Ph_calc_points_set=true; continue;
+			}
 		}else{
 			// none of the above, which should not happen
 			output_error(line_number, (char*)"unexpected block name error");

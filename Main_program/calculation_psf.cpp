@@ -146,6 +146,9 @@ void calculate_PSF(){
 	char atom_unit_c[atom_unit.length()+1];
 	atom_unit.copy(atom_unit_c, atom_unit.length());
 	atom_unit_c[atom_unit.length()]='\0';
+	// cout << atom_unit_c << endl;
+	// cout << atom_unit.length() << endl;
+	// cout << atom_unit << endl;
 	transform(atom_unit.begin(), atom_unit.end(), atom_unit.begin(), ::tolower);
 	//// Labels
 	s_data_1c(AtomG, "Labels", &size1, &length);

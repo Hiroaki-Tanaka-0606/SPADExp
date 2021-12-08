@@ -19,11 +19,12 @@ void initialize(){
 	Solution_length=16;
 	Potential_length=32;
 	Potential_file_length=1024;
-	Data_read_error=0.01;
+	Data_read_error=0.0001;
 	HDF5_file_length=1024;
 	PS_state_length=64;
 	au_ang=0.529177; // (Ang)
 	Eh=27.2114; // (eV)
+	Ph_label_length=8;
 	
 	// variables
 	/// blocks
@@ -34,6 +35,7 @@ void initialize(){
 	SC_block_appeared=false;
 	Oc_block_appeared=false;
 	PS_block_appeared=false;
+	Ex_block_appeared=false;
 	/// Ct block
 	Calculation=new char[Calculation_length+1];
 	Calculation_set=false;
@@ -94,6 +96,11 @@ void initialize(){
 	SC_criterion_b=0.001;
 	SC_criterion_b_set=false;
 	SC_orbital_count=0;
+	/// Ph block
+	Ph_skip_points_set=false;
+	Ph_skip_points=2;
+	Ph_calc_points_set=false;
+	Ph_calc_points=5;
 	/// PS block
 	PS_input_file_set=false;
 	PS_input_file=new char[HDF5_file_length+1];
@@ -275,7 +282,8 @@ int setup_potential(int Z, double mu){
 
 void modify_potential(int Z, double mu){
 	if(strcmp(At_potential, "Thomas-Fermi")==0){
-		for(int i=0; i<x_count; i++){
+		for(int i=1; i<x_count; i++){
+			// exclude i=0 because At_v_x[0]=0
 			// only for Thomas-Fermi potential
 			if(At_v_x[i]>1.0/Z){
 				At_v_x[i]*=-Z*1.0/(mu*x_coordinates[i]);

@@ -13,6 +13,7 @@ int Potential_file_length;// size of the char* At_potential_file
 double Data_read_error;   // tolerable error in file reading (such as x_coordinates)
 int HDF5_file_length;     // size of the char* PS_input_file, PS_AO_file
 int PS_state_length;      // size of the char* PS_initial_state, PS_final_state
+int Ph_label_length;      // size of the char* Ph_orbital_labels[i]
 double au_ang;            // 1 bohr (Ang)
 double Eh;                // 1 Hartree (eV)
 
@@ -25,6 +26,9 @@ bool At_block_appeared;
 bool SC_block_appeared;
 bool Oc_block_appeared;
 bool PS_block_appeared;
+bool Ex_block_appeared;
+bool Or_block_appeared;
+bool Ph_block_appeared;
 /// Ct block
 char* Calculation;             // name of the calculation
 bool Calculation_set;          // true: variable Calculation has a value in the input file
@@ -110,11 +114,24 @@ double* SC_sigma_x;            // number density, integrated in the angles
 int SC_orbital_count;          // number of occupied orbitals
 int* SC_n_list;                // list of n and l
 int* SC_l_list;
-double* SC_eigen_list;          // list of eigenvalues
+double* SC_eigen_list;         // list of eigenvalues
 double** SC_p_x;               // list of P(x)
 /// Oc block
 int Occupation_count;
-int** At_occupation;
+int** At_occupation;           // list of occupation numbers
+/// Ex block
+int Ex_energy_count;           // number of excitation energies
+double* Ex_energies;           // excitation energies
+/// Or block
+int Ph_orbital_count;          // number of orbital to calculate phase shift
+char** Ph_orbital_labels;      // orbital label (like '1s')
+int* Ph_l_list;                // list of l
+double* Ph_binding_energies;   // binding energies of atomic states
+/// Ph block
+int Ph_skip_points;            // number of skipped points in the phase analysis
+bool Ph_skip_points_set;
+int Ph_calc_points;            // number of used point in the phase analysis
+bool Ph_calc_points_set;
 /// PS block
 char* PS_input_file;           // input file (.hdf5), output of the postproc.o
 bool PS_input_file_set;
