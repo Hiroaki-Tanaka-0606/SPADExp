@@ -14,6 +14,7 @@ void w_att_int(Group g, const char* key, int value);
 void w_att_double(Group g, const char* key, double value);
 void w_att_bool(Group g, const char* key, bool value);
 void w_att_1d(Group g, const char* key, int size, double* value);
+void w_att_1i(Group g, const char* key, int size, int* value);
 void w_att_2d(Group g, const char* key, int size1, int size2, double** value);
 
 // for datasets
@@ -26,6 +27,9 @@ void w_data_4d(Group g, const char* key,
 							 int size1, int size2, int size3, int size4, double**** value);
 
 // read size and load data
+void s_data_1d(Group g, const char* key, int* size);
+void r_data_1d(Group g, const char* key, int size, double* value);
+
 void s_data_2d(Group g, const char* key, int* size1, int* size2);
 void r_data_2d(Group g, const char* key, int size1, int size2, double** value);
 

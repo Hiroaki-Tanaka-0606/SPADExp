@@ -57,6 +57,51 @@ int validation_PSF(){
 		if(strcmp(PS_final_state, "PW")==0 || strcmp(PS_final_state, "Calc")==0){
 			sprintf(sprintf_buffer, "%32s = %s", "Final_state", PS_final_state);
 			write_log(sprintf_buffer);
+			if(strcmp(PS_final_state, "Calc")==0){
+				// properties for final state calculations: see validation_phase_shift.cpp
+				/// grid
+				setup_radial_grid();
+				At_p_x=new double[x_count];
+				At_p_diff_x=new double[x_count];
+				At_v_x=new double[x_count];
+				write_log((char*)"----Radial-grid block ended----");
+				/// Final_state_step (PS_final_state_step)
+				sprintf(sprintf_buffer, "%32s = %8.3f", "Final_state_step", PS_final_state_step);
+				write_log(sprintf_buffer);
+				if(PS_final_state_step<0){
+					write_log((char*)"Error: Final_state_step should be positive");
+					status=0; goto FINALIZATION;
+				}
+				if(At_potential_file_set){
+					sprintf(sprintf_buffer, "%32s = %s", "Potential_file (Atomic-wfn)", At_potential_file);
+					write_log(sprintf_buffer);
+				}else{
+					write_log((char*)"Error: Potential_file is necessary");
+					status=0; goto FINALIZATION;
+				}
+				/// Solution (At_solution)
+				if(strcmp(At_solution, "RK1")==0 || strcmp(At_solution, "RK4")==0 || strcmp(At_solution, "Numerov")==0){
+					sprintf(sprintf_buffer, "%32s = %s", "Solution (Atomic-wfn)", At_solution);
+					write_log(sprintf_buffer);
+				}else{
+					write_log((char*)"Error: Solution should be 'RK1', 'RK4', or 'Numerov'");
+					status=0; goto FINALIZATION;
+				}
+				/// Skip_ and Calc_ points
+				sprintf(sprintf_buffer, "%32s = %d", "Skip_points (Phase-shift)", Ph_skip_points);
+				write_log(sprintf_buffer);
+				if(Ph_skip_points<0){
+					write_log((char*)"Error: Skip_points should not be negative");
+					status=0; goto FINALIZATION;
+				}
+				sprintf(sprintf_buffer, "%32s = %d", "Calc_points (Phase-shift)", Ph_calc_points);
+				write_log(sprintf_buffer);
+				if(Ph_calc_points<1){
+					write_log((char*)"Error: Calc_points should be positive");
+					status=0; goto FINALIZATION;
+				}
+	
+			}
 		}else{
 			write_log((char*)"Error: Final_state should be 'PW' or 'Calc'");
 			status=0; goto FINALIZATION;

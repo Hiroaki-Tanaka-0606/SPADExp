@@ -15,6 +15,9 @@
 #include "variables_ext.hpp"
 #include "HDF5_tools.hpp"
 #include "physical_tools.hpp"
+#include "calculation_phase_shift.hpp"
+#include "calculation_atomic_wfn.hpp"
+#include "setup.hpp"
 
 using namespace std;
 using namespace H5;
@@ -26,30 +29,6 @@ extern "C"{
 							 int* INCX,
 							 double* CY,
 							 int* INCY);
-	// in case of complex<double>, the result is the first argument
-	void zdotu_(
-												 complex<double>* result,
-												 int* N,
-												 complex<double>* CX,
-												 int* INCX,
-												 complex<double>* CY,
-												 int* INCY);
-}
-
-complex<double> zdot(int* N, complex<double>* X, complex<double>* Y){
-	int INC=1;
-  complex<double> result;
-	zdotu_(&result, N, &X[0], &INC, &Y[0], &INC);
-	return result;
-}
-
-complex<double> zdot2(int* N, complex<double>* X, complex<double>* Y){
-	complex<double> ret=complex<double>(0, 0);
-	int i;
-	for(i=0; i<*N; i++){
-		ret+=X[i]*Y[i];
-	}
-	return ret;
 }
 
 double ddot(int* N, double* X, double* Y){
@@ -146,6 +125,9 @@ void calculate_PSF(){
 	char atom_unit_c[atom_unit.length()+1];
 	atom_unit.copy(atom_unit_c, atom_unit.length());
 	atom_unit_c[atom_unit.length()]='\0';
+	// cout << atom_unit_c << endl;
+	// cout << atom_unit.length() << endl;
+	// cout << atom_unit << endl;
 	transform(atom_unit.begin(), atom_unit.end(), atom_unit.begin(), ::tolower);
 	//// Labels
 	s_data_1c(AtomG, "Labels", &size1, &length);
@@ -205,19 +187,19 @@ void calculate_PSF(){
 	//// Origin, Xvector, Yvector in fractional unit of reciprocal unit vectors
 	//// Xcount, Ycount, Xrange, Yrange
 	double origin_frac[3];
-	double x_frac[3];
-	double y_frac[3];
-	int x_count, y_count;
-	double x_range[2];
-	double y_range[2];
+	double kx_frac[3];
+	double ky_frac[3];
+	int kx_count, ky_count;
+	double kx_range[2];
+	double ky_range[2];
 	r_att_1d(KpathG, "Origin", 3, (double*) origin_frac);
-	r_att_1d(KpathG, "Xvector", 3, (double*) x_frac);
-	x_count=r_att_int(KpathG, "Xcount");
-	r_att_1d(KpathG, "Xrange", 2, (double*) x_range);
+	r_att_1d(KpathG, "Xvector", 3, (double*) kx_frac);
+	kx_count=r_att_int(KpathG, "Xcount");
+	r_att_1d(KpathG, "Xrange", 2, (double*) kx_range);
 	if(dimension==2){
-		r_att_1d(KpathG, "Yvector", 3, (double*) y_frac);
-		y_count=r_att_int(KpathG, "Ycount");
-		r_att_1d(KpathG, "Yrange", 2, (double*) y_range);
+		r_att_1d(KpathG, "Yvector", 3, (double*) ky_frac);
+		ky_count=r_att_int(KpathG, "Ycount");
+		r_att_1d(KpathG, "Yrange", 2, (double*) ky_range);
 	}
 	//// Count
 	int total_count=r_att_int(KpathG, "Count");
@@ -231,14 +213,14 @@ void calculate_PSF(){
 	write_log((char*)"----k points----");
 	sprintf(sprintf_buffer, "%32s = (%8.3f, %8.3f, %8.3f)", "Origin", origin_frac[0], origin_frac[1], origin_frac[2]);
 	write_log(sprintf_buffer);
-	sprintf(sprintf_buffer, "%32s = (%8.3f, %8.3f, %8.3f)", "X", x_frac[0], x_frac[1], x_frac[2]);
+	sprintf(sprintf_buffer, "%32s = (%8.3f, %8.3f, %8.3f)", "kx", kx_frac[0], kx_frac[1], kx_frac[2]);
 	write_log(sprintf_buffer);
-	sprintf(sprintf_buffer, "%32s = %8.3f to %8.3f, %d points", "X range", x_range[0], x_range[1], x_count);
+	sprintf(sprintf_buffer, "%32s = %8.3f to %8.3f, %d points", "kx range", kx_range[0], kx_range[1], kx_count);
 	write_log(sprintf_buffer);
 	if(dimension==2){
-		sprintf(sprintf_buffer, "%32s = (%8.3f, %8.3f, %8.3f)", "Y", y_frac[0], y_frac[1], y_frac[2]);
+		sprintf(sprintf_buffer, "%32s = (%8.3f, %8.3f, %8.3f)", "ky", ky_frac[0], ky_frac[1], ky_frac[2]);
 		write_log(sprintf_buffer);
-		sprintf(sprintf_buffer, "%32s = %8.3f to %8.3f, %d points", "Y range", y_range[0], y_range[1], y_count);
+		sprintf(sprintf_buffer, "%32s = %8.3f to %8.3f, %d points", "ky range", ky_range[0], ky_range[1], ky_count);
 		write_log(sprintf_buffer);
 	}
 	sprintf(sprintf_buffer, "%32s = %d", "Total number of points", total_count);
@@ -406,6 +388,7 @@ void calculate_PSF(){
 	double** wfn_r=new double*[atom_spec_length]; // [is][r]
 	char AO_group_name[item_size*2];
 	int wfn_length[atom_spec_length];
+	int Z[atom_spec_length];
 
 	string AO_file_name(PS_AO_file);
 	H5File AO_file(AO_file_name, H5F_ACC_RDONLY);
@@ -417,6 +400,7 @@ void calculate_PSF(){
 		write_log(sprintf_buffer);
 		Group AOG(AO_file.openGroup(AO_group_name));
 		wfn_length[is]=r_att_int(AOG, "length");
+		Z[is]=r_att_int(AOG, "Z");
 		wfn_r[is]=new double[wfn_length[is]];
 		r_att_1d(AOG, "r", wfn_length[is], &wfn_r[is][0]);
 		for(io=0; io<num_orbits[is]; io++){
@@ -439,20 +423,14 @@ void calculate_PSF(){
 		} 
 	}
 
-	// 3. calculate final states
-	if(strcmp(PS_final_state, "Calc")==0){
-		write_log((char*)"Caculation of the final state is not yet implemented");
-		return;
-	}
-	
-	// 4. psf calculation
+	// 3. psf calculation
 	write_log((char*)"----PSF Calculation----");
   start=chrono::system_clock::now();
 	int num_points_E=ceil((PS_E_max-PS_E_min)/PS_E_pixel+1);
 	sprintf(sprintf_buffer, "%32s = %d", "Number of points along E", num_points_E);
 	write_log(sprintf_buffer);
 
-	/// 4-1. calculate atom position and k point in au (or au^-1) orthonormal basis
+	/// 3-1. calculate atom position and k point in au (or au^-1) orthonormal basis
 	double rec_cell[3][3];
 	double op[3]; // for outer product
 	double det; // for determinant
@@ -483,34 +461,34 @@ void calculate_PSF(){
 		}
 	}
 	/// x and y vectors
-	double x_vector[3]={0, 0, 0};
-	double y_vector[3]={0, 0, 0};
-	double x_length;
-	double y_length;
-	double dx_length;
-	double dy_length;
-	double x_distance[3];
-	double y_distance[3];
+	double kx_vector[3]={0, 0, 0};
+	double ky_vector[3]={0, 0, 0};
+	double kx_length;
+	double ky_length;
+	double dkx_length;
+	double dky_length;
+	double kx_distance[3];
+	double ky_distance[3];
 	for(i=0; i<3; i++){
 		for(j=0; j<3; j++){
-			x_vector[j]+=x_frac[i]*rec_cell[i][j];
+			kx_vector[j]+=kx_frac[i]*rec_cell[i][j];
 			if(dimension==2){
-				y_vector[j]+=y_frac[i]*rec_cell[i][j];
+				ky_vector[j]+=ky_frac[i]*rec_cell[i][j];
 			}
 		}
 	}
 	for(i=0; i<3; i++){
-		x_distance[i]=x_vector[i]*(x_range[1]-x_range[0]);
+		kx_distance[i]=kx_vector[i]*(kx_range[1]-kx_range[0]);
 		if(dimension==2){
-			y_distance[i]=y_vector[i]*(y_range[1]-y_range[0]);
+			ky_distance[i]=ky_vector[i]*(ky_range[1]-ky_range[0]);
 		}
 	}
 	
-	x_length=sqrt(inner_product(x_vector, x_vector));
-	dx_length=x_length/x_count;
+	kx_length=sqrt(inner_product(kx_vector, kx_vector));
+	dkx_length=kx_length*(kx_range[1]-kx_range[0])/kx_count;
 	if(dimension==2){
-		y_length=sqrt(inner_product(y_vector, y_vector));
-		dy_length=y_length/y_count;
+		ky_length=sqrt(inner_product(ky_vector, ky_vector));
+		dky_length=ky_length*(ky_range[1]-ky_range[0])/ky_count;
 	}
 
 	/// atom positions
@@ -560,8 +538,8 @@ void calculate_PSF(){
 	double** k_points_ext;
 	int* k_index_reduced;
 	int total_count_ext=total_count;
-	int x_count_ext=x_count;
-	int y_count_ext=y_count;
+	int kx_count_ext=kx_count;
+	int ky_count_ext=ky_count;
 	if(PS_ext_set){
 		if(curved){
 			write_log((char*)"Error: Extend cannot be used in the curved dispersion");
@@ -579,7 +557,7 @@ void calculate_PSF(){
 					k_index_reduced[index_ext]=j;
 					k_points_ext[index_ext]=&k_points_ext_alloc[3*index_ext];
 					for(k=0; k<3; k++){
-						k_points_ext[index_ext][k]=k_points[j][k]+i*x_distance[k];
+						k_points_ext[index_ext][k]=k_points[j][k]+i*kx_distance[k];
 					}
 				}
 			}/*
@@ -588,23 +566,23 @@ void calculate_PSF(){
 				}*/
 		}else{
 			// E-k-k: use ext_up, ri, dn, and le
-			x_count_ext=((x_count-1)*(1+PS_ext_ri+PS_ext_le)+1);
-			y_count_ext=((y_count-1)*(1+PS_ext_up+PS_ext_dn)+1);
-			total_count_ext=x_count_ext*y_count_ext;
+			kx_count_ext=((kx_count-1)*(1+PS_ext_ri+PS_ext_le)+1);
+			ky_count_ext=((ky_count-1)*(1+PS_ext_up+PS_ext_dn)+1);
+			total_count_ext=kx_count_ext*ky_count_ext;
 			double* k_points_ext_alloc=new double[total_count_ext*3];
 			k_points_ext=new double*[total_count_ext];
 			k_index_reduced=new int[total_count_ext];
 			int ix, jx, iy, jy;
 			for(iy=-PS_ext_dn; iy<=PS_ext_up; iy++){
-				for(jy=0; jy<y_count; jy++){
+				for(jy=0; jy<ky_count; jy++){
 					for(ix=-PS_ext_le; ix<=PS_ext_ri; ix++){
-						for(jx=0; jx<x_count; jx++){
-							int index_original=jy*x_count+jx;
-							int index_ext=((iy+PS_ext_dn)*(y_count-1)+jy)*x_count_ext+(ix+PS_ext_le)*(x_count-1)+jx;
+						for(jx=0; jx<kx_count; jx++){
+							int index_original=jy*kx_count+jx;
+							int index_ext=((iy+PS_ext_dn)*(ky_count-1)+jy)*kx_count_ext+(ix+PS_ext_le)*(kx_count-1)+jx;
 							k_index_reduced[index_ext]=index_original;
 							k_points_ext[index_ext]=&k_points_ext_alloc[3*index_ext];
 							for(k=0; k<3; k++){
-								k_points_ext[index_ext][k]=k_points[index_original][k]+iy*y_distance[k]+ix*x_distance[k];
+								k_points_ext[index_ext][k]=k_points[index_original][k]+iy*ky_distance[k]+ix*kx_distance[k];
 							}
 						}
 					}
@@ -613,7 +591,7 @@ void calculate_PSF(){
 		}
 	}
 
-	/// 4-2. calculation of operator coefficients
+	/// 3-2. calculation of operator coefficients
 	complex<double> Y_coeff[3];
 	operator_coefficient(PS_polarization, PS_theta, PS_phi, Y_coeff);
 	for(i=0; i<3; i++){
@@ -622,14 +600,124 @@ void calculate_PSF(){
 	}
 	
 
-	/// 4-3. tail profile
+	/// 3-3. tail profile
 	int tail_index=floor(PS_dE*PS_sigma_max/PS_E_pixel);
 	double tail[tail_index+1];
 	for(i=0; i<=tail_index; i++){
 		tail[i]=1.0/(PS_dE*sqrt(2*M_PI))*exp(-1.0/2.0*(i*PS_E_pixel/PS_dE)*(i*PS_E_pixel/PS_dE));
 	}
+
+
+	// 3-4. final states
+	int k_index_min=-1;
+	int k_index_max=-1;
+	int final_states_count;
+	double**** final_states_calc; // [k_index][atom_spec][l][r]
+	double*** final_states_phase; // [k_index][atom_spec][l]
+	if(strcmp(PS_final_state, "Calc")==0){
+		write_log((char*)"----Calculate final states----");
+		for(i=0; i<total_count_ext; i++){
+			double* k_point;
+			if(PS_ext_set){
+				k_point=k_points_ext[i];
+			}else{
+				k_point=k_points[i];
+			}
+			double k_length=sqrt(inner_product(k_point, k_point));
+			int k_index=round(k_length/PS_final_state_step);
+			if(k_index_min<0 || k_index_min>k_index){
+				k_index_min=k_index;
+			}
+			if(k_index_max<0 || k_index_max<k_index){
+				k_index_max=k_index;
+			}
+		}
+		sprintf(sprintf_buffer, "%32s = [%d, %d] * %8.3f", "Rounded k_length range", k_index_min, k_index_max, PS_final_state_step);
+		write_log(sprintf_buffer);
+		final_states_count=k_index_max-k_index_min+1;
+
+		final_states_calc=new double***[final_states_count];
+		for(i=0; i<final_states_count; i++){
+			final_states_calc[i]=new double**[atom_spec_length];
+			for(j=0; j<atom_spec_length; j++){
+				double* final_states_alloc=new double[5*wfn_length[j]];
+				final_states_calc[i][j]=new double*[5];
+				for(k=0; k<5; k++){
+					final_states_calc[i][j][k]=&final_states_alloc[k*wfn_length[j]];
+					// cout << final_states_calc[i][j][k] << endl;
+				}
+			}
+		}
+		
+		double* final_states_phase_alloc=new double[final_states_count*atom_spec_length*5];
+		final_states_phase=new double**[final_states_count];
+		for(i=0; i<final_states_count; i++){
+			final_states_phase[i]=new double*[atom_spec_length];
+			for(j=0; j<atom_spec_length; j++){
+				final_states_phase[i][j]=&final_states_phase_alloc[i*atom_spec_length*5+j*5];
+			}
+		}
+
+		H5File database(At_potential_file, H5F_ACC_RDONLY);
+		char group_name[4];
+		
+		for(j=0; j<atom_spec_length; j++){
+			double mu=pow(3.0*M_PI/4.0, 2.0/3.0)/(2.0*pow(Z[j], 1.0/3.0));
+			// cout << x_count << " " << x_coordinates[x_count-1] << endl;
+			sprintf(sprintf_buffer, "Z = %3d, mu = %8.3f", Z[j], mu);
+			write_log(sprintf_buffer);
+			// open group
+			sprintf(group_name, "%03d", Z[j]);
+			Group atomG(database.openGroup(group_name));
+			// prepare potential by interpolation
+			double mod_start_x=load_potential_H5(atomG, mu);
+			
+			for(i=0; i<final_states_count; i++){
+				double k_length=(k_index_min+i)*PS_final_state_step;
+				double Ekin=k_length*k_length*0.5;
+				int l;
+				for(l=0; l<5; l++){
+					Atomic_wfn_evolution(mu, l, Ekin, false);
+					final_states_phase[i][j][l]=analyze_phase(mu, k_length, l, mod_start_x);
+					// interpolate final states so that they correspond to wfn_r[j]
+					int x1, x2;
+					for(x1=0; x1<wfn_length[j]; x1++){
+						bool r_found=false;
+						for(x2=0; x2<x_count-1; x2++){
+							if(mu*x_coordinates[x2] < wfn_r[j][x1] && wfn_r[j][x1] < mu*x_coordinates[x2+1]){
+								double dr1=wfn_r[j][x1]-mu*x_coordinates[x2];
+								double dr2=mu*x_coordinates[x2+1]-wfn_r[j][x1];
+								final_states_calc[i][j][l][x1]=(At_p_x[x2]*dr2+At_p_x[x2+1]*dr1)/(dr1+dr2);
+								r_found=true;
+								break;
+							}
+						}
+						if(!r_found){
+							final_states_calc[i][j][l][x1]=0;
+							// cout << "Not found" << endl;
+						}
+					}
+				}
+			}
+		}
+
+		/*		
+		for(k=0; k<5; k++){
+			for(i=0; i<final_states_count; i++){
+				for(j=0; j<atom_spec_length; j++){
+					cout << final_states_phase[i][j][k] << " ";
+				}		
+			}
+			cout << endl;
+		}return;
+		for(i=0; i<wfn_length[0]; i++){
+			cout << wfn_r[0][i] << " " << final_states_calc[0][0][0][i] << endl;
+			}*/
+				
+		// return;
+	}
   
-	/// 4-4. calculation for each k point
+	/// 3-5. calculation for each k point
 	double dispersion2[total_count_ext][num_points_E]={0};
 	int ik; // for k point
 	int ib; // for band index
@@ -654,7 +742,7 @@ void calculate_PSF(){
   duration=chrono::duration_cast<chrono::milliseconds>(end-start).count();
 	sprintf(sprintf_buffer, "PSF preparation time: %.3f [ms]", duration);
 	write_log(sprintf_buffer);
-#pragma omp parallel firstprivate(Y_coeff, sp_max, num_bands, EF_Eh, Eh, PS_E_min, PS_E_pixel, num_points_E, tail_index,  m1jlp, Gaunt_arr, atom_length, atom_spec_index, num_orbits, spin_i,  atom_coordinates, PS_ext_set) private(ib, sp, Ylm_k, ia, is, io, il, ir, j)
+#pragma omp parallel firstprivate(Y_coeff, sp_max, num_bands, EF_Eh, Eh, PS_E_min, PS_E_pixel, num_points_E, tail_index,  m1jlp, Gaunt_arr, atom_length, atom_spec_index, num_orbits, spin_i,  atom_coordinates, PS_ext_set, PS_final_state_step, k_index_min) private(ib, sp, Ylm_k, ia, is, io, il, ir, j)
 #pragma omp for
 	for(ik=0; ik<total_count_ext; ik++){
 		// cout << ik << endl;
@@ -707,10 +795,18 @@ void calculate_PSF(){
 						num_orbits2*=2;
 					}
 					double final_states[5][wfn_length[is]];
+					int k_index;
 					if(strcmp(PS_final_state, "PW")==0){
 						for(il=0; il<5; il++){
 							for(ir=0; ir<wfn_length[is]; ir++){
 								final_states[il][ir]=wfn_r[is][ir]*sp_bessel(il, wfn_r[is][ir]*k_length);
+							}
+						}
+					}else if(strcmp(PS_final_state, "Calc")==0){
+						k_index=round(k_length/PS_final_state_step);
+						for(il=0; il<5; il++){
+							for(ir=0; ir<wfn_length[is]; ir++){
+								final_states[il][ir]=final_states_calc[k_index-k_index_min][is][il][ir];
 							}
 						}
 					}
@@ -762,9 +858,16 @@ void calculate_PSF(){
 								}
 							}
 							// cout << endl;
-							PSF_1+=m1jlp[lp]*radial_part*atom_phase*coeff2_1;
+							complex<double> atom_phase2;
+							if(strcmp(PS_final_state, "Calc")==0){
+								atom_phase2=atom_phase*complex<double>(cos(final_states_phase[k_index-k_index_min][is][lp]), -sin(final_states_phase[k_index-k_index_min][is][lp]));
+							}else{
+								atom_phase2=atom_phase;
+							}
+							// cout << atom_phase2 << endl;
+							PSF_1+=m1jlp[lp]*radial_part*atom_phase2*coeff2_1;
 							if(spin_i==2){
-								PSF_2+=m1jlp[lp]*radial_part*atom_phase*coeff2_2;
+								PSF_2+=m1jlp[lp]*radial_part*atom_phase2*coeff2_2;
 							}
 						}
 					}
@@ -806,17 +909,17 @@ void calculate_PSF(){
 	double*** dispersion3;
 	if(dimension==2){
 		double* dispersion3_alloc=new double[total_count_ext*num_points_E];
-		dispersion3=new double**[x_count_ext];
-		for(i=0; i<x_count_ext; i++){
-			dispersion3[i]=new double*[y_count_ext];
-			for(j=0; j<y_count_ext; j++){
-				dispersion3[i][j]=&dispersion3_alloc[i*y_count_ext*num_points_E+j*num_points_E];
+		dispersion3=new double**[kx_count_ext];
+		for(i=0; i<kx_count_ext; i++){
+			dispersion3[i]=new double*[ky_count_ext];
+			for(j=0; j<ky_count_ext; j++){
+				dispersion3[i][j]=&dispersion3_alloc[i*ky_count_ext*num_points_E+j*num_points_E];
 			}
 		}
-		for(i=0; i<x_count_ext; i++){
-			for(j=0; j<y_count_ext; j++){
+		for(i=0; i<kx_count_ext; i++){
+			for(j=0; j<ky_count_ext; j++){
 				for(k=0; k<num_points_E; k++){
-					dispersion3[i][j][k]=dispersion2[i+j*x_count_ext][k];
+					dispersion3[i][j][k]=dispersion2[i+j*kx_count_ext][k];
 				}
 			}
 		}
@@ -831,13 +934,64 @@ void calculate_PSF(){
 	struct tm *timeptr=localtime(&datetime_now);
 	char time_str[val_size+1];
 	strftime(time_str, val_size, "%Y-%m-%d %H:%M:%S", timeptr);
-	w_att_str(output.openGroup("/"), "Datetime", time_str);
+	Group rootG(output.openGroup("/"));
+	w_att_str(rootG, "Datetime", time_str);
 
 	if(dimension==1){
-		w_data_2d(output.openGroup("/"), "Dispersion", total_count_ext, num_points_E, (double**) dispersion2);
+		w_data_2d(rootG, "Dispersion", total_count_ext, num_points_E, (double**) dispersion2);
 	}else{
-		w_data_3d(output.openGroup("/"), "Dispersion", x_count_ext, y_count_ext, num_points_E, (double***) &dispersion3[0][0][0]);
+		w_data_3d(rootG, "Dispersion", kx_count_ext, ky_count_ext, num_points_E, (double***) &dispersion3[0][0][0]);
 	}
 
+	if(dimension==1){
+		double kx_offset=kx_length*kx_range[0];
+		double E_offset=PS_E_min;
+		if(PS_ext_set){
+			kx_offset=kx_length*(kx_range[0]-(kx_range[1]-kx_range[0])*PS_ext_le);
+		}
+		double offset2[2]={kx_offset, E_offset};
+		w_att_1d(rootG, "Offset", 2, &offset2[0]);
+
+		double delta2[2]={dkx_length, PS_E_pixel};
+		w_att_1d(rootG, "Delta", 2, &delta2[0]);
+		
+		int Size2[2]={total_count_ext, num_points_E};
+		w_att_1i(rootG, "Size", 2, &Size2[0]);
+	}else{
+		double kx_offset=kx_length*kx_range[0];
+		double ky_offset=ky_length*ky_range[0];
+		double E_offset=PS_E_min;
+		if(PS_ext_set){
+			kx_offset=kx_length*(kx_range[0]-(kx_range[1]-kx_range[0])*PS_ext_le);
+			ky_offset=ky_length*(ky_range[0]-(ky_range[1]-ky_range[0])*PS_ext_dn);
+		}
+		double offset3[3]={kx_offset, ky_offset, E_offset};
+		w_att_1d(rootG, "Offset", 3, &offset3[0]);
+
+		double delta3[3]={dkx_length, dky_length, PS_E_pixel};
+		w_att_1d(rootG, "Delta", 3, &delta3[0]);
+		
+		int Size3[3]={kx_count_ext, ky_count_ext, num_points_E};
+		w_att_1i(rootG, "Size", 3, &Size3[0]);
+	}
+
+	w_att_double(rootG, "dE", PS_dE);
+	w_att_str(rootG, "Initial_state", string(PS_initial_state));
+	w_att_str(rootG, "Final_state", string(PS_final_state));
+	if(strcmp(PS_final_state, "Calc")==0){
+		w_att_double(rootG, "Final_state_step", PS_final_state_step);
+	}
+	w_att_str(rootG, "Polarization", string(PS_polarization));
+	w_att_double(rootG, "Theta", PS_theta);
+	w_att_double(rootG, "Phi", PS_phi);
+
+	s_data_1c(AtomG, "Labels", &size1, &length);
+	Group atomG_out(rootG.createGroup("Atoms"));
+	w_data_1c(atomG_out, "Labels", size1, length, (char**) atom_labels);
+
+	w_data_2d(atomG_out, "Coordinates", atom_length, 3, (double**) atom_coordinates);
+
+	w_data_2d(atomG_out, "UnitCell", 3, 3, (double**) atom_cell);
+	
 	return;
 }

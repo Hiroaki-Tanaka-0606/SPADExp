@@ -14,6 +14,7 @@ extern int Potential_file_length;
 extern double Data_read_error;
 extern int HDF5_file_length;
 extern int PS_state_length;
+extern int Ph_label_length;
 extern double au_ang;
 extern double Eh;
 
@@ -26,6 +27,9 @@ extern bool At_block_appeared;
 extern bool SC_block_appeared;
 extern bool Oc_block_appeared;
 extern bool PS_block_appeared;
+extern bool Ex_block_appeared;
+extern bool Or_block_appeared;
+extern bool Ph_block_appeared;
 /// Ct block
 extern char* Calculation;
 extern bool Calculation_set;
@@ -115,6 +119,18 @@ extern double** SC_p_x;
 /// Oc block
 extern int Occupation_count;
 extern int** At_occupation;
+/// Ex block
+extern int Ex_energy_count;
+extern double* Ex_energies;
+/// Or block
+extern int Ph_orbital_count;
+extern char** Ph_orbital_labels;
+extern int* Ph_l_list;
+extern double* Ph_binding_energies;
+extern int Ph_skip_points;
+extern bool Ph_skip_points_set;
+extern int Ph_calc_points;
+extern bool Ph_calc_points_set;
 /// PS block
 extern char* PS_input_file;
 extern bool PS_input_file_set;
@@ -130,6 +146,8 @@ extern char* PS_initial_state;
 extern bool PS_initial_state_set;
 extern char* PS_final_state;
 extern bool PS_final_state_set;
+extern double PS_final_state_step;
+extern bool PS_final_state_step_set;
 extern char* PS_polarization;
 extern bool PS_polarization_set;
 extern double PS_theta;

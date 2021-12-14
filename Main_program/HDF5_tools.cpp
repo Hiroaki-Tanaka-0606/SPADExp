@@ -42,6 +42,13 @@ void w_att_1d(Group g, const char* key, int size, double* value){
 	at.write(PredType::NATIVE_DOUBLE, value);
 }
 
+void w_att_1i(Group g, const char* key, int size, int* value){
+	hsize_t dims[1]={(hsize_t)size};
+	DataSpace ds(1, dims);
+	Attribute at=g.createAttribute(key, PredType::NATIVE_INT, ds);
+	at.write(PredType::NATIVE_INT, value);
+}
+
 void w_att_2d(Group g, const char* key, int size1, int size2, double** value){
 	hsize_t dims[2]={(hsize_t)size1, (hsize_t)size2};
 	DataSpace ds(2, dims);
@@ -86,6 +93,39 @@ void w_data_4d(Group g, const char* key,
 	DataSpace dsp(4, dims);
 	DataSet dse=g.createDataSet(key, PredType::NATIVE_DOUBLE, dsp);
 	dse.write(value, PredType::NATIVE_DOUBLE);
+}
+
+
+void s_data_1d(Group g, const char* key, int* size){
+	DataSet dse=g.openDataSet(key);
+	DataSpace dsp=dse.getSpace();
+
+	int rank=dsp.getSimpleExtentNdims();
+	if(rank!=1){
+		write_log((char*)"s_data_1d error: different rank");
+		return;
+	}
+	hsize_t dims[1];
+	dsp.getSimpleExtentDims(dims, NULL);
+	*size=dims[0];
+}
+
+void r_data_1d(Group g, const char* key, int size, double* value){
+	DataSet dse=g.openDataSet(key);
+	DataSpace dsp=dse.getSpace();
+
+	int rank=dsp.getSimpleExtentNdims();
+	if(rank!=1){
+		write_log((char*)"r_data_1d error: different rank");
+		return;
+	}
+	hsize_t dims[1];
+	dsp.getSimpleExtentDims(dims, NULL);
+	if(dims[0]!=size){
+		write_log((char*)"r_data_1d error: size mismatch");
+		return;
+	}
+	dse.read(value, PredType::NATIVE_DOUBLE);
 }
 
 void s_data_2d(Group g, const char* key, int* size1, int* size2){

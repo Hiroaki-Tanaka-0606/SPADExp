@@ -15,6 +15,8 @@
 #include "calculation_atomic_wfn.hpp"
 #include "validation_scf_atom.hpp"
 #include "calculation_scf_atom.hpp"
+#include "validation_phase_shift.hpp"
+#include "calculation_phase_shift.hpp"
 #include "validation_psf.hpp"
 #include "calculation_psf.hpp"
 
@@ -102,6 +104,13 @@ int main(int argc, const char** argv){
 		validation_result=validation_scf_atom();
 		if(validation_result==1){
 			scf_calc_atom();
+		}
+	}else if(strcmp(Calculation, "Phase-shift")==0){
+		// phase shift calculation within an atomic potential
+		write_log((char*)"----Phase shift calculation----");
+		validation_result=validation_phase_shift();
+		if(validation_result==1){
+			calc_phase_shift();
 		}
 	}else if(strcmp(Calculation, "PSF")==0){
 		// Photoemission structure factor calculation
