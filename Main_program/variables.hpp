@@ -147,6 +147,8 @@ char* PS_initial_state;        // initial state ("PAO" or "AO")
 bool PS_initial_state_set;
 char* PS_final_state;          // final state ("PW" or "Calc")
 bool PS_final_state_set;
+double PS_final_state_step;    // calculation step of final states (Bohr^-1)
+bool PS_final_state_step_set;
 char* PS_polarization;         // polarization ("Linear", "RCircular", or "LCircular")
 bool PS_polarization_set;
 double PS_theta;               // polarization angle

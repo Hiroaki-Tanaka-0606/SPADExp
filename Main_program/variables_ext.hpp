@@ -146,6 +146,8 @@ extern char* PS_initial_state;
 extern bool PS_initial_state_set;
 extern char* PS_final_state;
 extern bool PS_final_state_set;
+extern double PS_final_state_step;
+extern bool PS_final_state_step_set;
 extern char* PS_polarization;
 extern bool PS_polarization_set;
 extern double PS_theta;

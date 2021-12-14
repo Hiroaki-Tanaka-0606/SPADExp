@@ -42,6 +42,13 @@ void w_att_1d(Group g, const char* key, int size, double* value){
 	at.write(PredType::NATIVE_DOUBLE, value);
 }
 
+void w_att_1i(Group g, const char* key, int size, int* value){
+	hsize_t dims[1]={(hsize_t)size};
+	DataSpace ds(1, dims);
+	Attribute at=g.createAttribute(key, PredType::NATIVE_INT, ds);
+	at.write(PredType::NATIVE_INT, value);
+}
+
 void w_att_2d(Group g, const char* key, int size1, int size2, double** value){
 	hsize_t dims[2]={(hsize_t)size1, (hsize_t)size2};
 	DataSpace ds(2, dims);

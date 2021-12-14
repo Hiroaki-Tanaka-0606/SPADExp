@@ -4,8 +4,10 @@
 #include <cstring>
 #include <iostream>
 #include <fstream>
+#include <H5Cpp.h>
 #include "variables_ext.hpp"
 #include "log.hpp"
+#include "HDF5_tools.hpp"
 
 using namespace std;
 
@@ -112,6 +114,8 @@ void initialize(){
 	PS_initial_state=new char[PS_state_length+1];
 	PS_final_state_set=false;
 	PS_final_state=new char[PS_state_length+1];
+	PS_final_state_step=0.01;
+	PS_final_state_step_set=false;
 	PS_polarization_set=false;
 	PS_polarization=new char[PS_state_length+1];
 	PS_theta_set=false;
@@ -292,4 +296,37 @@ void modify_potential(int Z, double mu){
 			}
 		}
 	}
+}
+
+double load_potential_H5(Group atomG, double mu){
+	int x_count2=r_att_int(atomG, "length");
+	double x_coordinates2[x_count2];
+	double v_x2[x_count2];
+	r_data_1d(atomG, "Potential", x_count2, &v_x2[0]);
+	r_att_1d(atomG, "x", x_count2, &x_coordinates2[0]);
+
+	At_v_x[0]=v_x2[0];
+	int i, j;
+	for(i=1; i<x_count; i++){
+		bool x_found=false;
+		for(j=0; j<x_count2-1; j++){
+			if(x_coordinates2[j]<x_coordinates[i] && x_coordinates[i]<x_coordinates2[j+1]){
+				double dx1=x_coordinates[i]-x_coordinates2[j];
+				double dx2=x_coordinates2[j+1]-x_coordinates[i];
+				At_v_x[i]=(v_x2[j]*dx2+v_x2[j+1]*dx1)/(dx1+dx2);
+				x_found=true;
+				break;
+			}else if(abs(x_coordinates2[j+1]-x_coordinates[i])<Data_read_error){
+				At_v_x[i]=v_x2[j+1];
+				x_found=true;
+				break;
+			}
+		}
+		if(!x_found){
+			// if the potential is not in database, use V(r)=-1/r=-1/mu*x
+			At_v_x[i]=-1.0/(mu*x_coordinates[i]);
+		}
+	}
+	int mod_start_index=r_att_int(atomG, "mod_start_index");
+	return x_coordinates2[mod_start_index];
 }

@@ -32,14 +32,13 @@ int validation_phase_shift(){
 
 	sprintf(sprintf_buffer, "%32s = %d", "Atomic number Z", Z_single);
 	write_log(sprintf_buffer);
-	
+
 	/// Potential database (At_potential_file)
 	if(At_potential_file_set){
 		sprintf(sprintf_buffer, "%32s = %s", "Potential_file", At_potential_file);
 		write_log(sprintf_buffer);
 	}else{
-		write_log((char*)"Error: Potential_file is necessary");
-		status=0; goto FINALIZATION;
+		write_log((char*)"Potential_file not found, V(r)=-1/r is used");
 	}
 
 	/// Solution (At_solution)

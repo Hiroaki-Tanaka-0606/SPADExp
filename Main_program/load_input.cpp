@@ -732,6 +732,17 @@ int load_input(){
 				}
 				PS_final_state_set=true; continue;
 			}
+			/// Final_state_step (PS_final_state_step): double
+			if(strcmp(keyword_buffer, "Final_state_step")==0){
+				if(PS_final_state_step_set){
+					output_error(line_number, (char*)"keyword Final_state_step already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PS_final_state_step);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Final_state_step"); status=0; goto FINALIZATION;
+				}
+			  PS_final_state_step_set=true; continue;
+			}			
 			/// Polarization (PS_polarization): char[]
 			if(strcmp(keyword_buffer, "Polarization")==0){
 				if(PS_polarization_set){
