@@ -485,10 +485,10 @@ void calculate_PSF(){
 	}
 	
 	kx_length=sqrt(inner_product(kx_vector, kx_vector));
-	dkx_length=kx_length*(kx_range[1]-kx_range[0])/kx_count;
+	dkx_length=kx_length*(kx_range[1]-kx_range[0])/(kx_count-1);
 	if(dimension==2){
 		ky_length=sqrt(inner_product(ky_vector, ky_vector));
-		dky_length=ky_length*(ky_range[1]-ky_range[0])/ky_count;
+		dky_length=ky_length*(ky_range[1]-ky_range[0])/(ky_count-1);
 	}
 
 	/// atom positions
