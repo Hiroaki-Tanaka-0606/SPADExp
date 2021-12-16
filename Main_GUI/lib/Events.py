@@ -825,4 +825,118 @@ def makeLCAOTable(win, LCAO):
                         break
                 if LCAO_found==False:
                     break
-        
+# real-space image
+# in unit of Ang, so conversion is necessary
+def makeRealSpace(win, LCAO, Elements):
+    # ia: atom
+    # ie: element
+    boundaryA=win.boundaryA.value()
+    boundaryB=win.boundaryB.value()
+    boundaryC=win.boundaryC.value()
+    win.realSpace.clear()
+    # print(LCAO.atomCell_au)
+    
+    au_ang=Config.au_ang
+
+    # unit cell
+    pts=np.zeros((5,3))
+    # base plane
+    pts[1]=LCAO.AtomCell_au[0]*au_ang
+    pts[2]=(LCAO.AtomCell_au[0]+LCAO.AtomCell_au[1])*au_ang
+    pts[3]=LCAO.AtomCell_au[1]*au_ang
+    
+    plt=gl.GLLinePlotItem(pos=pts)
+    win.realSpace.addItem(plt)
+    
+    #top plane
+    pts2=pts.copy()
+    for i in range(0, 5):
+        pts2[i]+=LCAO.AtomCell_au[2]*au_ang
+    plt=gl.GLLinePlotItem(pos=pts2)
+    win.realSpace.addItem(plt)
+
+    # vertical pillars
+    for i in range(0, 4):
+        pts3=np.zeros((2, 3))
+        for j in range(0, 3):
+            pts3[0][j]=pts[i][j]
+            pts3[1][j]=pts[i][j]+LCAO.AtomCell_au[2][j]*au_ang
+        plt=gl.GLLinePlotItem(pos=pts3)
+        win.realSpace.addItem(plt)
+
+    # kx and ky vector (direction)
+    kx=np.zeros((2,3))
+    kx[1]=LCAO.Xvector*Config.reciprocal_coeff/au_ang
+    kx_color=np.zeros((2,4))
+    kx_color[:,0]=Config.pen_kx[0]
+    kx_color[:,1]=Config.pen_kx[1]
+    kx_color[:,2]=Config.pen_kx[2]
+    kx_color[:,3]=1.0
+    plt=gl.GLLinePlotItem(pos=kx, color=kx_color, width=Config.reciprocal_axis_width)
+    win.realSpace.addItem(plt)
+    
+    ky=np.zeros((2,3))
+    ky[1]=LCAO.Yvector*Config.reciprocal_coeff/au_ang
+    ky_color=np.zeros((2,4))
+    ky_color[:,0]=Config.pen_ky[0]
+    ky_color[:,1]=Config.pen_ky[1]
+    ky_color[:,2]=Config.pen_ky[2]
+    ky_color[:,3]=1.0
+    plt=gl.GLLinePlotItem(pos=ky, color=ky_color, width=Config.reciprocal_axis_width)
+    win.realSpace.addItem(plt)
+
+    # Polarization
+    pol=np.zeros((2,3))
+    theta=math.radians(float(win.theta.text()))
+    phi=math.radians(float(win.phi.text()))
+    pol[1][0]=math.sin(theta)*math.cos(phi)
+    pol[1][1]=math.sin(theta)*math.sin(phi)
+    pol[1][2]=math.cos(theta)
+    pol[1]*=Config.polarization_length
+    pol_color=np.zeros((2,4))
+    pol_color[:,0]=Config.pen_pol[0]
+    pol_color[:,1]=Config.pen_pol[1]
+    pol_color[:,2]=Config.pen_pol[2]
+    pol_color[:,3]=1
+    plt=gl.GLLinePlotItem(pos=pol, color=pol_color, width=Config.polarization_width)
+    win.realSpace.addItem(plt)
+    
+    # atoms
+    for ia, atom_label in enumerate(LCAO.Atoms):
+        # print(atom_label)
+        el_name=""
+        el_index=-1
+        for ie, el_label in enumerate(Elements.labels):
+            el_match=re.findall(r"^"+el_label, atom_label)
+            if len(el_match)>0 and len(el_match[0])>len(el_name):
+                el_name=el_match[0]
+                el_index=ie
+
+        if el_index==-1:
+            print(("Error: atom {0:s} not found").format(atom_label))
+            el_index=Config.not_found_element
+
+        r=Elements.radii[el_index][Config.radius_index]*Config.radius_coeff
+        color=Elements.colors[el_index]
+            
+        md=gl.MeshData.sphere(rows=10, cols=20, radius=r)
+        meshcolor=np.zeros((md.faceCount(), 4), dtype=float)
+        meshcolor[:,0]=color[0]
+        meshcolor[:,1]=color[1]
+        meshcolor[:,2]=color[2]
+        meshcolor[:,3]=1.0
+        # print(meshcolor)
+
+        md.setFaceColors(meshcolor)
+
+        for iA in range(0, boundaryA):
+            for iB in range(0, boundaryB):
+                for iC in range(0, boundaryC):
+                    mi=gl.GLMeshItem(meshdata=md, smooth=False)
+                    coordinate=LCAO.Atom_au[ia].copy()
+                    coordinate+=iA*LCAO.AtomCell_au[0]
+                    coordinate+=iB*LCAO.AtomCell_au[1]
+                    coordinate+=iC*LCAO.AtomCell_au[2]
+                    
+                    mi.translate(coordinate[0]*au_ang, coordinate[1]*au_ang, coordinate[2]*au_ang)
+                    win.realSpace.addItem(mi)

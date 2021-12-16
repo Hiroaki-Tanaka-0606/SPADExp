@@ -91,20 +91,20 @@ class LCAO:
             self.Atom_coordinates=np.array(f["Input"]["Atoms.SpeciesAndCoordinates"]["Coordinates"])
             self.numAtoms=f["Input"]["Atoms.SpeciesAndCoordinates"].attrs["Length"]
             # calculation from /Input/Atoms.SpeciesAndCoordinates
+            self.AtomCell_au=self.AtomCell.copy()
+            if self.unit.lower()=="ang":
+                self.AtomCell_au/=Config.au_ang
             self.Atom_au=self.Atom_coordinates.copy()
             if self.Atom_unit.lower()=="au":
                 pass
             elif self.Atom_unit.lower()=="ang":
                 self.Atom_au/=Config.au_ang
             elif self.Atom_unit.lower()=="frac":
-                atomCell_au=self.AtomCell.copy()
-                if self.unit.lower()=="ang":
-                    atomCell_au/=Config.au_ang
                 for k in range(0, self.Atom_au.shape[0]):
                     for i in range(0, 3):
                         self.Atom_au[k][i]=0.0
                         for j in range(0, 3):
-                            self.Atom_au[k][i]+=atomCell_au[j][i]*self.Atom_coordinates[k][j]
+                            self.Atom_au[k][i]+=self.AtomCell_au[j][i]*self.Atom_coordinates[k][j]
             # /Input/Kpath
             self.Dimension=int(f["Input"]["Kpath"].attrs["Dimension"])
             self.Curved=f["Input"]["Kpath"].attrs["Curved"]
@@ -410,3 +410,36 @@ class PSF:
             return ret.real**2+ret.imag**2
         else:
             return ret.real**2+ret.imag**2+ret2.real**2+ret2.imag**2
+
+
+class Elements():
+    def __init__(self):
+        self.filePath=Config.elements_file # list of elements
+
+        with open(self.filePath) as f:
+            self.lines=f.readlines()
+
+        count=len(self.lines)
+        self.labels=[]
+        self.radii=np.zeros((count, 3), dtype=float)
+        self.colors=np.zeros((count, 3), dtype=float)
+
+        index=0
+        for line in self.lines:
+            line_sp=line.split()
+            self.labels.append(line_sp[1])
+            self.radii[index][0]=float(line_sp[2])
+            self.radii[index][1]=float(line_sp[3])
+            self.radii[index][2]=float(line_sp[4])
+            # self.colors[index][0]=round(255*float(line_sp[5]))
+            # self.colors[index][1]=round(255*float(line_sp[6]))
+            # self.colors[index][2]=round(255*float(line_sp[7]))
+            self.colors[index][0]=float(line_sp[5])
+            self.colors[index][1]=float(line_sp[6])
+            self.colors[index][2]=float(line_sp[7])
+            
+            index+=1
+
+        # print(self.labels)
+        # print(self.radii)
+        # print(self.colors)

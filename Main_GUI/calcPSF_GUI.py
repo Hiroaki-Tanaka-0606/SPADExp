@@ -161,13 +161,55 @@ class MainWindow(QtWidgets.QMainWindow):
         
         self.plotButton=QtGui.QPushButton("Plot")
         row5.addWidget(self.plotButton)
-
-
-        # Row 6 left: graph (2D / 3D)
+        
+        # Row 6 left: real-space image
         row6=QtGui.QHBoxLayout()
         row6.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row6)
 
+        row6l=QtGui.QVBoxLayout()
+        row6l.setAlignment(QtCore.Qt.AlignTop)
+        row6.addLayout(row6l)
+
+        ## Row 1: Boundaries
+        row6l1=QtGui.QHBoxLayout()
+        row6l1.setAlignment(QtCore.Qt.AlignLeft)
+        row6l.addLayout(row6l1)
+
+        label6l1A=QtGui.QLabel("Boundaries (a, b, c)")
+        label6l1A.setFont(bFont)
+        row6l1.addWidget(label6l1A)
+        self.boundaryA=QtGui.QSpinBox()
+        self.boundaryA.setMinimum(1)
+        self.boundaryA.setValue(1)
+        row6l1.addWidget(self.boundaryA)
+        self.boundaryB=QtGui.QSpinBox()
+        self.boundaryB.setMinimum(1)
+        self.boundaryB.setValue(1)
+        row6l1.addWidget(self.boundaryB)
+        self.boundaryC=QtGui.QSpinBox()
+        self.boundaryC.setMinimum(1)
+        self.boundaryC.setValue(1)
+        row6l1.addWidget(self.boundaryC)
+
+
+        ## Row 3: plot button
+        row6l3=QtGui.QHBoxLayout()
+        row6l3.setAlignment(QtCore.Qt.AlignLeft)
+        row6l.addLayout(row6l3)
+        self.realSpacePlot=QtGui.QPushButton("Draw")
+        row6l3.addWidget(self.realSpacePlot)
+        
+        ## Row 4: GLView
+        row6l4=QtGui.QHBoxLayout()
+        row6l4.setAlignment(QtCore.Qt.AlignLeft)
+        row6l.addLayout(row6l4)
+        self.realSpace=gl.GLViewWidget()
+        self.realSpace.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.realSpace.setMinimumSize(Config.plot3D_minWidth, Config.plot3D_minHeight)
+        row6l4.addWidget(self.realSpace)
+
+        # Row 6 center: graph (2D / 3D)
         self.graphTab=QtGui.QTabWidget()
         row6.addWidget(self.graphTab, 3)
 
@@ -479,8 +521,12 @@ LCAO=objs.LCAO()
 Wfns={}
 PSFobj=objs.PSF(LCAO, Wfns)
 win.openFileButton.clicked.connect(lambda: Events.openFile(win, LCAO, Wfns))
+Elements=objs.Elements()
+
+win.realSpacePlot.clicked.connect(lambda: Events.makeRealSpace(win, LCAO, Elements))
 
 def plotEvent():
+    Events.makeRealSpace(win, LCAO, Elements)
     if LCAO.Dimension==1:
         Events.plot(win, LCAO, PSFobj)
         win.graphTab.setCurrentIndex(0)
