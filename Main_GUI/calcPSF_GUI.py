@@ -161,6 +161,9 @@ class MainWindow(QtWidgets.QMainWindow):
         
         self.plotButton=QtGui.QPushButton("Plot")
         row5.addWidget(self.plotButton)
+
+        self.exportButton=QtGui.QPushButton("Export")
+        row5.addWidget(self.exportButton)
         
         # Row 6 left: real-space image
         row6=QtGui.QHBoxLayout()
@@ -560,6 +563,7 @@ def orbitalEvent():
 
 
 win.plotButton.clicked.connect(plotEvent)
+win.exportButton.clicked.connect(lambda: Events.export(win, LCAO, PSFobj))
 
 win.kxIndex.valueChanged.connect(cursorEvent)
 win.kyIndex.valueChanged.connect(cursorEvent)

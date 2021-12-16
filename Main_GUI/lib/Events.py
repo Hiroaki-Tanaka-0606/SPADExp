@@ -12,6 +12,7 @@ import pyqtgraph.opengl as gl
 from lib import physical_tools as pt
 from lib import objs
 
+from datetime import datetime
 import time
 
 import Config
@@ -874,16 +875,16 @@ def makeRealSpace(win, LCAO, Elements):
     kx_color[:,3]=1.0
     plt=gl.GLLinePlotItem(pos=kx, color=kx_color, width=Config.reciprocal_axis_width)
     win.realSpace.addItem(plt)
-    
-    ky=np.zeros((2,3))
-    ky[1]=LCAO.Yvector*Config.reciprocal_coeff/au_ang
-    ky_color=np.zeros((2,4))
-    ky_color[:,0]=Config.pen_ky[0]
-    ky_color[:,1]=Config.pen_ky[1]
-    ky_color[:,2]=Config.pen_ky[2]
-    ky_color[:,3]=1.0
-    plt=gl.GLLinePlotItem(pos=ky, color=ky_color, width=Config.reciprocal_axis_width)
-    win.realSpace.addItem(plt)
+    if LCAO.Dimension==2:
+        ky=np.zeros((2,3))
+        ky[1]=LCAO.Yvector*Config.reciprocal_coeff/au_ang
+        ky_color=np.zeros((2,4))
+        ky_color[:,0]=Config.pen_ky[0]
+        ky_color[:,1]=Config.pen_ky[1]
+        ky_color[:,2]=Config.pen_ky[2]
+        ky_color[:,3]=1.0
+        plt=gl.GLLinePlotItem(pos=ky, color=ky_color, width=Config.reciprocal_axis_width)
+        win.realSpace.addItem(plt)
 
     # Polarization
     pol=np.zeros((2,3))
@@ -940,3 +941,55 @@ def makeRealSpace(win, LCAO, Elements):
                     
                     mi.translate(coordinate[0]*au_ang, coordinate[1]*au_ang, coordinate[2]*au_ang)
                     win.realSpace.addItem(mi)
+
+
+
+def export(win, LCAO, PSFobj):
+    currentFile=win.filePath.text()
+    selectedFile, _filter=QtGui.QFileDialog.getSaveFileName(caption="Open file", directory=currentFile)
+    if selectedFile!="":
+        with h5py.File(selectedFile, "w") as f:
+            f.attrs.create("Datetime", datetime.now().isoformat(" "))
+            f.create_dataset("Dispersion", data=Dispersion)
+
+            if LCAO.Dimension==1:
+                offset=[LCAO.Xlength*LCAO.Xrange[0], float(win.EMin.text())]
+                f.attrs.create("Offset", offset)
+                delta=[LCAO.dx_length, float(win.EPixel.text())]
+                f.attrs.create("Delta", delta)
+            else:
+                offset=[LCAO.Xlength*LCAO.Xrange[0], LCAO.Ylength*LCAO.Yrange[0], float(win.EMin.text())]
+                f.attrs.create("Offset", offset)
+                delta=[LCAO.dx_length, LCAO.dy_length, float(win.EPixel.text())]
+                f.attrs.create("Delta", delta)
+            
+            size=Dispersion.shape
+            f.attrs.create("Size", size)
+            dE=float(win.dE.text())
+            f.attrs.create("dE", dE)
+
+            initialStates=(["PAO", "AO"])[PSFobj.initialStates_i]
+            finalStates=(["PW", "Calc"])[PSFobj.finalStates_i]
+            f.attrs.create("Initial_state", initialStates)
+            f.attrs.create("Final_state", finalStates)
+
+            polarization=""
+            if win.linear.isChecked():
+                polarization="Linear"
+            elif win.rCircular.isChecked():
+                polarization="RCircular"
+            elif win.lCircular.isChecked():
+                polarzation="LCircular"
+            f.attrs.create("Polarization", polarization)
+
+            theta=float(win.theta.text())
+            phi=float(win.phi.text())
+            f.attrs.create("Theta", theta)
+            f.attrs.create("Phi", phi)
+
+            atomG=f.create_group("Atoms")
+            atomG.create_dataset("Labels", data=LCAO.Atoms)
+            atomG.create_dataset("Coordinates", data=LCAO.Atom_au)
+            atomG.create_dataset("UnitCell", data=LCAO.AtomCell_au)
+
+    print("Export finished")
