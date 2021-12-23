@@ -240,7 +240,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plot.getAxis("bottom").setLabel(**labelStyle)
         self.plot.getAxis("left").setLabel(**labelStyle)
         self.plot.setLabel(axis="left", text="E-EF (eV)")
-
+        self.plot.setLabel(axis="bottom", text="Wavevector (a.u.^-1)")
+        
         self.plot.showGrid(x=True, y=True, alpha=1.0)
         self.plot.getAxis("bottom").setZValue(1)
         self.plot.getAxis("left").setZValue(1)
@@ -289,10 +290,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.barEx.setImageItem(self.imgEx)
         self.barEy.setImageItem(self.imgEy)
         self.barxy.setImageItem(self.imgxy)
-
-        self.plotEx.setLabel(axis="left", text="E-EF (eV)")
-        self.plotEy.setLabel(axis="bottom", text="E-EF (eV)")
-        
+       
         self.plotEx.getAxis("bottom").setStyle(tickFont=font,tickLength=Config.tickLength)
         self.plotEx.getAxis("left").setStyle(tickFont=font,tickLength=Config.tickLength)
         self.plotEx.getAxis("bottom").setPen((255,255,255))
@@ -301,7 +299,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plotEx.getAxis("left").setTextPen((255,255,255))
         self.plotEx.getAxis("bottom").setLabel(**labelStyle)
         self.plotEx.getAxis("left").setLabel(**labelStyle)
-        self.plotEx.setLabel(axis="left", text="E-EF (eV)")
         self.plotEx.showGrid(x=True, y=True, alpha=1.0)
         self.plotEx.getAxis("bottom").setZValue(1)
         self.plotEx.getAxis("left").setZValue(1)
@@ -315,7 +312,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plotEy.getAxis("left").setTextPen((255,255,255))
         self.plotEy.getAxis("bottom").setLabel(**labelStyle)
         self.plotEy.getAxis("left").setLabel(**labelStyle)
-        self.plotEy.setLabel(axis="bottom", text="E-EF (eV)")
         self.plotEy.showGrid(x=True, y=True, alpha=1.0)
         self.plotEy.getAxis("bottom").setZValue(1)
         self.plotEy.getAxis("left").setZValue(1)
@@ -332,6 +328,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plotxy.showGrid(x=True, y=True, alpha=1.0)
         self.plotxy.getAxis("bottom").setZValue(1)
         self.plotxy.getAxis("left").setZValue(1)
+        
+        self.plotEx.setLabel(axis="left", text="E-EF (eV)")
+        self.plotEx.setLabel(axis="bottom", text="kx (a.u.^-1)")
+        
+        self.plotEy.setLabel(axis="bottom", text="E-EF (eV)")
+        self.plotEy.setLabel(axis="left", text="ky (a.u.^-1)")
+
+        self.plotxy.setLabel(axis="left", text="ky (a.u.^-1)")
+        self.plotxy.setLabel(axis="bottom", text="kx (a.u.^-1)")
 
         
         self.vLineEx=pg.InfiniteLine(angle=90, movable=False, pen=Config.pen1)

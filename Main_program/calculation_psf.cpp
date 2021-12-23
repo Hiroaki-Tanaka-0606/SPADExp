@@ -936,6 +936,7 @@ void calculate_PSF(){
 	strftime(time_str, val_size, "%Y-%m-%d %H:%M:%S", timeptr);
 	Group rootG(output.openGroup("/"));
 	w_att_str(rootG, "Datetime", time_str);
+	w_att_int(rootG, "Dimension", dimension);
 
 	if(dimension==1){
 		w_data_2d(rootG, "Dispersion", total_count_ext, num_points_E, (double**) dispersion2);
@@ -957,6 +958,8 @@ void calculate_PSF(){
 		
 		int Size2[2]={total_count_ext, num_points_E};
 		w_att_1i(rootG, "Size", 2, &Size2[0]);
+		
+		w_att_1d(rootG, "Xvector", 3, &kx_vector[0]);
 	}else{
 		double kx_offset=kx_length*kx_range[0];
 		double ky_offset=ky_length*ky_range[0];
@@ -973,6 +976,9 @@ void calculate_PSF(){
 		
 		int Size3[3]={kx_count_ext, ky_count_ext, num_points_E};
 		w_att_1i(rootG, "Size", 3, &Size3[0]);
+		
+		w_att_1d(rootG, "Xvector", 3, &ky_vector[0]);
+		w_att_1d(rootG, "Yvector", 3, &ky_vector[0]);
 	}
 
 	w_att_double(rootG, "dE", PS_dE);

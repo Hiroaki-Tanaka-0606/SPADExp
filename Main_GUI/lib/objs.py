@@ -118,7 +118,7 @@ class LCAO:
                 self.numPnts_ky=int(f["Input"]["Kpath"].attrs["Ycount"])
             self.Kpath=np.array(f["Input"]["Kpath"]["Coordinates"])
             # calculation from /Input/Kpath
-            ## The reciprocal unit cell
+            ## The reciprocal unit cell (a.u.^-1)
             self.RecCell=np.zeros((3, 3))
             op=np.cross(self.BandCell[1], self.BandCell[2])
             det=np.inner(self.BandCell[0], op)
@@ -130,6 +130,8 @@ class LCAO:
             ### 2
             op=np.cross(self.BandCell[0], self.BandCell[1])
             self.RecCell[2]=2*math.pi*op/det
+            if self.unit.lower()=="ang":
+                self.RecCell*=Config.au_ang
             ## X and Y vectors
             self.Xvector=np.zeros((3,))
             for i in range(0, 3):
@@ -147,14 +149,11 @@ class LCAO:
             if self.Dimension==2:
                 self.dy_length=self.Ylength*(self.Yrange[1]-self.Yrange[0])/(self.numPnts_ky-1)
             ## K points
-            recCell_au=self.RecCell.copy()
-            if self.unit.lower()=="ang":
-                recCell_au*=Config.au_ang
             self.Kpath_au=np.zeros(self.Kpath.shape)
             for k in range(0, self.Kpath_au.shape[0]):
                 for i in range(0, 3):
                     for j in range(0, 3):
-                        self.Kpath_au[k][i]+=recCell_au[j][i]*self.Kpath[k][j]                
+                        self.Kpath_au[k][i]+=self.RecCell[j][i]*self.Kpath[k][j]                
             # /Output
             self.Spin=str(f["Output"].attrs["Spin"])
             self.EF_Eh=float(f["Output"].attrs["EF_Eh"])
@@ -443,3 +442,41 @@ class Elements():
         # print(self.labels)
         # print(self.radii)
         # print(self.colors)
+
+class Dispersion():
+    def __init__(self):
+        self.filePath="" # file path to the calcPSF output (.hdf5)
+        self.Dimension=0 # reciprocal space dimension (1 or 2)
+        self.Dispersion=None # dispersion (2D or 3D)
+        self.Offset=None # offset [kx, E] or [kx, ky, E]
+        self.Delta=None # [delta_kx, delta_E] or [delta_kx, delta_ky, delta_E]
+        self.Size=None #  [numPnts_kx, numPnts_E], [numPnts_kx, numPnts_ky, numPnts_E]
+        self.Theta=0.0 # polarization angle theta
+        self.Phi=0.0 # polarization angle phi
+        self.Xvector=None # kx vector (a.u. orthonormal coordinate)
+        self.Yvector=None # ky vector (a.u. orthonormal coordinate)
+    
+    def open(self, filePath):
+        self.filePath=filePath
+
+        with h5py.File(self.filePath, "r") as f:
+            self.Dimension=f.attrs["Dimension"]
+            self.Dispersion=np.array(f["Dispersion"])
+            self.Offset=np.array(f.attrs["Offset"])
+            self.Delta=np.array(f.attrs["Delta"])
+            self.Size=np.array(f.attrs["Size"])
+            self.Theta=f.attrs["Theta"]
+            self.Phi=f.attrs["Phi"]
+            self.Xvector=np.array(f.attrs["Xvector"])
+            if self.Dimension==2:
+                self.Yvector=np.array(f.attrs["Yvector"])
+                
+            self.AtomCell=np.array(f["Atoms"]["UnitCell"])
+            self.Atom_label=[]
+            Atoms_h5=f["Atoms"]["Labels"]
+            for at in Atoms_h5:
+                self.Atom_label.append(at.decode("utf_8"))
+                
+            self.Atom_coord=np.array(f["Atoms"]["Coordinates"])
+            
+            

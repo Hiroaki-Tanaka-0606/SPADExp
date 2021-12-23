@@ -32,12 +32,6 @@ def openFile(win, LCAO, Wfns):
         for key, value in LCAO.Atom_specs.items():
             Wfns[key]=objs.Wfn(value)
         print("Finished loading AO and PAO file")
-
-        win.plot.setLabel(axis="bottom", text=("Wavevector ({0:s}^-1)").format(LCAO.unit))
-        win.plotEx.setLabel(axis="bottom", text=("Wavevector ({0:s}^-1)").format(LCAO.unit))
-        win.plotEy.setLabel(axis="left", text=("Wavevector ({0:s}^-1)").format(LCAO.unit))
-        win.plotxy.setLabel(axis="left", text=("Wavevector ({0:s}^-1)").format(LCAO.unit))
-        win.plotxy.setLabel(axis="bottom", text=("Wavevector ({0:s}^-1)").format(LCAO.unit))
             
         win.kxIndex.setMaximum(LCAO.numPnts_kx-1)
         win.kyIndex.setMaximum(LCAO.numPnts_ky-1)
@@ -65,6 +59,7 @@ def openFile(win, LCAO, Wfns):
         if LCAO.Dimension==2:
             print("Y vector:")
             print(LCAO.Yvector)
+        print(" in unit of a.u.^-1")
 
         if LCAO.Spin.lower()=="on":
             win.UpButton.setCheckable(True)
@@ -73,7 +68,6 @@ def openFile(win, LCAO, Wfns):
         else:
             win.UpButton.setCheckable(False)
             win.DnButton.setCheckable(False)
-        print((" in unit of {0:s}^-1").format(LCAO.unit))
 
         print("Atoms:")
         for i, atom in enumerate(LCAO.Atoms):
@@ -951,17 +945,21 @@ def export(win, LCAO, PSFobj):
         with h5py.File(selectedFile, "w") as f:
             f.attrs.create("Datetime", datetime.now().isoformat(" "))
             f.create_dataset("Dispersion", data=Dispersion)
+            f.attrs.create("Dimension", LCAO.Dimension)
 
             if LCAO.Dimension==1:
                 offset=[LCAO.Xlength*LCAO.Xrange[0], float(win.EMin.text())]
                 f.attrs.create("Offset", offset)
                 delta=[LCAO.dx_length, float(win.EPixel.text())]
                 f.attrs.create("Delta", delta)
+                f.attrs.create("Xvector", LCAO.Xvector)
             else:
                 offset=[LCAO.Xlength*LCAO.Xrange[0], LCAO.Ylength*LCAO.Yrange[0], float(win.EMin.text())]
                 f.attrs.create("Offset", offset)
                 delta=[LCAO.dx_length, LCAO.dy_length, float(win.EPixel.text())]
                 f.attrs.create("Delta", delta)
+                f.attrs.create("Xvector", LCAO.Xvector)
+                f.attrs.create("Yvector", LCAO.Yvector)
             
             size=Dispersion.shape
             f.attrs.create("Size", size)
