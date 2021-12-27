@@ -161,7 +161,20 @@ extern int PS_ext_le;
 extern bool PS_ext_set;
 extern char* PS_AO_file;
 extern bool PS_AO_file_set;
+extern bool PS_weighting;
+extern bool PS_weighting_set;
+extern double* PS_weighting_axis;
+extern bool PS_weighting_axis_set;
+extern char* PS_weighting_shape;
+extern bool PS_weighting_shape_set;
+extern double PS_weighting_origin;
+extern bool PS_weighting_origin_set;
+extern double PS_weighting_width; 
+extern bool PS_weighting_width_set;
+extern bool PS_use_angstrom;
+extern bool PS_use_angstrom_set;
 extern double PS_sigma_max;
+extern double PS_decay_max;
 
 /// files
 extern FILE* Log_file_obj;

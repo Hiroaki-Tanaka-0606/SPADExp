@@ -144,6 +144,9 @@ def makeRealSpace(win, Disp, Elements):
     boundaryA=win.boundaryA.value()
     boundaryB=win.boundaryB.value()
     boundaryC=win.boundaryC.value()
+
+    enableWeighting=win.enableWeight.isChecked()
+    
     win.realSpace.clear()
     # print(LCAO.atomCell_au)
     
@@ -236,7 +239,10 @@ def makeRealSpace(win, Disp, Elements):
         meshcolor[:,1]=color[1]
         meshcolor[:,2]=color[2]
         meshcolor[:,3]=1.0
-        # print(meshcolor)
+        if enableWeighting and Disp.Weighting:
+            meshcolor[:,3]=Disp.Atom_weighting[ia]*(1.0-Config.Weighting_offset)+Config.Weighting_offset
+            # print(Disp.Atom_weighting[ia]*(1.0-Config.Weighting_offset)+Config.Weighting_offset)
+        print(meshcolor)
 
         md.setFaceColors(meshcolor)
 
@@ -250,5 +256,6 @@ def makeRealSpace(win, Disp, Elements):
                     coordinate+=iC*Disp.AtomCell[2]
                     
                     mi.translate(coordinate[0]*au_ang, coordinate[1]*au_ang, coordinate[2]*au_ang)
+                    mi.setGLOptions("additive")
                     win.realSpace.addItem(mi)
 

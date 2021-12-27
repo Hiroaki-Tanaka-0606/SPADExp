@@ -455,6 +455,11 @@ class Dispersion():
         self.Phi=0.0 # polarization angle phi
         self.Xvector=None # kx vector (a.u. orthonormal coordinate)
         self.Yvector=None # ky vector (a.u. orthonormal coordinate)
+        self.Weighting=False # weighting
+        self.AtomCell=None # unit cell for atoms
+        self.Atom_label=None # atom labels
+        self.Atom_coord=None # atom coordinates
+        self.Atom_weighting=None # weighting
     
     def open(self, filePath):
         self.filePath=filePath
@@ -478,5 +483,15 @@ class Dispersion():
                 self.Atom_label.append(at.decode("utf_8"))
                 
             self.Atom_coord=np.array(f["Atoms"]["Coordinates"])
+
+            if "Weighting" in f.attrs.keys():
+                self.Weighting=f.attrs["Weighting"]
+            else:
+                self.Weighting=False
+            
+            if self.Weighting==True:
+                self.Atom_weighting=np.array(f["Atoms"]["Weighting"])
+                
+            
             
             

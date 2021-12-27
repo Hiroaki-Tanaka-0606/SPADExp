@@ -123,11 +123,22 @@ void initialize(){
 	PS_AO_file_set=false;
 	PS_AO_file=new char[HDF5_file_length+1];
 	PS_sigma_max=5.0;
+	PS_decay_max=10;
 	PS_ext_up=0;
 	PS_ext_ri=0;
 	PS_ext_dn=0;
 	PS_ext_le=0;
 	PS_ext_set=false;
+	PS_weighting=false;
+	PS_weighting_set=false;
+	PS_weighting_axis=new double[3];
+	PS_weighting_axis_set=false;
+	PS_weighting_shape=new char[PS_state_length+1];
+	PS_weighting_shape_set=false;
+	PS_weighting_origin_set=false;
+	PS_weighting_width_set=false;
+	PS_use_angstrom=true;
+	PS_use_angstrom_set=false;
 }
 
 void finalize(){

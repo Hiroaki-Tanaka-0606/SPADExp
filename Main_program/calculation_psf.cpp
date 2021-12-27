@@ -515,6 +515,87 @@ void calculate_PSF(){
 			}
 		}
 	}
+
+	/// weighting
+	/// Rect:
+	//// if width>0 [origin, origin+width]*1
+	//// if width<0 [origin+width, origin]*1
+	/// Exp:
+	//// if width>0 [origin, origin+width*decay_max]*exp(-(x-origin)/(|width|*2))
+	//// if width<0 [origin+width*decay_max, origin]*exp((x-origin)/(|width|*2))
+	//// both exp part are the same
+	
+	double atom_weighting[atom_length];
+	bool atom_weighting_flag[atom_length];
+
+	if(PS_weighting==true){
+		double origin_au=PS_weighting_origin;
+		double width_au=PS_weighting_width;
+		double axis_au[3];
+		if(PS_use_angstrom){
+			origin_au/=au_ang;
+			width_au/=au_ang;
+			for(i=0; i<3; i++){
+				axis_au[i]=PS_weighting_axis[i]/au_ang;
+			}
+		}else{
+			for(i=0; i<3; i++){
+				axis_au[i]=PS_weighting_axis[i];
+			}
+		}
+		// normalize axis
+		double axis_length=sqrt(inner_product(axis_au, axis_au));
+		for(i=0; i<3; i++){
+			axis_au[i]/=axis_length;
+		}
+		double range_min, range_max;
+		if(strcmp(PS_weighting_shape, "Rect")==0){
+			// Rect
+			if(width_au>=0){
+				range_min=origin_au;
+				range_max=origin_au+width_au;
+			}else{
+				range_min=origin_au+width_au;
+				range_max=origin_au;
+			}
+		}else{
+			// Exp
+			if(width_au>=0){
+				range_min=origin_au;
+				range_max=origin_au+width_au*PS_decay_max;
+			}else{
+				range_min=origin_au+width_au*PS_decay_max;
+				range_max=origin_au;
+			}
+		}
+		sprintf(sprintf_buffer, "%32s = [%8.2f, %8.2f] [a.u.]", "Weighting range", range_min, range_max);
+		write_log(sprintf_buffer);
+		for(i=0; i<atom_length; i++){
+			double signed_length=inner_product(axis_au, atom_coordinates[i]);
+			if(range_min<signed_length && signed_length<range_max){
+				atom_weighting_flag[i]=true;
+				if(strcmp(PS_weighting_shape, "Rect")==0){
+					atom_weighting[i]=1;
+				}else{
+					atom_weighting[i]=exp(-(signed_length-origin_au)/(width_au*2));
+				}
+			}else{
+				atom_weighting_flag[i]=false;
+				atom_weighting[i]=0;
+			}
+		}
+		write_log((char*)"----Weighting----");
+		for(i=0; i<atom_length; i++){
+			if(atom_weighting_flag[i]==true){
+				sprintf(sprintf_buffer, "%32s (%8.3f, %8.3f, %8.3f) [a.u.]: %10.3e", atom_labels[i], atom_coordinates[i][0], atom_coordinates[i][1], atom_coordinates[i][2], atom_weighting[i]);
+				write_log(sprintf_buffer);
+			}else{
+				sprintf(sprintf_buffer, "%32s (%8.3f, %8.3f, %8.3f) [a.u.]: out of range", atom_labels[i], atom_coordinates[i][0], atom_coordinates[i][1], atom_coordinates[i][2]);
+				write_log(sprintf_buffer);
+			}
+		}
+	}
+	
 	/*
 	for(i=0; i<atom_length; i++){
 		sprintf(sprintf_buffer, "%8.3f %8.3f %8.3f", atom_coordinates[i][0], atom_coordinates[i][1], atom_coordinates[i][2]);
@@ -594,6 +675,7 @@ void calculate_PSF(){
 	/// 3-2. calculation of operator coefficients
 	complex<double> Y_coeff[3];
 	operator_coefficient(PS_polarization, PS_theta, PS_phi, Y_coeff);
+	write_log((char*)"----Operator coefficients----");
 	for(i=0; i<3; i++){
 		sprintf(sprintf_buffer, "%29s[%1d] = %8.3f + %8.3f*i", "Y_coeff", i, Y_coeff[i].real(), Y_coeff[i].imag());
 		write_log(sprintf_buffer);
@@ -742,7 +824,7 @@ void calculate_PSF(){
   duration=chrono::duration_cast<chrono::milliseconds>(end-start).count();
 	sprintf(sprintf_buffer, "PSF preparation time: %.3f [ms]", duration);
 	write_log(sprintf_buffer);
-#pragma omp parallel firstprivate(Y_coeff, sp_max, num_bands, EF_Eh, Eh, PS_E_min, PS_E_pixel, num_points_E, tail_index,  m1jlp, Gaunt_arr, atom_length, atom_spec_index, num_orbits, spin_i,  atom_coordinates, PS_ext_set, PS_final_state_step, k_index_min) private(ib, sp, Ylm_k, ia, is, io, il, ir, j)
+#pragma omp parallel firstprivate(Y_coeff, sp_max, num_bands, EF_Eh, Eh, PS_E_min, PS_E_pixel, num_points_E, tail_index,  m1jlp, Gaunt_arr, atom_length, atom_spec_index, num_orbits, spin_i,  atom_coordinates, PS_ext_set, PS_final_state_step, k_index_min, atom_weighting_flag, atom_weighting, PS_weighting) private(ib, sp, Ylm_k, ia, is, io, il, ir, j)
 #pragma omp for
 	for(ik=0; ik<total_count_ext; ik++){
 		// cout << ik << endl;
@@ -786,8 +868,14 @@ void calculate_PSF(){
 				complex<double> PSF_1(0, 0);
 				complex<double> PSF_2(0, 0);
 				for(ia=0; ia<atom_length; ia++){
+					if(PS_weighting==true && atom_weighting_flag[ia]==false){
+						continue;
+					}
 					double kt=inner_product(k_point, atom_coordinates[ia]);
 					complex<double> atom_phase(cos(kt), -sin(kt));
+					if(PS_weighting==true){
+						atom_phase*=atom_weighting[ia];
+					}
 					// cout << kt << endl;
 					is=atom_spec_index[ia];
 					int num_orbits2=num_orbits[is];
@@ -991,11 +1079,16 @@ void calculate_PSF(){
 	w_att_double(rootG, "Theta", PS_theta);
 	w_att_double(rootG, "Phi", PS_phi);
 
+	w_att_bool(rootG, "Weighting", PS_weighting);
+
 	s_data_1c(AtomG, "Labels", &size1, &length);
 	Group atomG_out(rootG.createGroup("Atoms"));
 	w_data_1c(atomG_out, "Labels", size1, length, (char**) atom_labels);
 
 	w_data_2d(atomG_out, "Coordinates", atom_length, 3, (double**) atom_coordinates);
+	if(PS_weighting==true){
+		w_data_1d(atomG_out, "Weighting", atom_length, (double*) atom_weighting);
+	}
 
 	w_data_2d(atomG_out, "UnitCell", 3, 3, (double**) atom_cell);
 	

@@ -145,6 +145,59 @@ int validation_PSF(){
 		sprintf(sprintf_buffer, "%32s = %d %d %d %d", "Extend", PS_ext_up, PS_ext_ri, PS_ext_dn, PS_ext_le);
 		write_log(sprintf_buffer);
 	}
+	/// Weighting
+	sprintf(sprintf_buffer, "%32s = %s", "Weighting", PS_weighting ? "true" : "false");
+	write_log(sprintf_buffer);
+	if(PS_weighting){
+		const char* unit=PS_use_angstrom ? "Ang" : "a.u.";
+		/// Weighting_axis
+		if(PS_weighting_axis_set){
+			sprintf(sprintf_buffer, "%32s = (%8.2f, %8.2f, %8.2f) [%s]", "Weighting_axis", PS_weighting_axis[0], PS_weighting_axis[1], PS_weighting_axis[2], unit);
+			write_log(sprintf_buffer);
+		}else{
+			write_log((char*)"Error: Weighting_axis is necessary");
+			status=0; goto FINALIZATION;
+		}
+		/// Weighting_shape
+		if(PS_weighting_shape_set){
+			if(strcmp(PS_weighting_shape, "Rect")==0 || strcmp(PS_weighting_shape, "Exp")==0){
+				sprintf(sprintf_buffer, "%32s = %s", "Weighting_shape", PS_weighting_shape);
+				write_log(sprintf_buffer);
+			}else{
+				write_log((char*)"Error: Weighting_shape should be Rect or Exp");
+				status=0; goto FINALIZATION;
+			}
+		}else{
+			write_log((char*)"Error: Weighting_shape is necessary");
+			status=0; goto FINALIZATION;
+		}
+		/// Weighting_origin
+		if(PS_weighting_origin_set){
+			if(PS_weighting_origin>=0){
+				sprintf(sprintf_buffer, "%32s = %8.2f [%s], parallel to the axis", "Distance of the origin", PS_weighting_origin, unit);
+				write_log(sprintf_buffer);
+			}else{
+				sprintf(sprintf_buffer, "%32s = %8.2f [%s], anti-parallel to the axis", "Distance of the origin", PS_weighting_origin, unit);
+				write_log(sprintf_buffer);
+			}
+		}else{
+			write_log((char*)"Error: Weighting_origin is necessary");
+			status=0; goto FINALIZATION;
+		}
+		/// Weighting_width
+		if(PS_weighting_width_set){
+			if(PS_weighting_width>=0){
+				sprintf(sprintf_buffer, "%32s = %8.2f [%s], parallel to the axis", "Weighting_width", PS_weighting_width, unit);
+				write_log(sprintf_buffer);
+			}else{
+				sprintf(sprintf_buffer, "%32s = %8.2f [%s], anti-parallel to the axis", "Weighting_width", PS_weighting_width, unit);
+				write_log(sprintf_buffer);
+			}
+		}else{
+			write_log((char*)"Error: Weighting_width is necessary");
+			status=0; goto FINALIZATION;
+		}
+	}
 	goto FINALIZATION;
  FINALIZATION:
 	delete sprintf_buffer;

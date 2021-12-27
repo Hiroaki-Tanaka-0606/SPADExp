@@ -162,7 +162,20 @@ int PS_ext_le;
 bool PS_ext_set;
 char* PS_AO_file;              // PAO and AO file
 bool PS_AO_file_set;
+bool PS_weighting;             // weighting for the surface states calculation
+bool PS_weighting_set;
+double* PS_weighting_axis;     // axis perpendicular to the surface
+bool PS_weighting_axis_set;
+char* PS_weighting_shape;      // weighting shape ("Rect" rectangular or "Exp" exponential)
+bool PS_weighting_shape_set;
+double PS_weighting_origin;    // the origin is on weighting axis, with distance of this value from (0, 0, 0), negative value means the origin is on the opposite direction from the weighting axis
+bool PS_weighting_origin_set;
+double PS_weighting_width;     // width of the rectangle or the decrease coefficient lambda, negative value means the inverted weighting function
+bool PS_weighting_width_set;
+bool PS_use_angstrom;          // use angstrom as the unit of Weighting_axis, Weighting_origin, and Weighting_width
+bool PS_use_angstrom_set;
 double PS_sigma_max;           // max sigma of the envelope Gauss function
+double PS_decay_max;           // max sigma of the exponential weighting function
 
 
 /// files

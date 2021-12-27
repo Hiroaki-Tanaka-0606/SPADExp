@@ -946,6 +946,7 @@ def export(win, LCAO, PSFobj):
             f.attrs.create("Datetime", datetime.now().isoformat(" "))
             f.create_dataset("Dispersion", data=Dispersion)
             f.attrs.create("Dimension", LCAO.Dimension)
+            f.attrs.create("Weighting", False)
 
             if LCAO.Dimension==1:
                 offset=[LCAO.Xlength*LCAO.Xrange[0], float(win.EMin.text())]

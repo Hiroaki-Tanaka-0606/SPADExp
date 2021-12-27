@@ -799,6 +799,73 @@ int load_input(){
 				}
 				PS_ext_set=true; continue;
 			}
+			/// Weighting (PS_weighting): bool
+			if(strcmp(keyword_buffer, "Weighting")==0){
+				if(PS_weighting_set){
+					output_error(line_number, (char*)"keyword Weighting already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_bool(input_line_c, &PS_weighting, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Weighting"); status=0; goto FINALIZATION;
+				}
+			  PS_weighting_set=true; continue;
+			}
+			/// Weighting_axis (PS_weighting_axis): double[3]
+			if(strcmp(keyword_buffer, "Weighting_axis")==0){
+				if(PS_weighting_axis_set){
+					output_error(line_number, (char*)"keyword Weighting_axis already appeared"); status=0; goto FINALIZATION;
+				}
+				sscanf_status=sscanf(input_line_c, "%*s %lf %lf %lf", &PS_weighting_axis[0], &PS_weighting_axis[1], &PS_weighting_axis[2]);
+				if(sscanf_status!=3){
+					output_error(line_number, (char*)"invalid value of Weighting_axis"); status=0; goto FINALIZATION;
+				}
+				PS_weighting_axis_set=true; continue;
+			}
+			/// Weighting_shape (PS_weighting_shape): char
+			if(strcmp(keyword_buffer, "Weighting_shape")==0){
+				if(PS_weighting_shape_set){
+					output_error(line_number, (char*)"keyword Weighting_shape already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_char(input_line_c, (char*)"Weighting_shape", PS_weighting_shape, PS_state_length, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of PS_weighting_shape"); status=0; goto FINALIZATION;
+				}
+				PS_weighting_shape_set=true; continue;
+			}
+			/// Weighting_origin (PS_weighting_origin): double
+			if(strcmp(keyword_buffer, "Weighting_origin")==0){
+				if(PS_weighting_origin_set){
+					output_error(line_number, (char*)"keyword Weighting_origin already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PS_weighting_origin);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Weighting_origin"); status=0; goto FINALIZATION;
+				}
+			  PS_weighting_origin_set=true; continue;
+			}
+			/// Weighting_width (PS_weighting_width): double
+			if(strcmp(keyword_buffer, "Weighting_width")==0){
+				if(PS_weighting_width_set){
+					output_error(line_number, (char*)"keyword Weighting_width already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PS_weighting_width);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Weighting_width"); status=0; goto FINALIZATION;
+				}
+			  PS_weighting_width_set=true; continue;
+			}
+			/// Use_angstrom: bool
+			if(strcmp(keyword_buffer, "Use_angstrom")==0){
+				if(PS_use_angstrom_set){
+					output_error(line_number, (char*)"keyword Use_angstrom already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_bool(input_line_c, &PS_use_angstrom, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Use_angstrom"); status=0; goto FINALIZATION;
+				}
+			  PS_use_angstrom_set=true; continue;
+			}
+			
 		}else if(*block_name==string("Phase-shift")){
 			// Ph block
 			/// Skip_points (Ph_skip_points): int
