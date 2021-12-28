@@ -49,7 +49,7 @@ def openFile(win, Disp, Elements):
 
 def plot(win, Disp):
     tr=QtGui.QTransform()
-    tr.translate(Disp.Offset[0],Disp.Offset[1])
+    tr.translate(Disp.Offset[0]-Disp.Delta[0]/2,Disp.Offset[1]-Disp.Delta[1]/2)
     tr.scale(Disp.Delta[0], Disp.Delta[1])
     win.img.setTransform(tr)
     win.img.setImage(Disp.Dispersion)
@@ -61,18 +61,18 @@ def plot(win, Disp):
 def plot3(win, Disp):
 
     tr_x=QtGui.QTransform()
-    tr_x.translate(Disp.Offset[0],Disp.Offset[2])
+    tr_x.translate(Disp.Offset[0]-Disp.Delta[0]/2,Disp.Offset[2]-Disp.Delta[2]/2)
     tr_x.scale(Disp.Delta[0], Disp.Delta[2])
     win.imgEx.setTransform(tr_x)
 
     tr_y=QtGui.QTransform()
-    tr_y.translate(Disp.Offset[2], Disp.Offset[1])
+    tr_y.translate(Disp.Offset[2]-Disp.Delta[2]/2, Disp.Offset[1]-Disp.Delta[1]/2)
     tr_y.rotate(-90)
     tr_y.scale(-Disp.Delta[1], Disp.Delta[2])
     win.imgEy.setTransform(tr_y)
 
     tr_E=QtGui.QTransform()
-    tr_E.translate(Disp.Offset[0], Disp.Offset[1])
+    tr_E.translate(Disp.Offset[0]-Disp.Delta[0]/2, Disp.Offset[1]-Disp.Delta[1]/2)
     tr_E.scale(Disp.Delta[0], Disp.Delta[1])
     win.imgxy.setTransform(tr_E)
 
@@ -108,7 +108,7 @@ def plot3(win, Disp):
     win.bandCube=gl.GLVolumeItem(win.Cube)
     win.bandCube.setData(win.Cube)    
     win.bandCube.scale(Disp.Delta[0], Disp.Delta[1], Disp.Delta[2])    
-    win.bandCube.translate(Disp.Offset[0], Disp.Offset[1], Disp.Offset[2])
+    win.bandCube.translate(Disp.Offset[0]-Disp.Delta[0]/2, Disp.Offset[1]-Disp.Delta[1]/2, Disp.Offset[2]-Disp.Delta[2]/2)
     win.plot3D.clear()
     win.plot3D.addItem(win.bandCube)
 
@@ -242,7 +242,7 @@ def makeRealSpace(win, Disp, Elements):
         if enableWeighting and Disp.Weighting:
             meshcolor[:,3]=Disp.Atom_weighting[ia]*(1.0-Config.Weighting_offset)+Config.Weighting_offset
             # print(Disp.Atom_weighting[ia]*(1.0-Config.Weighting_offset)+Config.Weighting_offset)
-        print(meshcolor)
+        # print(meshcolor)
 
         md.setFaceColors(meshcolor)
 
