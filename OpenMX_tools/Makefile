@@ -27,13 +27,19 @@ linkOption3 = -lz -ldl -lm
 
 linkOption = $(commonOption) $(linkOption1) $(linkOption2) $(linkOption3)
 
-all: preproc.o postproc.o
+all: preproc.o postproc.o preproc_Weyl.o postproc_Weyl.o
 
 preproc.o: preproc_main.o $(library)
 	$(CXX) preproc_main.o $(library) -o preproc.o
 
 postproc.o: postproc_main.o HDF5_tools.o $(library)
 	$(CXX) postproc_main.o HDF5_tools.o $(library) $(linkOption) -o postproc.o
+
+preproc_Weyl.o: preproc_Weyl_main.o $(library)
+	$(CXX) preproc_Weyl_main.o $(library) -o preproc_Weyl.o
+
+postproc_Weyl.o: postproc_Weyl_main.o HDF5_tools.o $(library)
+	$(CXX) postproc_Weyl_main.o HDF5_tools.o $(library) $(linkOption) -o postproc_Weyl.o
 
 .cpp.o:
 	$(CXX) $(compileOption) -c $<

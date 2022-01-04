@@ -240,3 +240,25 @@ void copyInput(ofstream* fp){
 		*fp << input_char[i] << endl;
 	}
 }
+
+
+void copyInput_Weyl(ofstream* fp){
+	// copy the input to fp
+	// neglect Band.dispersion, Band.Nkpath, and <Band.kpath> block
+
+	char keyBuf[keySize];
+	int i;
+	int line_MOk_start=find_str("<Band.kpath");
+	int line_MOk_end=find_str("Band.kpath>");
+	for(i=0; i<line_count; i++){
+		if(!(line_MOk_start <= i && i <= line_MOk_end)){
+			if(sscanf(input_char[i], "%s", keyBuf)==1 &&
+				 (strcmp(keyBuf, "Band.dispersion")==0 || strcmp(keyBuf, "Band.Nkpath")==0)){
+				*fp << "# ";
+			}
+		}else{
+			*fp << "# ";
+		}
+		*fp << input_char[i] << endl;
+	}
+}

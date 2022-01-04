@@ -16,4 +16,5 @@ int find_str(const char* key);
 char* get_line(int line_number);
 
 void copyInput(ofstream* fp);
+void copyInput_Weyl(ofstream* fp);
 
