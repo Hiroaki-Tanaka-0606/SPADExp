@@ -37,9 +37,9 @@ int main(int argc, const char** argv){
 	// variables
 	int i, j;
 	int dimension;
-	double x_frac[3];
-	double y_frac[3];
-	double z_frac[3];
+	double x_frac[3]={0};
+	double y_frac[3]={0};
+	double z_frac[3]={0};
 	double x_orth[3];
 	double y_orth[3];
 	double z_orth[3];
