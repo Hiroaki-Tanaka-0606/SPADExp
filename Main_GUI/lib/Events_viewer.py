@@ -28,12 +28,12 @@ def openFile(win, Disp, Elements):
         Disp.open(selectedFile)
         print("Finished loading dispersion file")
         
-        win.kxIndex.setMaximum(Disp.Size[0])
+        win.kxIndex.setMaximum(Disp.Size[0]-1)
         if Disp.Dimension==1:
-            win.eIndex.setMaximum(Disp.Size[1])
+            win.eIndex.setMaximum(Disp.Size[1]-1)
         elif Disp.Dimension==2:
-            win.kyIndex.setMaximum(Disp.Size[1])
-            win.eIndex.setMaximum(Disp.Size[2])
+            win.kyIndex.setMaximum(Disp.Size[1]-1)
+            win.eIndex.setMaximum(Disp.Size[2]-1)
         else:
             print("Dimension error")
             return
