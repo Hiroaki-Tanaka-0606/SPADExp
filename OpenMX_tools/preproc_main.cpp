@@ -39,9 +39,9 @@ int main(int argc, const char** argv){
 	int i, j;
 	bool curved;
 	int dimension;
-	double origin_frac[3];
-	double x_frac[3];
-	double y_frac[3];
+	double origin_frac[3]={0};
+	double x_frac[3]={0};
+	double y_frac[3]={0};
 	double origin_orth[3];
 	double x_orth[3];
 	double y_orth[3];
