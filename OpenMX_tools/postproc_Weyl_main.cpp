@@ -44,7 +44,7 @@ int main(int argc, const char** argv){
 	int itemSize=32;
 	int valSize=128;
 	int pathSize=1024;
-	int bufSize=65536;
+	int bufSize=262144;
 
 	// diff criterion
 	double diff_threshold1=0.01; // kp coordinates
