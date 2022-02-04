@@ -314,7 +314,7 @@ int main(int argc, const char** argv){
   
 	ifstream outBand(outBandPath);
 	string line;
-	char line_c[bufSize];
+	char line_c[bufSize+1];
 	int sscanf_result;
 	
 	// row 1: numBands numSpin EF(Eh)
@@ -353,29 +353,33 @@ int main(int argc, const char** argv){
 		readLine(&outBand, line_c, bufSize);
 		// bottom row: eigenvalues (Eh)
 		readLine(&outBand, line_c, bufSize);
-		char sscanf_format[bufSize];
+		char sscanf_format1[bufSize+1];
+		char sscanf_format2[bufSize+1];
 		// printf("k=%d\n", i);
 		for(j=0; j<bufSize; j++){
-			sscanf_format[j]='\0';
+			sscanf_format1[j]='\0';
+			sscanf_format2[j]='\0';
 		}
 		// prepare the sscanf format to load #minN-1 eigenvalue
 		// the index starts from zero
-		if(minN>0){
-			for(j=0; j<minN-1; j++){
-				sprintf(sscanf_format, "%%*lf %s", sscanf_format);
-			}
-			sprintf(sscanf_format, "%s %%lf", sscanf_format);
+		strcpy(sscanf_format1, "%lf");
+		for(j=0; j<minN; j++){
+			sprintf(sscanf_format2, "%%*lf %s", sscanf_format1);
+			strcpy(sscanf_format1, sscanf_format2);
 		}
 		for(j=minN; j<=maxN; j++){
-			sprintf(sscanf_format, "%%*lf %s", sscanf_format);
 			double eigen;
-			sscanf_result=sscanf(line_c, sscanf_format, &eigen);
+			sscanf_result=sscanf(line_c, sscanf_format1, &eigen);
 			if(sscanf_result!=1){
-				printf("Error in parsing eigenvalue k=%d, j=%d", i, j);
+				printf("Error in parsing eigenvalue k=%d, j=%d\n", i, j);
+				printf("%s\n", sscanf_format1);
 				return 0;
 			}
 			double eigen_eV=(eigen-EF_Eh)*Eh_eV;
 			Band[i][j-minN]=eigen_eV;
+			// prepare the format for the next eigenvalue
+			sprintf(sscanf_format2, "%%*lf %s", sscanf_format1);
+			strcpy(sscanf_format1, sscanf_format2);
 		}
 		
 	}
