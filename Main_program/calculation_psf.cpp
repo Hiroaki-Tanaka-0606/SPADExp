@@ -966,7 +966,7 @@ void calculate_PSF(){
 				}
 				// cout << PSF_1 << endl;
 				double PSF_norm;
-				if(strcmp(PS_output_data, "PSF")==0){
+				if(strcmp(PS_output_data, "PSF")==0 || strcmp(PS_output_data, "Band")==0){
 					PSF_norm=norm(PSF_1);
 					if(spin_i==2){
 						PSF_norm+=norm(PSF_2);
