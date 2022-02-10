@@ -174,6 +174,8 @@ double PS_weighting_width;     // width of the rectangle or the decrease coeffic
 bool PS_weighting_width_set;
 bool PS_use_angstrom;          // use angstrom as the unit of Weighting_axis, Weighting_origin, and Weighting_width
 bool PS_use_angstrom_set;
+char* PS_output_data;          // what to output: Band, PSF (default), PSF_real, PSF_imag
+bool PS_output_data_set;
 double PS_sigma_max;           // max sigma of the envelope Gauss function
 double PS_decay_max;           // max sigma of the exponential weighting function
 

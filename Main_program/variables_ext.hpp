@@ -173,6 +173,8 @@ extern double PS_weighting_width;
 extern bool PS_weighting_width_set;
 extern bool PS_use_angstrom;
 extern bool PS_use_angstrom_set;
+extern char* PS_output_data;
+extern bool PS_output_data_set;
 extern double PS_sigma_max;
 extern double PS_decay_max;
 

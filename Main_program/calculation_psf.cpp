@@ -867,103 +867,110 @@ void calculate_PSF(){
 				}
 				complex<double> PSF_1(0, 0);
 				complex<double> PSF_2(0, 0);
-				for(ia=0; ia<atom_length; ia++){
-					if(PS_weighting==true && atom_weighting_flag[ia]==false){
-						continue;
-					}
-					double kt=inner_product(k_point, atom_coordinates[ia]);
-					complex<double> atom_phase(cos(kt), -sin(kt));
-					if(PS_weighting==true){
-						atom_phase*=atom_weighting[ia];
-					}
-					// cout << kt << endl;
-					is=atom_spec_index[ia];
-					int num_orbits2=num_orbits[is];
-					if(spin_i==1){
-						num_orbits2*=2;
-					}
-					double final_states[5][wfn_length[is]];
-					int k_index;
-					if(strcmp(PS_final_state, "PW")==0){
-						for(il=0; il<5; il++){
-							for(ir=0; ir<wfn_length[is]; ir++){
-								final_states[il][ir]=wfn_r[is][ir]*sp_bessel(il, wfn_r[is][ir]*k_length);
-							}
+				if(strcmp(PS_output_data, "Band")==0){
+					PSF_1=complex<double>(1, 0);
+				}else{
+					for(ia=0; ia<atom_length; ia++){
+						if(PS_weighting==true && atom_weighting_flag[ia]==false){
+							continue;
 						}
-					}else if(strcmp(PS_final_state, "Calc")==0){
-						k_index=round(k_length/PS_final_state_step);
-						for(il=0; il<5; il++){
-							for(ir=0; ir<wfn_length[is]; ir++){
-								final_states[il][ir]=final_states_calc[k_index-k_index_min][is][il][ir];
-							}
+						double kt=inner_product(k_point, atom_coordinates[ia]);
+						complex<double> atom_phase(cos(kt), -sin(kt));
+						if(PS_weighting==true){
+							atom_phase*=atom_weighting[ia];
 						}
-					}
-					for(io=0; io<num_orbits2; io++){
-						int io2=io; // for initial state, l_list
+						// cout << kt << endl;
+						is=atom_spec_index[ia];
+						int num_orbits2=num_orbits[is];
 						if(spin_i==1){
-							// io=0, 2, ... -> Up (sp=0), io=1, 3, ... -> Dn (sp=1)
-							if(sp==0 && io%2==1){
-								continue;
-							}
-							if(sp==1 && io%2==0){
-								continue;
-							}
-							io2=io/2;
+							num_orbits2*=2;
 						}
-						complex<double>** LCAO_use=LCAO[ia][io][ik_reduced][ib]; // [twoLp1][digit]
-						// l: azimuthal quantum number of initial state
-						// lp: of final state, lp=l+dl
-						// m: magnetic quantum number of initial state
-						// mpl: m+l (0, ..., 2l)
-						// jp1: j+1
-						// mp: of final state, mp=m+j
-						// mpplp: mp+lp=m+j+lp
-						int l=l_list[is][io2];
-						int dl; // -1 or +1
-						for(dl=-1; dl<=1; dl+=2){
-							int lp=l+dl;
-							if(lp<0){
-								continue;
-							}
-							double radial_part=ddot(&wfn_length[is], &final_states[lp][0], &wfn_phi_rdr[is][io2][0]);
-							int mpl;
-							complex<double> coeff2_1(0, 0);
-							complex<double> coeff2_2(0, 0);
-							for(mpl=0; mpl<=2*l; mpl++){
-								int m=mpl-l;
-								int jp1St=max(-1, -(m+lp))+1; // include
-								int jp1En=min(1, lp-m)+2; // not include
-								int jp1;
-								complex<double> coeff1(0, 0);
-								for(jp1=jp1St; jp1<jp1En; jp1++){
-									int mpplp=jp1-1+m+lp;
-									coeff1+=Ylm_k[lp][mpplp]*Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1];
+						double final_states[5][wfn_length[is]];
+						int k_index;
+						if(strcmp(PS_final_state, "PW")==0){
+							for(il=0; il<5; il++){
+								for(ir=0; ir<wfn_length[is]; ir++){
+									final_states[il][ir]=wfn_r[is][ir]*sp_bessel(il, wfn_r[is][ir]*k_length);
 								}
-								// cout << coeff1 << endl;
-								coeff2_1+=LCAO_use[mpl][0]*coeff1;
+							}
+						}else if(strcmp(PS_final_state, "Calc")==0){
+							k_index=round(k_length/PS_final_state_step);
+							for(il=0; il<5; il++){
+								for(ir=0; ir<wfn_length[is]; ir++){
+									final_states[il][ir]=final_states_calc[k_index-k_index_min][is][il][ir];
+								}
+							}
+						}
+						for(io=0; io<num_orbits2; io++){
+							int io2=io; // for initial state, l_list
+							if(spin_i==1){
+								// io=0, 2, ... -> Up (sp=0), io=1, 3, ... -> Dn (sp=1)
+								if(sp==0 && io%2==1){
+									continue;
+								}
+								if(sp==1 && io%2==0){
+									continue;
+								}
+								io2=io/2;
+							}
+							complex<double>** LCAO_use=LCAO[ia][io][ik_reduced][ib]; // [twoLp1][digit]
+							// l: azimuthal quantum number of initial state
+							// lp: of final state, lp=l+dl
+							// m: magnetic quantum number of initial state
+							// mpl: m+l (0, ..., 2l)
+							// jp1: j+1
+							// mp: of final state, mp=m+j
+							// mpplp: mp+lp=m+j+lp
+							int l=l_list[is][io2];
+							int dl; // -1 or +1
+							for(dl=-1; dl<=1; dl+=2){
+								int lp=l+dl;
+								if(lp<0){
+									continue;
+								}
+								double radial_part=ddot(&wfn_length[is], &final_states[lp][0], &wfn_phi_rdr[is][io2][0]);
+								int mpl;
+								complex<double> coeff2_1(0, 0);
+								complex<double> coeff2_2(0, 0);
+								for(mpl=0; mpl<=2*l; mpl++){
+									int m=mpl-l;
+									int jp1St=max(-1, -(m+lp))+1; // include
+									int jp1En=min(1, lp-m)+2; // not include
+									int jp1;
+									complex<double> coeff1(0, 0);
+									for(jp1=jp1St; jp1<jp1En; jp1++){
+										int mpplp=jp1-1+m+lp;
+										coeff1+=Ylm_k[lp][mpplp]*Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1];
+									}
+									// cout << coeff1 << endl;
+									coeff2_1+=LCAO_use[mpl][0]*coeff1;
+									if(spin_i==2){
+										coeff2_2+=LCAO_use[mpl][1]*coeff1;
+									}
+								}
+								// cout << endl;
+								complex<double> atom_phase2;
+								if(strcmp(PS_final_state, "Calc")==0){
+									atom_phase2=atom_phase*complex<double>(cos(final_states_phase[k_index-k_index_min][is][lp]), -sin(final_states_phase[k_index-k_index_min][is][lp]));
+								}else{
+									atom_phase2=atom_phase;
+								}
+								// cout << atom_phase2 << endl;
+								PSF_1+=m1jlp[lp]*radial_part*atom_phase2*coeff2_1;
 								if(spin_i==2){
-									coeff2_2+=LCAO_use[mpl][1]*coeff1;
+									PSF_2+=m1jlp[lp]*radial_part*atom_phase2*coeff2_2;
 								}
-							}
-							// cout << endl;
-							complex<double> atom_phase2;
-							if(strcmp(PS_final_state, "Calc")==0){
-								atom_phase2=atom_phase*complex<double>(cos(final_states_phase[k_index-k_index_min][is][lp]), -sin(final_states_phase[k_index-k_index_min][is][lp]));
-							}else{
-								atom_phase2=atom_phase;
-							}
-							// cout << atom_phase2 << endl;
-							PSF_1+=m1jlp[lp]*radial_part*atom_phase2*coeff2_1;
-							if(spin_i==2){
-								PSF_2+=m1jlp[lp]*radial_part*atom_phase2*coeff2_2;
 							}
 						}
 					}
 				}
 				// cout << PSF_1 << endl;
-				double PSF_norm=norm(PSF_1);
-				if(spin_i==2){
-					PSF_norm+=norm(PSF_2);
+				double PSF_norm;
+				if(strcmp(PS_output_data, "PSF")==0){
+					PSF_norm=norm(PSF_1);
+					if(spin_i==2){
+						PSF_norm+=norm(PSF_2);
+					}
 				}
 				// cout << "!" << PSF_norm << endl;
 				for(j=-tail_index; j<=tail_index; j++){

@@ -139,6 +139,9 @@ void initialize(){
 	PS_weighting_width_set=false;
 	PS_use_angstrom=true;
 	PS_use_angstrom_set=false;
+	PS_output_data=new char[PS_state_length+1];
+	strcpy(PS_output_data, "PSF");
+	PS_output_data_set=false;
 }
 
 void finalize(){

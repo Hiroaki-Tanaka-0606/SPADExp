@@ -865,7 +865,17 @@ int load_input(){
 				}
 			  PS_use_angstrom_set=true; continue;
 			}
-			
+			/// Output_data: char
+			if(strcmp(keyword_buffer, "Output_data")==0){
+				if(PS_output_data_set){
+					output_error(line_number, (char*)"keyword Output_data already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_char(input_line_c, (char*)"Output_data", PS_output_data, PS_state_length, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Output_data"); status=0; goto FINALIZATION;
+				}
+				PS_output_data_set=true; continue;
+			}
 		}else if(*block_name==string("Phase-shift")){
 			// Ph block
 			/// Skip_points (Ph_skip_points): int

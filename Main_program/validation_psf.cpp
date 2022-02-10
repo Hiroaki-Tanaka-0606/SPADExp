@@ -198,6 +198,13 @@ int validation_PSF(){
 			status=0; goto FINALIZATION;
 		}
 	}
+	/// Output_data
+	sprintf(sprintf_buffer, "%32s = %s", "Output_data", PS_output_data);
+	write_log(sprintf_buffer);
+	if(strcmp(PS_output_data, "PSF")!=0 && strcmp(PS_output_data, "Band")!=0 /*&& strcmp(PS_output_data, "PSF_real")!=0 && strcmp(PS_output_data, "PSF_imag")!=0*/){
+		write_log((char*)"Error: Invalid Output_data");
+		status=0; goto FINALIZATION;
+	}
 	goto FINALIZATION;
  FINALIZATION:
 	delete sprintf_buffer;
