@@ -52,8 +52,8 @@ int main(int argc, const char** argv){
 	double cell[3][3];
 	double rec_cell[3][3];
 
-	if(load_int("calcPSF.dimension", &dimension)==1){
-		printf("calcPSF.dimension is %d\n", dimension);
+	if(load_int("SPADExp.dimension", &dimension)==1){
+		printf("SPADExp.dimension is %d\n", dimension);
 		if(!(1<=dimension && dimension<=2)){
 			printf("Error: invalid dimension\n");
 			return 0;
@@ -62,20 +62,20 @@ int main(int argc, const char** argv){
 		return 0;
 	}
 	
-	if(load_logical("calcPSF.curved", &curved)==1){
-		printf("calcPSF.curved is %s\n", (curved ? "true": "false"));
+	if(load_logical("SPADExp.curved", &curved)==1){
+		printf("SPADExp.curved is %s\n", (curved ? "true": "false"));
 	}else{
 		return 0;
 	}
 
-	if(load_doublev("calcPSF.origin", 3, origin_frac)==1){
+	if(load_doublev("SPADExp.origin", 3, origin_frac)==1){
 		// printf("Origin is (%.3f, %.3f, %.3f) in fractional coordinates\n", origin_frac[0], origin_frac[1], origin_frac[2]);
 	}else{
 		return 0;
 	}
 
-	int line_range_start=find_str("<calcPSF.range");
-	int line_range_end=find_str("calcPSF.range>");
+	int line_range_start=find_str("<SPADExp.range");
+	int line_range_end=find_str("SPADExp.range>");
 
 	if(line_range_start>=0 && line_range_end>=0){
 		if(line_range_end-line_range_start-1==dimension){

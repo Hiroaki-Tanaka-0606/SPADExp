@@ -52,8 +52,8 @@ int main(int argc, const char** argv){
 	double cell[3][3];
 	double rec_cell[3][3];
 
-	if(load_int("calcPSF.Weyl.dimension", &dimension)==1){
-		printf("calcPSF.Weyl.dimension is %d\n", dimension);
+	if(load_int("SPADExp.Weyl.dimension", &dimension)==1){
+		printf("SPADExp.Weyl.dimension is %d\n", dimension);
 		if(!(1<=dimension && dimension<=3)){
 			printf("Error: invalid dimension\n");
 			return 0;
@@ -62,8 +62,8 @@ int main(int argc, const char** argv){
 		return 0;
 	}
 	
-	int line_range_start=find_str("<calcPSF.Weyl.range");
-	int line_range_end=find_str("calcPSF.Weyl.range>");
+	int line_range_start=find_str("<SPADExp.Weyl.range");
+	int line_range_end=find_str("SPADExp.Weyl.range>");
 
 	if(line_range_start>=0 && line_range_end>=0){
 		if(line_range_end-line_range_start-1==dimension){

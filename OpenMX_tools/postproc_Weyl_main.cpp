@@ -88,8 +88,8 @@ int main(int argc, const char** argv){
 	}
 
 
-	if(load_int("calcPSF.Weyl.dimension", &dimension)==1){
-		printf("calcPSF.Weyl.dimension is %d\n", dimension);
+	if(load_int("SPADExp.Weyl.dimension", &dimension)==1){
+		printf("SPADExp.Weyl.dimension is %d\n", dimension);
 		if(!(1<=dimension && dimension<=3)){
 			printf("Error: invalid dimension\n");
 			return 0;
@@ -99,8 +99,8 @@ int main(int argc, const char** argv){
 	}
 	
 
-	int line_range_start=find_str("<calcPSF.Weyl.range");
-	int line_range_end=find_str("calcPSF.Weyl.range>");
+	int line_range_start=find_str("<SPADExp.Weyl.range");
+	int line_range_end=find_str("SPADExp.Weyl.range>");
 
 	if(line_range_start>=0 && line_range_end>=0){
 		if(line_range_end-line_range_start-1==dimension){
@@ -150,14 +150,14 @@ int main(int argc, const char** argv){
 		total_count*=z_count;
 	}
 
-	if(load_int("calcPSF.Weyl.minN", &minN)==1){
-		printf("calcPSF.Weyl.minN is %d\n", minN);
+	if(load_int("SPADExp.Weyl.minN", &minN)==1){
+		printf("SPADExp.Weyl.minN is %d\n", minN);
 	}else{
 		return 0;
 	}
 
-	if(load_int("calcPSF.Weyl.maxN", &maxN)==1){
-		printf("calcPSF.Weyl.maxN is %d\n", maxN);
+	if(load_int("SPADExp.Weyl.maxN", &maxN)==1){
+		printf("SPADExp.Weyl.maxN is %d\n", maxN);
 	}else{
 		return 0;
 	}
