@@ -78,7 +78,7 @@ def openFile(win, LCAO, Wfns):
         print(LCAO.Atom_coordinates)
         print((" in unit of {0:s}").format(LCAO.Atom_unit))
 
-def appendDispersion(i, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFobj):
+def appendDispersion(i, n, EMin, EPixel, tailProfile, LCAO, plotPAD, PADobj):
     global Dispersion
 
     ret=0
@@ -93,13 +93,13 @@ def appendDispersion(i, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFobj):
             pass
         else:
             continueFlag=True
-            PSF=1.0
-            if plotPSF==True and eigen_index+tailSize-1>=0:
-                PSF=PSFobj.calc(i, n, useUp=True)
+            PAD=1.0
+            if plotPAD==True and eigen_index+tailSize-1>=0:
+                PAD=PADobj.calc(i, n, useUp=True)
                 
             for j in range(-tailSize+1, tailSize):
                 if eigen_index+j>=0 and eigen_index+j<Esize:
-                    Dispersion[i][eigen_index+j]+=tailProfile[abs(j)]*PSF
+                    Dispersion[i][eigen_index+j]+=tailProfile[abs(j)]*PAD
         # spin Dn
         eigen=(LCAO.BandDn[i][n]-LCAO.EF_Eh)*Config.Eh
         eigen_index=round((eigen-EMin)/EPixel)
@@ -107,13 +107,13 @@ def appendDispersion(i, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFobj):
             pass
         else:
             continueFlag=True
-            PSF=1.0
-            if plotPSF==True and eigen_index+tailSize-1>=0:
-                PSF=PSFobj.calc(i, n, useUp=False)
+            PAD=1.0
+            if plotPAD==True and eigen_index+tailSize-1>=0:
+                PAD=PADobj.calc(i, n, useUp=False)
                 
             for j in range(-tailSize+1, tailSize):
                 if eigen_index+j>=0 and eigen_index+j<Esize:
-                    Dispersion[i][eigen_index+j]+=tailProfile[abs(j)]*PSF
+                    Dispersion[i][eigen_index+j]+=tailProfile[abs(j)]*PAD
 
         return continueFlag
     else:
@@ -121,17 +121,17 @@ def appendDispersion(i, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFobj):
         eigen_index=round((eigen-EMin)/EPixel)
         if eigen_index-tailSize>=Esize:
             return False
-        PSF=1.0
-        if plotPSF==True and eigen_index+tailSize-1>=0:
-            PSF=PSFobj.calc(i, n)
+        PAD=1.0
+        if plotPAD==True and eigen_index+tailSize-1>=0:
+            PAD=PADobj.calc(i, n)
             
         for j in range(-tailSize+1, tailSize):
             if eigen_index+j>=0 and eigen_index+j<Esize:
-                Dispersion[i][eigen_index+j]+=tailProfile[abs(j)]*PSF
+                Dispersion[i][eigen_index+j]+=tailProfile[abs(j)]*PAD
         return True
         
 
-def appendDispersion3(ix, iy, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFobj):
+def appendDispersion3(ix, iy, n, EMin, EPixel, tailProfile, LCAO, plotPAD, PADobj):
     global Dispersion
 
     ret=0
@@ -148,13 +148,13 @@ def appendDispersion3(ix, iy, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFob
             pass
         else:
             continueFlag=True
-            PSF=1.0
-            if plotPSF==True and eigen_index+tailSize-1>=0:
-                PSF=PSFobj.calc(i, n, useUp=True)
+            PAD=1.0
+            if plotPAD==True and eigen_index+tailSize-1>=0:
+                PAD=PADobj.calc(i, n, useUp=True)
                 
             for j in range(-tailSize+1, tailSize):
                 if eigen_index+j>=0 and eigen_index+j<Esize:
-                    Dispersion[ix][iy][eigen_index+j]+=tailProfile[abs(j)]*PSF
+                    Dispersion[ix][iy][eigen_index+j]+=tailProfile[abs(j)]*PAD
         
         eigen=(LCAO.BandDn[i][n]-LCAO.EF_Eh)*Config.Eh
         eigen_index=round((eigen-EMin)/EPixel)
@@ -162,13 +162,13 @@ def appendDispersion3(ix, iy, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFob
             pass
         else:
             continueFlag=True
-            PSF=1.0
-            if plotPSF==True and eigen_index+tailSize-1>=0:
-                PSF=PSFobj.calc(i, n, useUp=False)
+            PAD=1.0
+            if plotPAD==True and eigen_index+tailSize-1>=0:
+                PAD=PADobj.calc(i, n, useUp=False)
                 
             for j in range(-tailSize+1, tailSize):
                 if eigen_index+j>=0 and eigen_index+j<Esize:
-                    Dispersion[ix][iy][eigen_index+j]+=tailProfile[abs(j)]*PSF
+                    Dispersion[ix][iy][eigen_index+j]+=tailProfile[abs(j)]*PAD
 
         return continueFlag
 
@@ -177,16 +177,16 @@ def appendDispersion3(ix, iy, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFob
         eigen_index=round((eigen-EMin)/EPixel)
         if eigen_index-tailSize>=Esize:
             return False
-        PSF=1.0
-        if plotPSF==True and eigen_index+tailSize-1>=0:
+        PAD=1.0
+        if plotPAD==True and eigen_index+tailSize-1>=0:
             # time1=time.time()
-            PSF=PSFobj.calc(i, n) 
+            PAD=PADobj.calc(i, n) 
             # time2=time.time()
-            # print("PSF", time2-time1) about 0.013 sec
+            # print("PAD", time2-time1) about 0.013 sec
             
         for j in range(-tailSize+1, tailSize):
             if eigen_index+j>=0 and eigen_index+j<Esize:
-                Dispersion[ix][iy][eigen_index+j]+=tailProfile[abs(j)]*PSF
+                Dispersion[ix][iy][eigen_index+j]+=tailProfile[abs(j)]*PAD
                 
         return True
                 
@@ -200,7 +200,7 @@ def genTailProfile(EPixel, dE):
     return ret
 
 
-def plot(win, LCAO, PSFobj):
+def plot(win, LCAO, PADobj):
     # for 2D plot
     global Dispersion
 
@@ -216,7 +216,7 @@ def plot(win, LCAO, PSFobj):
         print("Energy range error")
         return
 
-    plotPSF=False
+    plotPAD=False
     initialStates_i=1 # 0->PAO, 1->AO
     finalStates_i=0 # 0->Plane wave, 1->Calculated
     polarization_i=0 # 0->Linear, 1->Right circular, 2->Left circular
@@ -226,9 +226,9 @@ def plot(win, LCAO, PSFobj):
     Y_coeff=[0, 0, 0] # coeffcients of operators r Y_{1,m} [m=-1, m=0, m=1]
     if win.plotDispersion.isChecked():
         print("Plot the band dispersion")
-    elif win.plotPSF.isChecked():
-        plotPSF=True
-        print("Plot the PSF")
+    elif win.plotPAD.isChecked():
+        plotPAD=True
+        print("Plot the PAD")
         # initial state
         if win.AOButton.isChecked():
             print("Initial state: atomic orbital")
@@ -266,10 +266,10 @@ def plot(win, LCAO, PSFobj):
         print(("Angle: theta={0:.2f} deg, phi={1:.2f} deg").format(theta, phi))
             
         pt.calcOperatorCoeff(Y_coeff, polarization_i, theta, phi)
-        PSFobj.setSystem(initialStates_i, finalStates_i, finalStates_step, Y_coeff)
+        PADobj.setSystem(initialStates_i, finalStates_i, finalStates_step, Y_coeff)
             
     else:
-        print("Error: Band dispersion or PSF should be checked")
+        print("Error: Band dispersion or PAD should be checked")
         return
     
 
@@ -285,7 +285,7 @@ def plot(win, LCAO, PSFobj):
     for i in range(0, LCAO.numPnts_kx):
         print(("Calculating k = {0:6d}").format(i))
         for n in range(0, LCAO.numBands):
-            if appendDispersion(i, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFobj):
+            if appendDispersion(i, n, EMin, EPixel, tailProfile, LCAO, plotPAD, PADobj):
                 continue
             else:
                 break
@@ -300,7 +300,7 @@ def plot(win, LCAO, PSFobj):
     print(("Max point: {0:8.3e}").format(maxpoint))
     win.bar.setLevels((0, maxpoint))
             
-def makeDispersion3(win, LCAO, PSFobj):
+def makeDispersion3(win, LCAO, PADobj):
     # for 3D plot
     global Dispersion
 
@@ -316,7 +316,7 @@ def makeDispersion3(win, LCAO, PSFobj):
         print("Energy range error")
         return
 
-    plotPSF=False
+    plotPAD=False
     initialStates_i=1 # 0->PAO, 1->AO
     finalStates_i=0 # 0->Plane wave, 1->Calculated
     polarization_i=0 # 0->Linear, 1->Right circular, 2->Left circular
@@ -326,9 +326,9 @@ def makeDispersion3(win, LCAO, PSFobj):
     Y_coeff=[0, 0, 0] # coeffcients of operators r Y_{1,m} [m=-1, m=0, m=1]
     if win.plotDispersion.isChecked():
         print("Plot the band dispersion")
-    elif win.plotPSF.isChecked():
-        plotPSF=True
-        print("Plot the PSF")
+    elif win.plotPAD.isChecked():
+        plotPAD=True
+        print("Plot the PAD")
         # initial state
         if win.AOButton.isChecked():
             print("Initial state: atomic orbital")
@@ -366,10 +366,10 @@ def makeDispersion3(win, LCAO, PSFobj):
         print(("Angle: theta={0:.2f} deg, phi={1:.2f} deg").format(theta, phi))
             
         pt.calcOperatorCoeff(Y_coeff, polarization_i, theta, phi)
-        PSFobj.setSystem(initialStates_i, finalStates_i, finalStates_step, Y_coeff)
+        PADobj.setSystem(initialStates_i, finalStates_i, finalStates_step, Y_coeff)
             
     else:
-        print("Error: Band dispersion or PSF should be checked")
+        print("Error: Band dispersion or PAD should be checked")
         return
     
     print(("{0:d} points along the energy").format(numPnts_E))
@@ -393,7 +393,7 @@ def makeDispersion3(win, LCAO, PSFobj):
                 # time2=time.time()
                 # print(time2-time1) about 0.013 sec
                 # time1=time2
-                if appendDispersion3(i, j, n, EMin, EPixel, tailProfile, LCAO, plotPSF, PSFobj):
+                if appendDispersion3(i, j, n, EMin, EPixel, tailProfile, LCAO, plotPAD, PADobj):
                     continue
                 else:
                     break
@@ -564,7 +564,7 @@ def makeOrbitalList(win, LCAO, Wfns):
         win.orbitalToPlot.addItem(orbit)
 
 
-def plotOrbital(win, LCAO, Wfns, PSFobj):
+def plotOrbital(win, LCAO, Wfns, PADobj):
     at=win.Atom.currentIndex()
     at_label=LCAO.Atoms[at]
     orb=win.orbitalToPlot.currentIndex()
@@ -595,9 +595,9 @@ def plotOrbital(win, LCAO, Wfns, PSFobj):
         l=3
  
     r=Wfns[at_label].r
-    PSFobj.calcFinalState(wfn_finalp1, l+1, k_length, r)
+    PADobj.calcFinalState(wfn_finalp1, l+1, k_length, r)
     if l-1>=0:
-        PSFobj.calcFinalState(wfn_finalm1, l-1, k_length, r)
+        PADobj.calcFinalState(wfn_finalm1, l-1, k_length, r)
 
     win.wfnPlot.clear()
 
@@ -938,7 +938,7 @@ def makeRealSpace(win, LCAO, Elements):
 
 
 
-def export(win, LCAO, PSFobj):
+def export(win, LCAO, PADobj):
     currentFile=win.filePath.text()
     selectedFile, _filter=QtGui.QFileDialog.getSaveFileName(caption="Open file", directory=currentFile)
     if selectedFile!="":
@@ -967,8 +967,8 @@ def export(win, LCAO, PSFobj):
             dE=float(win.dE.text())
             f.attrs.create("dE", dE)
 
-            initialStates=(["PAO", "AO"])[PSFobj.initialStates_i]
-            finalStates=(["PW", "Calc"])[PSFobj.finalStates_i]
+            initialStates=(["PAO", "AO"])[PADobj.initialStates_i]
+            finalStates=(["PW", "Calc"])[PADobj.finalStates_i]
             f.attrs.create("Initial_state", initialStates)
             f.attrs.create("Final_state", finalStates)
 

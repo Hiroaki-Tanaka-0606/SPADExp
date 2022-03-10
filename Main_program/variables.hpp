@@ -11,8 +11,8 @@ int Solution_length;      // size of the char* TF_solution, At_solution
 int Potential_length;     // size of the char* At_potential
 int Potential_file_length;// size of the char* At_potential_file
 double Data_read_error;   // tolerable error in file reading (such as x_coordinates)
-int HDF5_file_length;     // size of the char* PS_input_file, PS_AO_file
-int PS_state_length;      // size of the char* PS_initial_state, PS_final_state
+int HDF5_file_length;     // size of the char* PA_input_file, PA_AO_file
+int PA_state_length;      // size of the char* PA_initial_state, PA_final_state
 int Ph_label_length;      // size of the char* Ph_orbital_labels[i]
 double au_ang;            // 1 bohr (Ang)
 double Eh;                // 1 Hartree (eV)
@@ -25,7 +25,7 @@ bool Rg_block_appeared;
 bool At_block_appeared;
 bool SC_block_appeared;
 bool Oc_block_appeared;
-bool PS_block_appeared;
+bool PA_block_appeared;
 bool Ex_block_appeared;
 bool Or_block_appeared;
 bool Ph_block_appeared;
@@ -132,52 +132,52 @@ int Ph_skip_points;            // number of skipped points in the phase analysis
 bool Ph_skip_points_set;
 int Ph_calc_points;            // number of used point in the phase analysis
 bool Ph_calc_points_set;
-/// PS block
-char* PS_input_file;           // input file (.hdf5), output of the postproc.o
-bool PS_input_file_set;
-double PS_E_min;               // energy to start the calculation of the dispersion
-bool PS_E_min_set;
-double PS_E_max;               // energy to end the calculation of the dispersion
-bool PS_E_max_set;
-double PS_dE;                  // width of Gauss broadening of the dispersion
-bool PS_dE_set;
-double PS_E_pixel;             // delta E of the calculation of the dispersion
-bool PS_E_pixel_set;
-char* PS_initial_state;        // initial state ("PAO" or "AO")
-bool PS_initial_state_set;
-char* PS_final_state;          // final state ("PW" or "Calc")
-bool PS_final_state_set;
-double PS_final_state_step;    // calculation step of final states (Bohr^-1)
-bool PS_final_state_step_set;
-char* PS_polarization;         // polarization ("Linear", "RCircular", or "LCircular")
-bool PS_polarization_set;
-double PS_theta;               // polarization angle
-double PS_phi;
-bool PS_theta_set;
-bool PS_phi_set;
-int PS_ext_up;                 // extend length to the up, right, down, left
-int PS_ext_ri;
-int PS_ext_dn;
-int PS_ext_le;
-bool PS_ext_set;
-char* PS_AO_file;              // PAO and AO file
-bool PS_AO_file_set;
-bool PS_weighting;             // weighting for the surface states calculation
-bool PS_weighting_set;
-double* PS_weighting_axis;     // axis perpendicular to the surface
-bool PS_weighting_axis_set;
-char* PS_weighting_shape;      // weighting shape ("Rect" rectangular or "Exp" exponential)
-bool PS_weighting_shape_set;
-double PS_weighting_origin;    // the origin is on weighting axis, with distance of this value from (0, 0, 0), negative value means the origin is on the opposite direction from the weighting axis
-bool PS_weighting_origin_set;
-double PS_weighting_width;     // width of the rectangle or the decrease coefficient lambda, negative value means the inverted weighting function
-bool PS_weighting_width_set;
-bool PS_use_angstrom;          // use angstrom as the unit of Weighting_axis, Weighting_origin, and Weighting_width
-bool PS_use_angstrom_set;
-char* PS_output_data;          // what to output: Band, PSF (default), PSF_real, PSF_imag
-bool PS_output_data_set;
-double PS_sigma_max;           // max sigma of the envelope Gauss function
-double PS_decay_max;           // max sigma of the exponential weighting function
+/// PA block
+char* PA_input_file;           // input file (.hdf5), output of the postproc.o
+bool PA_input_file_set;
+double PA_E_min;               // energy to start the calculation of the dispersion
+bool PA_E_min_set;
+double PA_E_max;               // energy to end the calculation of the dispersion
+bool PA_E_max_set;
+double PA_dE;                  // width of Gauss broadening of the dispersion
+bool PA_dE_set;
+double PA_E_pixel;             // delta E of the calculation of the dispersion
+bool PA_E_pixel_set;
+char* PA_initial_state;        // initial state ("PAO" or "AO")
+bool PA_initial_state_set;
+char* PA_final_state;          // final state ("PW" or "Calc")
+bool PA_final_state_set;
+double PA_final_state_step;    // calculation step of final states (Bohr^-1)
+bool PA_final_state_step_set;
+char* PA_polarization;         // polarization ("Linear", "RCircular", or "LCircular")
+bool PA_polarization_set;
+double PA_theta;               // polarization angle
+double PA_phi;
+bool PA_theta_set;
+bool PA_phi_set;
+int PA_ext_up;                 // extend length to the up, right, down, left
+int PA_ext_ri;
+int PA_ext_dn;
+int PA_ext_le;
+bool PA_ext_set;
+char* PA_AO_file;              // PAO and AO file
+bool PA_AO_file_set;
+bool PA_weighting;             // weighting for the surface states calculation
+bool PA_weighting_set;
+double* PA_weighting_axis;     // axis perpendicular to the surface
+bool PA_weighting_axis_set;
+char* PA_weighting_shape;      // weighting shape ("Rect" rectangular or "Exp" exponential)
+bool PA_weighting_shape_set;
+double PA_weighting_origin;    // the origin is on weighting axis, with distance of this value from (0, 0, 0), negative value means the origin is on the opposite direction from the weighting axis
+bool PA_weighting_origin_set;
+double PA_weighting_width;     // width of the rectangle or the decrease coefficient lambda, negative value means the inverted weighting function
+bool PA_weighting_width_set;
+bool PA_use_angstrom;          // use angstrom as the unit of Weighting_axis, Weighting_origin, and Weighting_width
+bool PA_use_angstrom_set;
+char* PA_output_data;          // what to output: Band, PAD (default), PAD_real, PAD_imag
+bool PA_output_data_set;
+double PA_sigma_max;           // max sigma of the envelope Gauss function
+double PA_decay_max;           // max sigma of the exponential weighting function
 
 
 /// files

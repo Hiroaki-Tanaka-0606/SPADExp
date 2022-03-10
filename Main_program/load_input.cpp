@@ -171,12 +171,12 @@ int load_input(){
 					output_error(line_number, (char*)"block 'Phase-shift' already appeared"); status=0; goto FINALIZATION;
 				}
 				Ph_block_appeared=true;
-			}else if(*block_name==string("PSF")){
-				// PS: Photoemission structure factor (PSF)
-				if(PS_block_appeared){
-					output_error(line_number, (char*)"block 'PSF' already appeared"); status=0; goto FINALIZATION;
+			}else if(*block_name==string("PAD")){
+				// PA: Photoemission angular distribution (PAD)
+				if(PA_block_appeared){
+					output_error(line_number, (char*)"block 'PAD' already appeared"); status=0; goto FINALIZATION;
 				}
-				PS_block_appeared=true;
+				PA_block_appeared=true;
 			}else{
 				// none of the above
 				output_error(line_number, (char*)"invalid block name"); status=0; goto FINALIZATION;
@@ -653,228 +653,228 @@ int load_input(){
 				}
 			  SC_criterion_b_set=true; continue;
 			}
-		}else if(*block_name==string("PSF")){
-			// PS block
-			/// Input_file (PS_input_file): char[]
+		}else if(*block_name==string("PAD")){
+			// PA block
+			/// Input_file (PA_input_file): char[]
 			if(strcmp(keyword_buffer, "Input_file")==0){
-				if(PS_input_file_set){
+				if(PA_input_file_set){
 					output_error(line_number, (char*)"keyword Input_file already appeared"); status=0; goto FINALIZATION;
 				}
-				parse_status=parse_char(input_line_c, (char*)"Input_file", PS_input_file, HDF5_file_length, value_buffer);
+				parse_status=parse_char(input_line_c, (char*)"Input_file", PA_input_file, HDF5_file_length, value_buffer);
 				if(parse_status==0){
 					output_error(line_number, (char*)"invalid value of Input_file"); status=0; goto FINALIZATION;
 				}
-				PS_input_file_set=true; continue;
+				PA_input_file_set=true; continue;
 			}
-			/// E_min (PS_E_min): double
+			/// E_min (PA_E_min): double
 			if(strcmp(keyword_buffer, "E_min")==0){
-				if(PS_E_min_set){
+				if(PA_E_min_set){
 					output_error(line_number, (char*)"keyword E_min already appeared"); status=0; goto FINALIZATION;
 				}
-				parse_status=parse_double(input_line_c, &PS_E_min);
+				parse_status=parse_double(input_line_c, &PA_E_min);
 				if(parse_status==0){
 					output_error(line_number, (char*)"invalid value of E_min"); status=0; goto FINALIZATION;
 				}
-			  PS_E_min_set=true; continue;
+			  PA_E_min_set=true; continue;
 			}
-			/// E_max (PS_E_max): double
+			/// E_max (PA_E_max): double
 			if(strcmp(keyword_buffer, "E_max")==0){
-				if(PS_E_max_set){
+				if(PA_E_max_set){
 					output_error(line_number, (char*)"keyword E_max already appeared"); status=0; goto FINALIZATION;
 				}
-				parse_status=parse_double(input_line_c, &PS_E_max);
+				parse_status=parse_double(input_line_c, &PA_E_max);
 				if(parse_status==0){
 					output_error(line_number, (char*)"invalid value of E_max"); status=0; goto FINALIZATION;
 				}
-			  PS_E_max_set=true; continue;
+			  PA_E_max_set=true; continue;
 			}
-			/// dE (PS_dE): double
+			/// dE (PA_dE): double
 			if(strcmp(keyword_buffer, "dE")==0){
-				if(PS_dE_set){
+				if(PA_dE_set){
 					output_error(line_number, (char*)"keyword dE already appeared"); status=0; goto FINALIZATION;
 				}
-				parse_status=parse_double(input_line_c, &PS_dE);
+				parse_status=parse_double(input_line_c, &PA_dE);
 				if(parse_status==0){
 					output_error(line_number, (char*)"invalid value of dE"); status=0; goto FINALIZATION;
 				}
-			  PS_dE_set=true; continue;
+			  PA_dE_set=true; continue;
 			}
-			/// E_pixel (PS_E_pixel): double
+			/// E_pixel (PA_E_pixel): double
 			if(strcmp(keyword_buffer, "E_pixel")==0){
-				if(PS_E_pixel_set){
+				if(PA_E_pixel_set){
 					output_error(line_number, (char*)"keyword E_pixel already appeared"); status=0; goto FINALIZATION;
 				}
-				parse_status=parse_double(input_line_c, &PS_E_pixel);
+				parse_status=parse_double(input_line_c, &PA_E_pixel);
 				if(parse_status==0){
 					output_error(line_number, (char*)"invalid value of E_pixel"); status=0; goto FINALIZATION;
 				}
-			  PS_E_pixel_set=true; continue;
+			  PA_E_pixel_set=true; continue;
 			}
-			/// Initial_state (PS_initial_state): char[]
+			/// Initial_state (PA_initial_state): char[]
 			if(strcmp(keyword_buffer, "Initial_state")==0){
-				if(PS_initial_state_set){
+				if(PA_initial_state_set){
 					output_error(line_number, (char*)"keyword Initial_state already appeared"); status=0; goto FINALIZATION;
 				}
-				parse_status=parse_char(input_line_c, (char*)"Initial_state", PS_initial_state, PS_state_length, value_buffer);
+				parse_status=parse_char(input_line_c, (char*)"Initial_state", PA_initial_state, PA_state_length, value_buffer);
 				if(parse_status==0){
 					output_error(line_number, (char*)"invalid value of Initial_state"); status=0; goto FINALIZATION;
 				}
-				PS_initial_state_set=true; continue;
+				PA_initial_state_set=true; continue;
 			}
-			/// Final_state (PS_final_state): char[]
+			/// Final_state (PA_final_state): char[]
 			if(strcmp(keyword_buffer, "Final_state")==0){
-				if(PS_final_state_set){
+				if(PA_final_state_set){
 					output_error(line_number, (char*)"keyword Final_state already appeared"); status=0; goto FINALIZATION;
 				}
-				parse_status=parse_char(input_line_c, (char*)"Final_state", PS_final_state, PS_state_length, value_buffer);
+				parse_status=parse_char(input_line_c, (char*)"Final_state", PA_final_state, PA_state_length, value_buffer);
 				if(parse_status==0){
 					output_error(line_number, (char*)"invalid value of Final_state"); status=0; goto FINALIZATION;
 				}
-				PS_final_state_set=true; continue;
+				PA_final_state_set=true; continue;
 			}
-			/// Final_state_step (PS_final_state_step): double
+			/// Final_state_step (PA_final_state_step): double
 			if(strcmp(keyword_buffer, "Final_state_step")==0){
-				if(PS_final_state_step_set){
+				if(PA_final_state_step_set){
 					output_error(line_number, (char*)"keyword Final_state_step already appeared"); status=0; goto FINALIZATION;
 				}
-				parse_status=parse_double(input_line_c, &PS_final_state_step);
+				parse_status=parse_double(input_line_c, &PA_final_state_step);
 				if(parse_status==0){
 					output_error(line_number, (char*)"invalid value of Final_state_step"); status=0; goto FINALIZATION;
 				}
-			  PS_final_state_step_set=true; continue;
+			  PA_final_state_step_set=true; continue;
 			}			
-			/// Polarization (PS_polarization): char[]
+			/// Polarization (PA_polarization): char[]
 			if(strcmp(keyword_buffer, "Polarization")==0){
-				if(PS_polarization_set){
+				if(PA_polarization_set){
 					output_error(line_number, (char*)"keyword Polarization already appeared"); status=0; goto FINALIZATION;
 				}
-				parse_status=parse_char(input_line_c, (char*)"Polarization", PS_polarization, PS_state_length, value_buffer);
+				parse_status=parse_char(input_line_c, (char*)"Polarization", PA_polarization, PA_state_length, value_buffer);
 				if(parse_status==0){
 					output_error(line_number, (char*)"invalid value of Polarization"); status=0; goto FINALIZATION;
 				}
-				PS_polarization_set=true; continue;
+				PA_polarization_set=true; continue;
 			}
-			/// Theta (PS_theta): double
+			/// Theta (PA_theta): double
 			if(strcmp(keyword_buffer, "Theta")==0){
-				if(PS_theta_set){
+				if(PA_theta_set){
 					output_error(line_number, (char*)"keyword Theta already appeared"); status=0; goto FINALIZATION;
 				}
-				parse_status=parse_double(input_line_c, &PS_theta);
+				parse_status=parse_double(input_line_c, &PA_theta);
 				if(parse_status==0){
 					output_error(line_number, (char*)"invalid value of Theta"); status=0; goto FINALIZATION;
 				}
-			  PS_theta_set=true; continue;
+			  PA_theta_set=true; continue;
 			}
-			/// Phi (PS_phi): double
+			/// Phi (PA_phi): double
 			if(strcmp(keyword_buffer, "Phi")==0){
-				if(PS_phi_set){
+				if(PA_phi_set){
 					output_error(line_number, (char*)"keyword Phi already appeared"); status=0; goto FINALIZATION;
 				}
-				parse_status=parse_double(input_line_c, &PS_phi);
+				parse_status=parse_double(input_line_c, &PA_phi);
 				if(parse_status==0){
 					output_error(line_number, (char*)"invalid value of Phi"); status=0; goto FINALIZATION;
 				}
-			  PS_phi_set=true; continue;
+			  PA_phi_set=true; continue;
 			}
-			/// Atomic_orbitals_file (PS_AO_file): char[]
+			/// Atomic_orbitals_file (PA_AO_file): char[]
 			if(strcmp(keyword_buffer, "Atomic_orbitals_file")==0){
-				if(PS_AO_file_set){
+				if(PA_AO_file_set){
 					output_error(line_number, (char*)"keyword Atomic_orbitals_file already appeared"); status=0; goto FINALIZATION;
 				}
-				parse_status=parse_char(input_line_c, (char*)"Atomic_orbitals_file", PS_AO_file, HDF5_file_length, value_buffer);
+				parse_status=parse_char(input_line_c, (char*)"Atomic_orbitals_file", PA_AO_file, HDF5_file_length, value_buffer);
 				if(parse_status==0){
 					output_error(line_number, (char*)"invalid value of Atomic_orbitals_file"); status=0; goto FINALIZATION;
 				}
-				PS_AO_file_set=true; continue;
+				PA_AO_file_set=true; continue;
 			}
-			/// Extend (PS_ext_(up|ri|dn|le)): int[4]
+			/// Extend (PA_ext_(up|ri|dn|le)): int[4]
 			/// if dimension==1, only right and left are used
 			if(strcmp(keyword_buffer, "Extend")==0){
-				if(PS_ext_set){
+				if(PA_ext_set){
 					output_error(line_number, (char*)"keyword Extend already appeared"); status=0; goto FINALIZATION;
 				}
-				sscanf_status=sscanf(input_line_c, "%*s %d %d %d %d", &PS_ext_up, &PS_ext_ri, &PS_ext_dn, &PS_ext_le);
+				sscanf_status=sscanf(input_line_c, "%*s %d %d %d %d", &PA_ext_up, &PA_ext_ri, &PA_ext_dn, &PA_ext_le);
 				if(sscanf_status!=4){
 					output_error(line_number, (char*)"invalid value of Extend"); status=0; goto FINALIZATION;
 				}
-				PS_ext_set=true; continue;
+				PA_ext_set=true; continue;
 			}
-			/// Weighting (PS_weighting): bool
+			/// Weighting (PA_weighting): bool
 			if(strcmp(keyword_buffer, "Weighting")==0){
-				if(PS_weighting_set){
+				if(PA_weighting_set){
 					output_error(line_number, (char*)"keyword Weighting already appeared"); status=0; goto FINALIZATION;
 				}
-				parse_status=parse_bool(input_line_c, &PS_weighting, value_buffer);
+				parse_status=parse_bool(input_line_c, &PA_weighting, value_buffer);
 				if(parse_status==0){
 					output_error(line_number, (char*)"invalid value of Weighting"); status=0; goto FINALIZATION;
 				}
-			  PS_weighting_set=true; continue;
+			  PA_weighting_set=true; continue;
 			}
-			/// Weighting_axis (PS_weighting_axis): double[3]
+			/// Weighting_axis (PA_weighting_axis): double[3]
 			if(strcmp(keyword_buffer, "Weighting_axis")==0){
-				if(PS_weighting_axis_set){
+				if(PA_weighting_axis_set){
 					output_error(line_number, (char*)"keyword Weighting_axis already appeared"); status=0; goto FINALIZATION;
 				}
-				sscanf_status=sscanf(input_line_c, "%*s %lf %lf %lf", &PS_weighting_axis[0], &PS_weighting_axis[1], &PS_weighting_axis[2]);
+				sscanf_status=sscanf(input_line_c, "%*s %lf %lf %lf", &PA_weighting_axis[0], &PA_weighting_axis[1], &PA_weighting_axis[2]);
 				if(sscanf_status!=3){
 					output_error(line_number, (char*)"invalid value of Weighting_axis"); status=0; goto FINALIZATION;
 				}
-				PS_weighting_axis_set=true; continue;
+				PA_weighting_axis_set=true; continue;
 			}
-			/// Weighting_shape (PS_weighting_shape): char
+			/// Weighting_shape (PA_weighting_shape): char
 			if(strcmp(keyword_buffer, "Weighting_shape")==0){
-				if(PS_weighting_shape_set){
+				if(PA_weighting_shape_set){
 					output_error(line_number, (char*)"keyword Weighting_shape already appeared"); status=0; goto FINALIZATION;
 				}
-				parse_status=parse_char(input_line_c, (char*)"Weighting_shape", PS_weighting_shape, PS_state_length, value_buffer);
+				parse_status=parse_char(input_line_c, (char*)"Weighting_shape", PA_weighting_shape, PA_state_length, value_buffer);
 				if(parse_status==0){
-					output_error(line_number, (char*)"invalid value of PS_weighting_shape"); status=0; goto FINALIZATION;
+					output_error(line_number, (char*)"invalid value of PA_weighting_shape"); status=0; goto FINALIZATION;
 				}
-				PS_weighting_shape_set=true; continue;
+				PA_weighting_shape_set=true; continue;
 			}
-			/// Weighting_origin (PS_weighting_origin): double
+			/// Weighting_origin (PA_weighting_origin): double
 			if(strcmp(keyword_buffer, "Weighting_origin")==0){
-				if(PS_weighting_origin_set){
+				if(PA_weighting_origin_set){
 					output_error(line_number, (char*)"keyword Weighting_origin already appeared"); status=0; goto FINALIZATION;
 				}
-				parse_status=parse_double(input_line_c, &PS_weighting_origin);
+				parse_status=parse_double(input_line_c, &PA_weighting_origin);
 				if(parse_status==0){
 					output_error(line_number, (char*)"invalid value of Weighting_origin"); status=0; goto FINALIZATION;
 				}
-			  PS_weighting_origin_set=true; continue;
+			  PA_weighting_origin_set=true; continue;
 			}
-			/// Weighting_width (PS_weighting_width): double
+			/// Weighting_width (PA_weighting_width): double
 			if(strcmp(keyword_buffer, "Weighting_width")==0){
-				if(PS_weighting_width_set){
+				if(PA_weighting_width_set){
 					output_error(line_number, (char*)"keyword Weighting_width already appeared"); status=0; goto FINALIZATION;
 				}
-				parse_status=parse_double(input_line_c, &PS_weighting_width);
+				parse_status=parse_double(input_line_c, &PA_weighting_width);
 				if(parse_status==0){
 					output_error(line_number, (char*)"invalid value of Weighting_width"); status=0; goto FINALIZATION;
 				}
-			  PS_weighting_width_set=true; continue;
+			  PA_weighting_width_set=true; continue;
 			}
 			/// Use_angstrom: bool
 			if(strcmp(keyword_buffer, "Use_angstrom")==0){
-				if(PS_use_angstrom_set){
+				if(PA_use_angstrom_set){
 					output_error(line_number, (char*)"keyword Use_angstrom already appeared"); status=0; goto FINALIZATION;
 				}
-				parse_status=parse_bool(input_line_c, &PS_use_angstrom, value_buffer);
+				parse_status=parse_bool(input_line_c, &PA_use_angstrom, value_buffer);
 				if(parse_status==0){
 					output_error(line_number, (char*)"invalid value of Use_angstrom"); status=0; goto FINALIZATION;
 				}
-			  PS_use_angstrom_set=true; continue;
+			  PA_use_angstrom_set=true; continue;
 			}
 			/// Output_data: char
 			if(strcmp(keyword_buffer, "Output_data")==0){
-				if(PS_output_data_set){
+				if(PA_output_data_set){
 					output_error(line_number, (char*)"keyword Output_data already appeared"); status=0; goto FINALIZATION;
 				}
-				parse_status=parse_char(input_line_c, (char*)"Output_data", PS_output_data, PS_state_length, value_buffer);
+				parse_status=parse_char(input_line_c, (char*)"Output_data", PA_output_data, PA_state_length, value_buffer);
 				if(parse_status==0){
 					output_error(line_number, (char*)"invalid value of Output_data"); status=0; goto FINALIZATION;
 				}
-				PS_output_data_set=true; continue;
+				PA_output_data_set=true; continue;
 			}
 		}else if(*block_name==string("Phase-shift")){
 			// Ph block

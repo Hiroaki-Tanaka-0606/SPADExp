@@ -1,4 +1,4 @@
-// calcPSF photoemission structure factor calculation
+// calcPSF photoemission angular distribution calculation
 
 #include <iostream>
 #include <complex>
@@ -36,11 +36,11 @@ double ddot(int* N, double* X, double* Y){
 	return ddot_(N, &X[0], &INC, &Y[0], &INC);
 }
 
-void calculate_PSF(){
+void calculate_PAD(){
 	// 1. load input
 	write_log((char*)"----Load input data----");
 	char* sprintf_buffer=new char[Log_length+1];
-	string file_name(PS_input_file);
+	string file_name(PA_input_file);
 	H5File input(file_name, H5F_ACC_RDONLY);
 	int size1, size2, size3, size4, length;
 	int i, j, k;
@@ -390,7 +390,7 @@ void calculate_PSF(){
 	int wfn_length[atom_spec_length];
 	int Z[atom_spec_length];
 
-	string AO_file_name(PS_AO_file);
+	string AO_file_name(PA_AO_file);
 	H5File AO_file(AO_file_name, H5F_ACC_RDONLY);
 	
 	for(is=0; is<atom_spec_length; is++){
@@ -413,7 +413,7 @@ void calculate_PSF(){
 			r_data_2d(AOG, orbital_list[is][io], 2, wfn_length[is], (double**) wfn_both);
 			wfn_phi_rdr[is][io]=new double[wfn_length[is]];
 			for(j=0; j<wfn_length[is]-1; j++){
-				if(strcmp(PS_initial_state, "PAO")==0){
+				if(strcmp(PA_initial_state, "PAO")==0){
 					wfn_phi_rdr[is][io][j]=wfn_both[0][j]*wfn_r[is][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
 				}else{
 					wfn_phi_rdr[is][io][j]=wfn_both[1][j]*wfn_r[is][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
@@ -423,10 +423,10 @@ void calculate_PSF(){
 		} 
 	}
 
-	// 3. psf calculation
-	write_log((char*)"----PSF Calculation----");
+	// 3. pad calculation
+	write_log((char*)"----PAD Calculation----");
   start=chrono::system_clock::now();
-	int num_points_E=ceil((PS_E_max-PS_E_min)/PS_E_pixel+1);
+	int num_points_E=ceil((PA_E_max-PA_E_min)/PA_E_pixel+1);
 	sprintf(sprintf_buffer, "%32s = %d", "Number of points along E", num_points_E);
 	write_log(sprintf_buffer);
 
@@ -528,19 +528,19 @@ void calculate_PSF(){
 	double atom_weighting[atom_length];
 	bool atom_weighting_flag[atom_length];
 
-	if(PS_weighting==true){
-		double origin_au=PS_weighting_origin;
-		double width_au=PS_weighting_width;
+	if(PA_weighting==true){
+		double origin_au=PA_weighting_origin;
+		double width_au=PA_weighting_width;
 		double axis_au[3];
-		if(PS_use_angstrom){
+		if(PA_use_angstrom){
 			origin_au/=au_ang;
 			width_au/=au_ang;
 			for(i=0; i<3; i++){
-				axis_au[i]=PS_weighting_axis[i]/au_ang;
+				axis_au[i]=PA_weighting_axis[i]/au_ang;
 			}
 		}else{
 			for(i=0; i<3; i++){
-				axis_au[i]=PS_weighting_axis[i];
+				axis_au[i]=PA_weighting_axis[i];
 			}
 		}
 		// normalize axis
@@ -549,7 +549,7 @@ void calculate_PSF(){
 			axis_au[i]/=axis_length;
 		}
 		double range_min, range_max;
-		if(strcmp(PS_weighting_shape, "Rect")==0){
+		if(strcmp(PA_weighting_shape, "Rect")==0){
 			// Rect
 			if(width_au>=0){
 				range_min=origin_au;
@@ -562,9 +562,9 @@ void calculate_PSF(){
 			// Exp
 			if(width_au>=0){
 				range_min=origin_au;
-				range_max=origin_au+width_au*PS_decay_max;
+				range_max=origin_au+width_au*PA_decay_max;
 			}else{
-				range_min=origin_au+width_au*PS_decay_max;
+				range_min=origin_au+width_au*PA_decay_max;
 				range_max=origin_au;
 			}
 		}
@@ -574,7 +574,7 @@ void calculate_PSF(){
 			double signed_length=inner_product(axis_au, atom_coordinates[i]);
 			if(range_min<signed_length && signed_length<range_max){
 				atom_weighting_flag[i]=true;
-				if(strcmp(PS_weighting_shape, "Rect")==0){
+				if(strcmp(PA_weighting_shape, "Rect")==0){
 					atom_weighting[i]=1;
 				}else{
 					atom_weighting[i]=exp(-(signed_length-origin_au)/(width_au*2));
@@ -621,20 +621,20 @@ void calculate_PSF(){
 	int total_count_ext=total_count;
 	int kx_count_ext=kx_count;
 	int ky_count_ext=ky_count;
-	if(PS_ext_set){
+	if(PA_ext_set){
 		if(curved){
 			write_log((char*)"Error: Extend cannot be used in the curved dispersion");
 			return;
 		}
 		if(dimension==1){
 			// E-k: use ext_ri and ext_le
-			total_count_ext=(total_count-1)*(1+PS_ext_ri+PS_ext_le)+1;
+			total_count_ext=(total_count-1)*(1+PA_ext_ri+PA_ext_le)+1;
 			double* k_points_ext_alloc=new double[total_count_ext*3];
 			k_points_ext=new double*[total_count_ext];
 			k_index_reduced=new int[total_count_ext];
-			for(i=-PS_ext_le; i<=PS_ext_ri; i++){
+			for(i=-PA_ext_le; i<=PA_ext_ri; i++){
 				for(j=0; j<total_count; j++){
-					int index_ext=(i+PS_ext_le)*(total_count-1)+j;
+					int index_ext=(i+PA_ext_le)*(total_count-1)+j;
 					k_index_reduced[index_ext]=j;
 					k_points_ext[index_ext]=&k_points_ext_alloc[3*index_ext];
 					for(k=0; k<3; k++){
@@ -647,19 +647,19 @@ void calculate_PSF(){
 				}*/
 		}else{
 			// E-k-k: use ext_up, ri, dn, and le
-			kx_count_ext=((kx_count-1)*(1+PS_ext_ri+PS_ext_le)+1);
-			ky_count_ext=((ky_count-1)*(1+PS_ext_up+PS_ext_dn)+1);
+			kx_count_ext=((kx_count-1)*(1+PA_ext_ri+PA_ext_le)+1);
+			ky_count_ext=((ky_count-1)*(1+PA_ext_up+PA_ext_dn)+1);
 			total_count_ext=kx_count_ext*ky_count_ext;
 			double* k_points_ext_alloc=new double[total_count_ext*3];
 			k_points_ext=new double*[total_count_ext];
 			k_index_reduced=new int[total_count_ext];
 			int ix, jx, iy, jy;
-			for(iy=-PS_ext_dn; iy<=PS_ext_up; iy++){
+			for(iy=-PA_ext_dn; iy<=PA_ext_up; iy++){
 				for(jy=0; jy<ky_count; jy++){
-					for(ix=-PS_ext_le; ix<=PS_ext_ri; ix++){
+					for(ix=-PA_ext_le; ix<=PA_ext_ri; ix++){
 						for(jx=0; jx<kx_count; jx++){
 							int index_original=jy*kx_count+jx;
-							int index_ext=((iy+PS_ext_dn)*(ky_count-1)+jy)*kx_count_ext+(ix+PS_ext_le)*(kx_count-1)+jx;
+							int index_ext=((iy+PA_ext_dn)*(ky_count-1)+jy)*kx_count_ext+(ix+PA_ext_le)*(kx_count-1)+jx;
 							k_index_reduced[index_ext]=index_original;
 							k_points_ext[index_ext]=&k_points_ext_alloc[3*index_ext];
 							for(k=0; k<3; k++){
@@ -674,7 +674,7 @@ void calculate_PSF(){
 
 	/// 3-2. calculation of operator coefficients
 	complex<double> Y_coeff[3];
-	operator_coefficient(PS_polarization, PS_theta, PS_phi, Y_coeff);
+	operator_coefficient(PA_polarization, PA_theta, PA_phi, Y_coeff);
 	write_log((char*)"----Operator coefficients----");
 	for(i=0; i<3; i++){
 		sprintf(sprintf_buffer, "%29s[%1d] = %8.3f + %8.3f*i", "Y_coeff", i, Y_coeff[i].real(), Y_coeff[i].imag());
@@ -683,10 +683,10 @@ void calculate_PSF(){
 	
 
 	/// 3-3. tail profile
-	int tail_index=floor(PS_dE*PS_sigma_max/PS_E_pixel);
+	int tail_index=floor(PA_dE*PA_sigma_max/PA_E_pixel);
 	double tail[tail_index+1];
 	for(i=0; i<=tail_index; i++){
-		tail[i]=1.0/(PS_dE*sqrt(2*M_PI))*exp(-1.0/2.0*(i*PS_E_pixel/PS_dE)*(i*PS_E_pixel/PS_dE));
+		tail[i]=1.0/(PA_dE*sqrt(2*M_PI))*exp(-1.0/2.0*(i*PA_E_pixel/PA_dE)*(i*PA_E_pixel/PA_dE));
 	}
 
 
@@ -696,17 +696,17 @@ void calculate_PSF(){
 	int final_states_count;
 	double**** final_states_calc; // [k_index][atom_spec][l][r]
 	double*** final_states_phase; // [k_index][atom_spec][l]
-	if(strcmp(PS_final_state, "Calc")==0){
+	if(strcmp(PA_final_state, "Calc")==0){
 		write_log((char*)"----Calculate final states----");
 		for(i=0; i<total_count_ext; i++){
 			double* k_point;
-			if(PS_ext_set){
+			if(PA_ext_set){
 				k_point=k_points_ext[i];
 			}else{
 				k_point=k_points[i];
 			}
 			double k_length=sqrt(inner_product(k_point, k_point));
-			int k_index=round(k_length/PS_final_state_step);
+			int k_index=round(k_length/PA_final_state_step);
 			if(k_index_min<0 || k_index_min>k_index){
 				k_index_min=k_index;
 			}
@@ -714,7 +714,7 @@ void calculate_PSF(){
 				k_index_max=k_index;
 			}
 		}
-		sprintf(sprintf_buffer, "%32s = [%d, %d] * %8.3f", "Rounded k_length range", k_index_min, k_index_max, PS_final_state_step);
+		sprintf(sprintf_buffer, "%32s = [%d, %d] * %8.3f", "Rounded k_length range", k_index_min, k_index_max, PA_final_state_step);
 		write_log(sprintf_buffer);
 		final_states_count=k_index_max-k_index_min+1;
 
@@ -755,7 +755,7 @@ void calculate_PSF(){
 			double mod_start_x=load_potential_H5(atomG, mu);
 			
 			for(i=0; i<final_states_count; i++){
-				double k_length=(k_index_min+i)*PS_final_state_step;
+				double k_length=(k_index_min+i)*PA_final_state_step;
 				double Ekin=k_length*k_length*0.5;
 				int l;
 				for(l=0; l<5; l++){
@@ -822,15 +822,15 @@ void calculate_PSF(){
 	}
   end=chrono::system_clock::now();
   duration=chrono::duration_cast<chrono::milliseconds>(end-start).count();
-	sprintf(sprintf_buffer, "PSF preparation time: %.3f [ms]", duration);
+	sprintf(sprintf_buffer, "PAD preparation time: %.3f [ms]", duration);
 	write_log(sprintf_buffer);
-#pragma omp parallel firstprivate(Y_coeff, sp_max, num_bands, EF_Eh, Eh, PS_E_min, PS_E_pixel, num_points_E, tail_index,  m1jlp, Gaunt_arr, atom_length, atom_spec_index, num_orbits, spin_i,  atom_coordinates, PS_ext_set, PS_final_state_step, k_index_min, atom_weighting_flag, atom_weighting, PS_weighting) private(ib, sp, Ylm_k, ia, is, io, il, ir, j)
+#pragma omp parallel firstprivate(Y_coeff, sp_max, num_bands, EF_Eh, Eh, PA_E_min, PA_E_pixel, num_points_E, tail_index,  m1jlp, Gaunt_arr, atom_length, atom_spec_index, num_orbits, spin_i,  atom_coordinates, PA_ext_set, PA_final_state_step, k_index_min, atom_weighting_flag, atom_weighting, PA_weighting) private(ib, sp, Ylm_k, ia, is, io, il, ir, j)
 #pragma omp for
 	for(ik=0; ik<total_count_ext; ik++){
 		// cout << ik << endl;
 		int ik_reduced=ik;
 		double* k_point;
-		if(PS_ext_set){
+		if(PA_ext_set){
 			ik_reduced=k_index_reduced[ik];
 			k_point=k_points_ext[ik];
 		}else{
@@ -858,25 +858,25 @@ void calculate_PSF(){
 					eigen=(band_dn[ik_reduced][ib]-EF_Eh)*Eh;
 				}
 				
-				int eigen_index=round((eigen-PS_E_min)/PS_E_pixel);
+				int eigen_index=round((eigen-PA_E_min)/PA_E_pixel);
 				if(eigen_index-tail_index>=num_points_E){
 					break;
 				}
 				if(eigen_index+tail_index<0){
 					continue;
 				}
-				complex<double> PSF_1(0, 0);
-				complex<double> PSF_2(0, 0);
-				if(strcmp(PS_output_data, "Band")==0){
-					PSF_1=complex<double>(1, 0);
+				complex<double> PAD_1(0, 0);
+				complex<double> PAD_2(0, 0);
+				if(strcmp(PA_output_data, "Band")==0){
+					PAD_1=complex<double>(1, 0);
 				}else{
 					for(ia=0; ia<atom_length; ia++){
-						if(PS_weighting==true && atom_weighting_flag[ia]==false){
+						if(PA_weighting==true && atom_weighting_flag[ia]==false){
 							continue;
 						}
 						double kt=inner_product(k_point, atom_coordinates[ia]);
 						complex<double> atom_phase(cos(kt), -sin(kt));
-						if(PS_weighting==true){
+						if(PA_weighting==true){
 							atom_phase*=atom_weighting[ia];
 						}
 						// cout << kt << endl;
@@ -887,14 +887,14 @@ void calculate_PSF(){
 						}
 						double final_states[5][wfn_length[is]];
 						int k_index;
-						if(strcmp(PS_final_state, "PW")==0){
+						if(strcmp(PA_final_state, "PW")==0){
 							for(il=0; il<5; il++){
 								for(ir=0; ir<wfn_length[is]; ir++){
 									final_states[il][ir]=wfn_r[is][ir]*sp_bessel(il, wfn_r[is][ir]*k_length);
 								}
 							}
-						}else if(strcmp(PS_final_state, "Calc")==0){
-							k_index=round(k_length/PS_final_state_step);
+						}else if(strcmp(PA_final_state, "Calc")==0){
+							k_index=round(k_length/PA_final_state_step);
 							for(il=0; il<5; il++){
 								for(ir=0; ir<wfn_length[is]; ir++){
 									final_states[il][ir]=final_states_calc[k_index-k_index_min][is][il][ir];
@@ -950,32 +950,32 @@ void calculate_PSF(){
 								}
 								// cout << endl;
 								complex<double> atom_phase2;
-								if(strcmp(PS_final_state, "Calc")==0){
+								if(strcmp(PA_final_state, "Calc")==0){
 									atom_phase2=atom_phase*complex<double>(cos(final_states_phase[k_index-k_index_min][is][lp]), -sin(final_states_phase[k_index-k_index_min][is][lp]));
 								}else{
 									atom_phase2=atom_phase;
 								}
 								// cout << atom_phase2 << endl;
-								PSF_1+=m1jlp[lp]*radial_part*atom_phase2*coeff2_1;
+								PAD_1+=m1jlp[lp]*radial_part*atom_phase2*coeff2_1;
 								if(spin_i==2){
-									PSF_2+=m1jlp[lp]*radial_part*atom_phase2*coeff2_2;
+									PAD_2+=m1jlp[lp]*radial_part*atom_phase2*coeff2_2;
 								}
 							}
 						}
 					}
 				}
-				// cout << PSF_1 << endl;
-				double PSF_norm;
-				if(strcmp(PS_output_data, "PSF")==0 || strcmp(PS_output_data, "Band")==0){
-					PSF_norm=norm(PSF_1);
+				// cout << PAD_1 << endl;
+				double PAD_norm;
+				if(strcmp(PA_output_data, "PAD")==0 || strcmp(PA_output_data, "Band")==0){
+					PAD_norm=norm(PAD_1);
 					if(spin_i==2){
-						PSF_norm+=norm(PSF_2);
+						PAD_norm+=norm(PAD_2);
 					}
 				}
-				// cout << "!" << PSF_norm << endl;
+				// cout << "!" << PAD_norm << endl;
 				for(j=-tail_index; j<=tail_index; j++){
 					if(eigen_index+j>=0 && eigen_index+j<num_points_E){
-						dispersion2[ik][eigen_index+j]+=tail[abs(j)]*PSF_norm;
+						dispersion2[ik][eigen_index+j]+=tail[abs(j)]*PAD_norm;
 					}
 				}
 				
@@ -985,7 +985,7 @@ void calculate_PSF(){
 	
   end=chrono::system_clock::now();
   duration=chrono::duration_cast<chrono::milliseconds>(end-start).count();
-	sprintf(sprintf_buffer, "PSF calculation time: %.3f [ms]", duration);
+	sprintf(sprintf_buffer, "PAD calculation time: %.3f [ms]", duration);
 	write_log(sprintf_buffer);
 
 	double disp_max=0.0;
@@ -1041,14 +1041,14 @@ void calculate_PSF(){
 
 	if(dimension==1){
 		double kx_offset=kx_length*kx_range[0];
-		double E_offset=PS_E_min;
-		if(PS_ext_set){
-			kx_offset=kx_length*(kx_range[0]-(kx_range[1]-kx_range[0])*PS_ext_le);
+		double E_offset=PA_E_min;
+		if(PA_ext_set){
+			kx_offset=kx_length*(kx_range[0]-(kx_range[1]-kx_range[0])*PA_ext_le);
 		}
 		double offset2[2]={kx_offset, E_offset};
 		w_att_1d(rootG, "Offset", 2, &offset2[0]);
 
-		double delta2[2]={dkx_length, PS_E_pixel};
+		double delta2[2]={dkx_length, PA_E_pixel};
 		w_att_1d(rootG, "Delta", 2, &delta2[0]);
 		
 		int Size2[2]={total_count_ext, num_points_E};
@@ -1058,15 +1058,15 @@ void calculate_PSF(){
 	}else{
 		double kx_offset=kx_length*kx_range[0];
 		double ky_offset=ky_length*ky_range[0];
-		double E_offset=PS_E_min;
-		if(PS_ext_set){
-			kx_offset=kx_length*(kx_range[0]-(kx_range[1]-kx_range[0])*PS_ext_le);
-			ky_offset=ky_length*(ky_range[0]-(ky_range[1]-ky_range[0])*PS_ext_dn);
+		double E_offset=PA_E_min;
+		if(PA_ext_set){
+			kx_offset=kx_length*(kx_range[0]-(kx_range[1]-kx_range[0])*PA_ext_le);
+			ky_offset=ky_length*(ky_range[0]-(ky_range[1]-ky_range[0])*PA_ext_dn);
 		}
 		double offset3[3]={kx_offset, ky_offset, E_offset};
 		w_att_1d(rootG, "Offset", 3, &offset3[0]);
 
-		double delta3[3]={dkx_length, dky_length, PS_E_pixel};
+		double delta3[3]={dkx_length, dky_length, PA_E_pixel};
 		w_att_1d(rootG, "Delta", 3, &delta3[0]);
 		
 		int Size3[3]={kx_count_ext, ky_count_ext, num_points_E};
@@ -1076,24 +1076,24 @@ void calculate_PSF(){
 		w_att_1d(rootG, "Yvector", 3, &ky_vector[0]);
 	}
 
-	w_att_double(rootG, "dE", PS_dE);
-	w_att_str(rootG, "Initial_state", string(PS_initial_state));
-	w_att_str(rootG, "Final_state", string(PS_final_state));
-	if(strcmp(PS_final_state, "Calc")==0){
-		w_att_double(rootG, "Final_state_step", PS_final_state_step);
+	w_att_double(rootG, "dE", PA_dE);
+	w_att_str(rootG, "Initial_state", string(PA_initial_state));
+	w_att_str(rootG, "Final_state", string(PA_final_state));
+	if(strcmp(PA_final_state, "Calc")==0){
+		w_att_double(rootG, "Final_state_step", PA_final_state_step);
 	}
-	w_att_str(rootG, "Polarization", string(PS_polarization));
-	w_att_double(rootG, "Theta", PS_theta);
-	w_att_double(rootG, "Phi", PS_phi);
+	w_att_str(rootG, "Polarization", string(PA_polarization));
+	w_att_double(rootG, "Theta", PA_theta);
+	w_att_double(rootG, "Phi", PA_phi);
 
-	w_att_bool(rootG, "Weighting", PS_weighting);
+	w_att_bool(rootG, "Weighting", PA_weighting);
 
 	s_data_1c(AtomG, "Labels", &size1, &length);
 	Group atomG_out(rootG.createGroup("Atoms"));
 	w_data_1c(atomG_out, "Labels", size1, length, (char**) atom_labels);
 
 	w_data_2d(atomG_out, "Coordinates", atom_length, 3, (double**) atom_coordinates);
-	if(PS_weighting==true){
+	if(PA_weighting==true){
 		w_data_1d(atomG_out, "Weighting", atom_length, (double*) atom_weighting);
 	}
 

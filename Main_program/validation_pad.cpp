@@ -1,48 +1,48 @@
-// calcPSF validation of photoemission structure factor calculation
+// calcPSF validation of photoemission angular distribution calculation
 #include <cstring>
 
 #include "log.hpp"
 #include "variables_ext.hpp"
 #include "setup.hpp"
 
-int validation_PSF(){
+int validation_PAD(){
 	char* sprintf_buffer=new char[Log_length+1];
 	int status=1;
 	write_log((char*)"----Input value validation----");
 
-	// PSF
-	write_log((char*)"----PSF block----");
+	// PAD
+	write_log((char*)"----PAD block----");
 	/// Input_file
-	if(!PS_input_file_set){
+	if(!PA_input_file_set){
 		write_log((char*)"Error: Input_file is necessary");
 		status=0; goto FINALIZATION;
 	}else{
-		sprintf(sprintf_buffer, "%32s = %s", "Input_file", PS_input_file);
+		sprintf(sprintf_buffer, "%32s = %s", "Input_file", PA_input_file);
 		write_log(sprintf_buffer);
 	}
 	/// E_min, E_max, and E_pixel
-	if(!PS_E_min_set || !PS_E_max_set || !PS_E_pixel_set){
+	if(!PA_E_min_set || !PA_E_max_set || !PA_E_pixel_set){
 		write_log((char*)"Error: E_min, E_max, and E_pixel are necessary");
 		status=0; goto FINALIZATION;
 	}else{
-		sprintf(sprintf_buffer, "%32s = %8.3f eV to %8.3f eV, step %8.3f eV", "Energy range", PS_E_min, PS_E_max, PS_E_pixel);
+		sprintf(sprintf_buffer, "%32s = %8.3f eV to %8.3f eV, step %8.3f eV", "Energy range", PA_E_min, PA_E_max, PA_E_pixel);
 		write_log(sprintf_buffer);
 	}
 	/// dE
-	if(!PS_dE_set){
+	if(!PA_dE_set){
 		write_log((char*)"Error: dE is necessary");
 		status=0; goto FINALIZATION;
 	}else{
-		sprintf(sprintf_buffer, "%32s = %8.3f eV", "dE", PS_dE);
+		sprintf(sprintf_buffer, "%32s = %8.3f eV", "dE", PA_dE);
 		write_log(sprintf_buffer);
 	}
 	/// Initial_state
-	if(!PS_initial_state_set){
+	if(!PA_initial_state_set){
 		write_log((char*)"Error: Initial_state is necessary");
 		status=0; goto FINALIZATION;
 	}else{
-		if(strcmp(PS_initial_state, "PAO")==0 || strcmp(PS_initial_state, "AO")==0){
-			sprintf(sprintf_buffer, "%32s = %s", "Initial_state", PS_initial_state);
+		if(strcmp(PA_initial_state, "PAO")==0 || strcmp(PA_initial_state, "AO")==0){
+			sprintf(sprintf_buffer, "%32s = %s", "Initial_state", PA_initial_state);
 			write_log(sprintf_buffer);
 		}else{
 			write_log((char*)"Error: Initial_state should be 'PAO' or 'AO'");
@@ -50,14 +50,14 @@ int validation_PSF(){
 		}
 	}
 	/// Final_state
-	if(!PS_final_state_set){
+	if(!PA_final_state_set){
 		write_log((char*)"Error: Final_state is necessary");
 		status=0; goto FINALIZATION;
 	}else{
-		if(strcmp(PS_final_state, "PW")==0 || strcmp(PS_final_state, "Calc")==0){
-			sprintf(sprintf_buffer, "%32s = %s", "Final_state", PS_final_state);
+		if(strcmp(PA_final_state, "PW")==0 || strcmp(PA_final_state, "Calc")==0){
+			sprintf(sprintf_buffer, "%32s = %s", "Final_state", PA_final_state);
 			write_log(sprintf_buffer);
-			if(strcmp(PS_final_state, "Calc")==0){
+			if(strcmp(PA_final_state, "Calc")==0){
 				// properties for final state calculations: see validation_phase_shift.cpp
 				/// grid
 				setup_radial_grid();
@@ -65,10 +65,10 @@ int validation_PSF(){
 				At_p_diff_x=new double[x_count];
 				At_v_x=new double[x_count];
 				write_log((char*)"----Radial-grid block ended----");
-				/// Final_state_step (PS_final_state_step)
-				sprintf(sprintf_buffer, "%32s = %8.3f", "Final_state_step", PS_final_state_step);
+				/// Final_state_step (PA_final_state_step)
+				sprintf(sprintf_buffer, "%32s = %8.3f", "Final_state_step", PA_final_state_step);
 				write_log(sprintf_buffer);
-				if(PS_final_state_step<0){
+				if(PA_final_state_step<0){
 					write_log((char*)"Error: Final_state_step should be positive");
 					status=0; goto FINALIZATION;
 				}
@@ -108,12 +108,12 @@ int validation_PSF(){
 		}
 	}
 	/// Polarization
-	if(!PS_polarization_set){
+	if(!PA_polarization_set){
 		write_log((char*)"Error: Polarization is necessary");
 		status=0; goto FINALIZATION;
 	}else{
-		if(strcmp(PS_polarization, "Linear")==0 || strcmp(PS_polarization, "RCircular")==0 || strcmp(PS_polarization, "LCircular")==0){
-			sprintf(sprintf_buffer, "%32s = %s", "Polarization", PS_polarization);
+		if(strcmp(PA_polarization, "Linear")==0 || strcmp(PA_polarization, "RCircular")==0 || strcmp(PA_polarization, "LCircular")==0){
+			sprintf(sprintf_buffer, "%32s = %s", "Polarization", PA_polarization);
 			write_log(sprintf_buffer);
 		}else{
 			write_log((char*)"Error: Polarization should be 'Linear', 'RCircular' or 'LCircular'");
@@ -121,47 +121,47 @@ int validation_PSF(){
 		}
 	}
 	/// theta and phi
-	if(!PS_theta_set || !PS_phi_set){
+	if(!PA_theta_set || !PA_phi_set){
 		write_log((char*)"Error: Theta and Phi are necessary");
 		status=0; goto FINALIZATION;
 	}else{
-		sprintf(sprintf_buffer, "%32s = (%8.3f deg, %8.3f deg)", "Polarization angle", PS_theta, PS_phi);
+		sprintf(sprintf_buffer, "%32s = (%8.3f deg, %8.3f deg)", "Polarization angle", PA_theta, PA_phi);
 		write_log(sprintf_buffer);
 	}
 	/// AO_file
-	if(!PS_AO_file_set){
+	if(!PA_AO_file_set){
 		write_log((char*)"Error: Atomic_orbitals_file is necessary");
 		status=0; goto FINALIZATION;
 	}else{
-		sprintf(sprintf_buffer, "%32s = %s", "Atomic_orbitals_file", PS_AO_file);
+		sprintf(sprintf_buffer, "%32s = %s", "Atomic_orbitals_file", PA_AO_file);
 		write_log(sprintf_buffer);
 	}
 	/// Extend
-	if(PS_ext_set){
-		if(PS_ext_up<0 || PS_ext_ri<0 || PS_ext_dn<0 || PS_ext_le<0){
+	if(PA_ext_set){
+		if(PA_ext_up<0 || PA_ext_ri<0 || PA_ext_dn<0 || PA_ext_le<0){
 			write_log((char*)"Error: Extend should not be negative");
 			status=0; goto FINALIZATION;
 		}
-		sprintf(sprintf_buffer, "%32s = %d %d %d %d", "Extend", PS_ext_up, PS_ext_ri, PS_ext_dn, PS_ext_le);
+		sprintf(sprintf_buffer, "%32s = %d %d %d %d", "Extend", PA_ext_up, PA_ext_ri, PA_ext_dn, PA_ext_le);
 		write_log(sprintf_buffer);
 	}
 	/// Weighting
-	sprintf(sprintf_buffer, "%32s = %s", "Weighting", PS_weighting ? "true" : "false");
+	sprintf(sprintf_buffer, "%32s = %s", "Weighting", PA_weighting ? "true" : "false");
 	write_log(sprintf_buffer);
-	if(PS_weighting){
-		const char* unit=PS_use_angstrom ? "Ang" : "a.u.";
+	if(PA_weighting){
+		const char* unit=PA_use_angstrom ? "Ang" : "a.u.";
 		/// Weighting_axis
-		if(PS_weighting_axis_set){
-			sprintf(sprintf_buffer, "%32s = (%8.2f, %8.2f, %8.2f) [%s]", "Weighting_axis", PS_weighting_axis[0], PS_weighting_axis[1], PS_weighting_axis[2], unit);
+		if(PA_weighting_axis_set){
+			sprintf(sprintf_buffer, "%32s = (%8.2f, %8.2f, %8.2f) [%s]", "Weighting_axis", PA_weighting_axis[0], PA_weighting_axis[1], PA_weighting_axis[2], unit);
 			write_log(sprintf_buffer);
 		}else{
 			write_log((char*)"Error: Weighting_axis is necessary");
 			status=0; goto FINALIZATION;
 		}
 		/// Weighting_shape
-		if(PS_weighting_shape_set){
-			if(strcmp(PS_weighting_shape, "Rect")==0 || strcmp(PS_weighting_shape, "Exp")==0){
-				sprintf(sprintf_buffer, "%32s = %s", "Weighting_shape", PS_weighting_shape);
+		if(PA_weighting_shape_set){
+			if(strcmp(PA_weighting_shape, "Rect")==0 || strcmp(PA_weighting_shape, "Exp")==0){
+				sprintf(sprintf_buffer, "%32s = %s", "Weighting_shape", PA_weighting_shape);
 				write_log(sprintf_buffer);
 			}else{
 				write_log((char*)"Error: Weighting_shape should be Rect or Exp");
@@ -172,12 +172,12 @@ int validation_PSF(){
 			status=0; goto FINALIZATION;
 		}
 		/// Weighting_origin
-		if(PS_weighting_origin_set){
-			if(PS_weighting_origin>=0){
-				sprintf(sprintf_buffer, "%32s = %8.2f [%s], parallel to the axis", "Distance of the origin", PS_weighting_origin, unit);
+		if(PA_weighting_origin_set){
+			if(PA_weighting_origin>=0){
+				sprintf(sprintf_buffer, "%32s = %8.2f [%s], parallel to the axis", "Distance of the origin", PA_weighting_origin, unit);
 				write_log(sprintf_buffer);
 			}else{
-				sprintf(sprintf_buffer, "%32s = %8.2f [%s], anti-parallel to the axis", "Distance of the origin", PS_weighting_origin, unit);
+				sprintf(sprintf_buffer, "%32s = %8.2f [%s], anti-parallel to the axis", "Distance of the origin", PA_weighting_origin, unit);
 				write_log(sprintf_buffer);
 			}
 		}else{
@@ -185,12 +185,12 @@ int validation_PSF(){
 			status=0; goto FINALIZATION;
 		}
 		/// Weighting_width
-		if(PS_weighting_width_set){
-			if(PS_weighting_width>=0){
-				sprintf(sprintf_buffer, "%32s = %8.2f [%s], parallel to the axis", "Weighting_width", PS_weighting_width, unit);
+		if(PA_weighting_width_set){
+			if(PA_weighting_width>=0){
+				sprintf(sprintf_buffer, "%32s = %8.2f [%s], parallel to the axis", "Weighting_width", PA_weighting_width, unit);
 				write_log(sprintf_buffer);
 			}else{
-				sprintf(sprintf_buffer, "%32s = %8.2f [%s], anti-parallel to the axis", "Weighting_width", PS_weighting_width, unit);
+				sprintf(sprintf_buffer, "%32s = %8.2f [%s], anti-parallel to the axis", "Weighting_width", PA_weighting_width, unit);
 				write_log(sprintf_buffer);
 			}
 		}else{
@@ -199,9 +199,9 @@ int validation_PSF(){
 		}
 	}
 	/// Output_data
-	sprintf(sprintf_buffer, "%32s = %s", "Output_data", PS_output_data);
+	sprintf(sprintf_buffer, "%32s = %s", "Output_data", PA_output_data);
 	write_log(sprintf_buffer);
-	if(strcmp(PS_output_data, "PSF")!=0 && strcmp(PS_output_data, "Band")!=0 /*&& strcmp(PS_output_data, "PSF_real")!=0 && strcmp(PS_output_data, "PSF_imag")!=0*/){
+	if(strcmp(PA_output_data, "PAD")!=0 && strcmp(PA_output_data, "Band")!=0 /*&& strcmp(PA_output_data, "PAD_real")!=0 && strcmp(PA_output_data, "PAD_imag")!=0*/){
 		write_log((char*)"Error: Invalid Output_data");
 		status=0; goto FINALIZATION;
 	}

@@ -1,4 +1,4 @@
-# calcPSF make database of atomic potentials
+# SPADExp make database of atomic potentials
 
 import os
 import re

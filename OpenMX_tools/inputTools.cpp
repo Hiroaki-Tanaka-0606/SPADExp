@@ -1,4 +1,4 @@
-// calcPSF tools for OpenMX
+// SPADExp tools for OpenMX
 // inputTools
 // see also OpenMX/source/Inputtools.c
 

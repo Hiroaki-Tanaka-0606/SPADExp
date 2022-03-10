@@ -1,4 +1,4 @@
-# calcPSF GUI
+# SPADExp GUI
 # class LCAO
 
 import numpy as np
@@ -229,7 +229,7 @@ class Wfn:
             for i in range(0, self.length-1):
                 self.dr[i]=self.r[i+1]-self.r[i]
             
-class PSF:
+class PAD:
     def __init__(self, LCAO, Wfns):
         self.LCAO=LCAO
         self.Wfns=Wfns
@@ -445,7 +445,7 @@ class Elements():
 
 class Dispersion():
     def __init__(self):
-        self.filePath="" # file path to the calcPSF output (.hdf5)
+        self.filePath="" # file path to the SPADExp output (.hdf5)
         self.Dimension=0 # reciprocal space dimension (1 or 2)
         self.Dispersion=None # dispersion (2D or 3D)
         self.Offset=None # offset [kx, E] or [kx, ky, E]

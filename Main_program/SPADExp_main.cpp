@@ -17,8 +17,8 @@
 #include "calculation_scf_atom.hpp"
 #include "validation_phase_shift.hpp"
 #include "calculation_phase_shift.hpp"
-#include "validation_psf.hpp"
-#include "calculation_psf.hpp"
+#include "validation_pad.hpp"
+#include "calculation_pad.hpp"
 
 #include "log.hpp"
 
@@ -112,12 +112,12 @@ int main(int argc, const char** argv){
 		if(validation_result==1){
 			calc_phase_shift();
 		}
-	}else if(strcmp(Calculation, "PSF")==0){
-		// Photoemission structure factor calculation
-		write_log((char*)"----Photoemission structure factor calculation----");
-		validation_result=validation_PSF();
+	}else if(strcmp(Calculation, "PAD")==0){
+		// Photoemission angular distribution calculation
+		write_log((char*)"----Photoemission angular distribution calculation----");
+		validation_result=validation_PAD();
 		if(validation_result==1){
-			calculate_PSF();
+			calculate_PAD();
 		}
 	}else{
 		cout << "Error: invalid calculation" << endl;

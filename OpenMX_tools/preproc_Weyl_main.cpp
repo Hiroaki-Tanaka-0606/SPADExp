@@ -1,4 +1,4 @@
-// calcPSF tools for OpenMX
+// SPADExp tools for OpenMX
 // preproc_Weyl_main
 
 // include libraries from include path

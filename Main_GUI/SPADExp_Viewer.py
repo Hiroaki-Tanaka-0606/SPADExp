@@ -1,4 +1,4 @@
-# calcPSF Viewer
+# SPADExp Viewer
 
 # PyQt5 and PyqQtGraph are necessary
 from pyqtgraph.Qt import QtGui, QtCore, QtWidgets
@@ -13,7 +13,7 @@ from lib import objs
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
-        self.setWindowTitle("calcPSF Viewer")
+        self.setWindowTitle("SPADExp Viewer")
 
         
         font=QtGui.QFont()

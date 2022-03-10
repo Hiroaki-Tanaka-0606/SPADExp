@@ -1,4 +1,4 @@
-// calcPSF tools for OpenMX
+// SPADExp tools for OpenMX
 // postproc_main
 
 // include libraries from include path

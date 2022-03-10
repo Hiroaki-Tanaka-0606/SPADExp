@@ -1,4 +1,4 @@
-// calcPSF tools for OpenMX
+// SPADExp tools for OpenMX
 // HDF5_tools
 
 #include "H5Cpp.h"

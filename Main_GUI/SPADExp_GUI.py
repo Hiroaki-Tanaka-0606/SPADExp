@@ -1,4 +1,4 @@
-# calcPSF GUI
+# SPADExp GUI
 
 # PyQt5 and PyqQtGraph are necessary
 from pyqtgraph.Qt import QtGui, QtCore, QtWidgets
@@ -12,7 +12,7 @@ from lib import objs, Events
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
-        self.setWindowTitle("calcPSF GUI")
+        self.setWindowTitle("SPADExp GUI")
 
         
         font=QtGui.QFont()
@@ -152,11 +152,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.dataToPlot=QtGui.QButtonGroup()
         self.plotDispersion=QtGui.QRadioButton("Band dispersion")
-        self.plotPSF=QtGui.QRadioButton("Photoemission structure factor (PSF)")
+        self.plotPAD=QtGui.QRadioButton("Photoemission angular distribution (PAD)")
         row5.addWidget(self.plotDispersion)
-        row5.addWidget(self.plotPSF)
+        row5.addWidget(self.plotPAD)
         self.dataToPlot.addButton(self.plotDispersion)
-        self.dataToPlot.addButton(self.plotPSF)
+        self.dataToPlot.addButton(self.plotPAD)
         self.plotDispersion.setChecked(True)
         
         self.plotButton=QtGui.QPushButton("Plot")
@@ -527,7 +527,7 @@ win.setFont(font)
 
 LCAO=objs.LCAO()
 Wfns={}
-PSFobj=objs.PSF(LCAO, Wfns)
+PADobj=objs.PAD(LCAO, Wfns)
 win.openFileButton.clicked.connect(lambda: Events.openFile(win, LCAO, Wfns))
 Elements=objs.Elements()
 
@@ -536,10 +536,10 @@ win.realSpacePlot.clicked.connect(lambda: Events.makeRealSpace(win, LCAO, Elemen
 def plotEvent():
     Events.makeRealSpace(win, LCAO, Elements)
     if LCAO.Dimension==1:
-        Events.plot(win, LCAO, PSFobj)
+        Events.plot(win, LCAO, PADobj)
         win.graphTab.setCurrentIndex(0)
     elif LCAO.Dimension==2:
-        Events.makeDispersion3(win, LCAO, PSFobj)
+        Events.makeDispersion3(win, LCAO, PADobj)
         Events.plot3(win, LCAO)
         win.graphTab.setCurrentIndex(1)
     else:
@@ -555,20 +555,20 @@ def cursorEvent():
     else:
         print("Dimension error")
         return
-    Events.plotOrbital(win, LCAO, Wfns, PSFobj)
+    Events.plotOrbital(win, LCAO, Wfns, PADobj)
     Events.makeLCAOTable(win, LCAO)
 
 def atomEvent():
     Events.makeLCAOTable(win, LCAO)
     Events.makeOrbitalList(win, LCAO, Wfns)
-    Events.plotOrbital(win, LCAO, Wfns, PSFobj)
+    Events.plotOrbital(win, LCAO, Wfns, PADobj)
 
 def orbitalEvent():
-    Events.plotOrbital(win, LCAO, Wfns, PSFobj)
+    Events.plotOrbital(win, LCAO, Wfns, PADobj)
 
 
 win.plotButton.clicked.connect(plotEvent)
-win.exportButton.clicked.connect(lambda: Events.export(win, LCAO, PSFobj))
+win.exportButton.clicked.connect(lambda: Events.export(win, LCAO, PADobj))
 
 win.kxIndex.valueChanged.connect(cursorEvent)
 win.kyIndex.valueChanged.connect(cursorEvent)

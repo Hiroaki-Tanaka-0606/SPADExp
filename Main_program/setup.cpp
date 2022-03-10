@@ -23,7 +23,7 @@ void initialize(){
 	Potential_file_length=1024;
 	Data_read_error=0.0001;
 	HDF5_file_length=1024;
-	PS_state_length=64;
+	PA_state_length=64;
 	au_ang=0.529177; // (Ang)
 	Eh=27.2114; // (eV)
 	Ph_label_length=8;
@@ -36,7 +36,7 @@ void initialize(){
 	Rg_block_appeared=false;
 	SC_block_appeared=false;
 	Oc_block_appeared=false;
-	PS_block_appeared=false;
+	PA_block_appeared=false;
 	Ex_block_appeared=false;
 	/// Ct block
 	Calculation=new char[Calculation_length+1];
@@ -103,45 +103,45 @@ void initialize(){
 	Ph_skip_points=2;
 	Ph_calc_points_set=false;
 	Ph_calc_points=5;
-	/// PS block
-	PS_input_file_set=false;
-	PS_input_file=new char[HDF5_file_length+1];
-	PS_E_min_set=false;
-	PS_E_max_set=false;
-	PS_dE_set=false;
-	PS_E_pixel_set=false;
-	PS_initial_state_set=false;
-	PS_initial_state=new char[PS_state_length+1];
-	PS_final_state_set=false;
-	PS_final_state=new char[PS_state_length+1];
-	PS_final_state_step=0.01;
-	PS_final_state_step_set=false;
-	PS_polarization_set=false;
-	PS_polarization=new char[PS_state_length+1];
-	PS_theta_set=false;
-	PS_phi_set=false;
-	PS_AO_file_set=false;
-	PS_AO_file=new char[HDF5_file_length+1];
-	PS_sigma_max=5.0;
-	PS_decay_max=10;
-	PS_ext_up=0;
-	PS_ext_ri=0;
-	PS_ext_dn=0;
-	PS_ext_le=0;
-	PS_ext_set=false;
-	PS_weighting=false;
-	PS_weighting_set=false;
-	PS_weighting_axis=new double[3];
-	PS_weighting_axis_set=false;
-	PS_weighting_shape=new char[PS_state_length+1];
-	PS_weighting_shape_set=false;
-	PS_weighting_origin_set=false;
-	PS_weighting_width_set=false;
-	PS_use_angstrom=true;
-	PS_use_angstrom_set=false;
-	PS_output_data=new char[PS_state_length+1];
-	strcpy(PS_output_data, "PSF");
-	PS_output_data_set=false;
+	/// PA block
+	PA_input_file_set=false;
+	PA_input_file=new char[HDF5_file_length+1];
+	PA_E_min_set=false;
+	PA_E_max_set=false;
+	PA_dE_set=false;
+	PA_E_pixel_set=false;
+	PA_initial_state_set=false;
+	PA_initial_state=new char[PA_state_length+1];
+	PA_final_state_set=false;
+	PA_final_state=new char[PA_state_length+1];
+	PA_final_state_step=0.01;
+	PA_final_state_step_set=false;
+	PA_polarization_set=false;
+	PA_polarization=new char[PA_state_length+1];
+	PA_theta_set=false;
+	PA_phi_set=false;
+	PA_AO_file_set=false;
+	PA_AO_file=new char[HDF5_file_length+1];
+	PA_sigma_max=5.0;
+	PA_decay_max=10;
+	PA_ext_up=0;
+	PA_ext_ri=0;
+	PA_ext_dn=0;
+	PA_ext_le=0;
+	PA_ext_set=false;
+	PA_weighting=false;
+	PA_weighting_set=false;
+	PA_weighting_axis=new double[3];
+	PA_weighting_axis_set=false;
+	PA_weighting_shape=new char[PA_state_length+1];
+	PA_weighting_shape_set=false;
+	PA_weighting_origin_set=false;
+	PA_weighting_width_set=false;
+	PA_use_angstrom=true;
+	PA_use_angstrom_set=false;
+	PA_output_data=new char[PA_state_length+1];
+	strcpy(PA_output_data, "PAD");
+	PA_output_data_set=false;
 }
 
 void finalize(){
@@ -160,7 +160,7 @@ void finalize(){
 		delete Radial_grid_intervals;
 		delete Radial_grid_points;
 	}
-	delete PS_input_file;
+	delete PA_input_file;
 }
 
 void initialize_radial_grid(){

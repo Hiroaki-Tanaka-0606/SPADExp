@@ -25,18 +25,18 @@ linkOption2 = -l hdf5_hl_cpp -l hdf5_cpp -l hdf5_hl -l hdf5 -Wl,-rpath,$(hdf5)/l
 MKLROOT = /opt/intel/compilers_and_libraries_2020.0.166/linux/mkl/lib/intel64_lin
 option = -L${MKLROOT} -lmkl_scalapack_lp64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lmkl_blacs_openmpi_lp64 -liomp5 -lpthread -lm -ldl -lgfortran -fopenmp $(linkOption1) $(linkOption2)
 
-target = calcPSF_main.o setup.o load_input.o parse_inputs.o log.o validation_Thomas_Fermi.o calculation_Thomas_Fermi.o validation_atomic_wfn.o calculation_atomic_wfn.o validation_scf_atom.o calculation_scf_atom.o validation_phase_shift.o calculation_phase_shift.o validation_psf.o calculation_psf.o HDF5_tools.o physical_tools.o
+target = SPADExp_main.o setup.o load_input.o parse_inputs.o log.o validation_Thomas_Fermi.o calculation_Thomas_Fermi.o validation_atomic_wfn.o calculation_atomic_wfn.o validation_scf_atom.o calculation_scf_atom.o validation_phase_shift.o calculation_phase_shift.o validation_pad.o calculation_pad.o HDF5_tools.o physical_tools.o
 
-all: calcPSF.o
+all: SPADExp.o
 
-calcPSF.o: $(target)
-	$(CXX) $(target) $(option) -o calcPSF.o
+SPADExp.o: $(target)
+	$(CXX) $(target) $(option) -o SPADExp.o
 
 .cpp.o:
 	$(CXX) -fopenmp $(compileOption) -c $<
 
 
-calcPSF_main.o: variables.hpp setup.hpp load_input.hpp validation_Thomas_Fermi.hpp calculation_Thomas_Fermi.hpp validation_atomic_wfn.hpp log.hpp calculation_atomic_wfn.hpp validation_scf_atom.hpp calculation_scf_atom.hpp validation_phase_shift.hpp calculation_phase_shift.hpp validation_psf.hpp calculation_psf.hpp HDF5_tools.hpp
+SPADExp_main.o: variables.hpp setup.hpp load_input.hpp validation_Thomas_Fermi.hpp calculation_Thomas_Fermi.hpp validation_atomic_wfn.hpp log.hpp calculation_atomic_wfn.hpp validation_scf_atom.hpp calculation_scf_atom.hpp validation_phase_shift.hpp calculation_phase_shift.hpp validation_pad.hpp calculation_pad.hpp HDF5_tools.hpp
 load_input.o: parse_inputs.hpp variables_ext.hpp
 log.o: variables_ext.hpp
 validation_Thomas_Fermi.o: log.hpp variables_ext.hpp setup.hpp
@@ -44,8 +44,8 @@ calculation_Thomas_Fermi.o: log.hpp variables_ext.hpp
 validation_atomic_wfn.o: log.hpp variables_ext.hpp setup.hpp
 calculation_atomic_wfn.o: log.hpp variables_ext.hpp setup.hpp
 setup.o: variables_ext.hpp
-validation_psf.o: log.hpp variables_ext.hpp
-calculation_psf.o: log.hpp variables_ext.hpp HDF5_tools.hpp physical_tools.hpp
+validation_pad.o: log.hpp variables_ext.hpp
+calculation_pad.o: log.hpp variables_ext.hpp HDF5_tools.hpp physical_tools.hpp
 validation_scf_atom.o: log.hpp variables_ext.hpp setup.hpp
 calculation_scf_atom.o: log.hpp variables_ext.hpp setup.hpp calculation_atomic_wfn.hpp HDF5_tools.hpp
 validation_phase_shift.o: log.hpp variables_ext.hpp setup.hpp
