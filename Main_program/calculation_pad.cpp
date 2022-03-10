@@ -1072,7 +1072,7 @@ void calculate_PAD(){
 		int Size3[3]={kx_count_ext, ky_count_ext, num_points_E};
 		w_att_1i(rootG, "Size", 3, &Size3[0]);
 		
-		w_att_1d(rootG, "Xvector", 3, &ky_vector[0]);
+		w_att_1d(rootG, "Xvector", 3, &kx_vector[0]);
 		w_att_1d(rootG, "Yvector", 3, &ky_vector[0]);
 	}
 

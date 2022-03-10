@@ -198,6 +198,8 @@ def makeRealSpace(win, Disp, Elements):
         ky_color[:,3]=1.0
         plt=gl.GLLinePlotItem(pos=ky, color=ky_color, width=Config.reciprocal_axis_width)
         win.realSpace.addItem(plt)
+    # print(Disp.Xvector)
+    # print(Disp.Yvector)
 
     # Polarization
     pol=np.zeros((2,3))
