@@ -142,6 +142,10 @@ void initialize(){
 	PA_output_data=new char[PA_state_length+1];
 	strcpy(PA_output_data, "PAD");
 	PA_output_data_set=false;
+	PA_reflection=false;
+	PA_reflection_set=false;
+	PA_reflection_coef=0.0;
+	PA_reflection_coef_set=false;
 }
 
 void finalize(){

@@ -177,7 +177,10 @@ extern char* PA_output_data;
 extern bool PA_output_data_set;
 extern double PA_sigma_max;
 extern double PA_decay_max;
-
+extern bool PA_reflection;
+extern bool PA_reflection_set;
+extern double PA_reflection_coef;
+extern double PA_reflection_coef_set;
 /// files
 extern FILE* Log_file_obj;
 extern FILE* Output_file_obj;

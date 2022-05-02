@@ -198,6 +198,20 @@ int validation_PAD(){
 			status=0; goto FINALIZATION;
 		}
 	}
+	/// Reflection
+	if(PA_reflection){
+		if(!PA_weighting){
+			write_log((char*)"Error: Weighting should be true if Reflection is true");
+			status=0; goto FINALIZATION;
+		}
+		if(PA_reflection_coef_set){
+			sprintf(sprintf_buffer, "%32s = %8.2f", "Reflection coefficient", PA_reflection_coef);
+			write_log(sprintf_buffer);
+		}else{
+			write_log((char*)"Error: Reflection_coef is necessary if Reflection is true");
+			status=0; goto FINALIZATION;
+		}
+	}
 	/// Output_data
 	sprintf(sprintf_buffer, "%32s = %s", "Output_data", PA_output_data);
 	write_log(sprintf_buffer);

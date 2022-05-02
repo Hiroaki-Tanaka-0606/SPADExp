@@ -528,10 +528,11 @@ void calculate_PAD(){
 	double atom_weighting[atom_length];
 	bool atom_weighting_flag[atom_length];
 
+	// axis_au is also used in reflection correction
+	double axis_au[3];
 	if(PA_weighting==true){
 		double origin_au=PA_weighting_origin;
 		double width_au=PA_weighting_width;
-		double axis_au[3];
 		if(PA_use_angstrom){
 			origin_au/=au_ang;
 			width_au/=au_ang;
@@ -809,6 +810,7 @@ void calculate_PAD(){
 	int ir; // for r
 	complex<double> m1jlp[5]={complex<double>(1, 0), complex<double>(0, -1), complex<double>(-1, 0), complex<double>(0, 1), complex<double>(1, 0)};
 	complex<double> Ylm_k[5][9];
+	complex<double> Ylm_k2[5][9];
 	double Gaunt_arr[4][7][5][9]={0}; // [l][m+l][lp][mp+lp];
 	int ip, jp;
 	for(i=0; i<4; i++){
@@ -824,12 +826,13 @@ void calculate_PAD(){
   duration=chrono::duration_cast<chrono::milliseconds>(end-start).count();
 	sprintf(sprintf_buffer, "PAD preparation time: %.3f [ms]", duration);
 	write_log(sprintf_buffer);
-#pragma omp parallel firstprivate(Y_coeff, sp_max, num_bands, EF_Eh, Eh, PA_E_min, PA_E_pixel, num_points_E, tail_index,  m1jlp, Gaunt_arr, atom_length, atom_spec_index, num_orbits, spin_i,  atom_coordinates, PA_ext_set, PA_final_state_step, k_index_min, atom_weighting_flag, atom_weighting, PA_weighting) private(ib, sp, Ylm_k, ia, is, io, il, ir, j)
+#pragma omp parallel firstprivate(Y_coeff, sp_max, num_bands, EF_Eh, Eh, PA_E_min, PA_E_pixel, num_points_E, tail_index,  m1jlp, Gaunt_arr, atom_length, atom_spec_index, num_orbits, spin_i,  atom_coordinates, PA_ext_set, PA_final_state_step, k_index_min, atom_weighting_flag, atom_weighting, PA_weighting, axis_au, PA_reflection, PA_reflection_coef) private(ib, sp, Ylm_k, Ylm_k2, ia, is, io, il, ir, j)
 #pragma omp for
 	for(ik=0; ik<total_count_ext; ik++){
 		// cout << ik << endl;
 		int ik_reduced=ik;
 		double* k_point;
+		double k_point2[3];
 		if(PA_ext_set){
 			ik_reduced=k_index_reduced[ik];
 			k_point=k_points_ext[ik];
@@ -838,6 +841,16 @@ void calculate_PAD(){
 		}
 		double k_length=sqrt(inner_product(k_point, k_point));
 		spherical_harmonics(k_point, &Ylm_k[0][0]);
+		
+		if(PA_reflection){
+			double k_inner=inner_product(k_point, axis_au);
+			int ix;
+			for(ix=0; ix<3; ix++){
+				k_point2[ix]=k_point[ix]-axis_au[ix]*2*k_inner;
+			}
+			spherical_harmonics(k_point2, &Ylm_k2[0][0]);
+		}
+		// printf("%lf %lf %lf | %lf %lf %lf\n", k_point[0], k_point[1], k_point[2], k_point2[0], k_point2[1], k_point2[2]);
 		/*
 		for(int ii=0; ii<5; ii++){
 			for(int jj=0; jj<9; jj++){
@@ -940,7 +953,11 @@ void calculate_PAD(){
 									complex<double> coeff1(0, 0);
 									for(jp1=jp1St; jp1<jp1En; jp1++){
 										int mpplp=jp1-1+m+lp;
-										coeff1+=Ylm_k[lp][mpplp]*Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1];
+										if(PA_reflection==false){
+											coeff1+=Ylm_k[lp][mpplp]*Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1];
+										}else{
+											coeff1+=(Ylm_k[lp][mpplp]+PA_reflection_coef*Ylm_k2[lp][mpplp])*Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1];
+										}
 									}
 									// cout << coeff1 << endl;
 									coeff2_1+=LCAO_use[mpl][0]*coeff1;

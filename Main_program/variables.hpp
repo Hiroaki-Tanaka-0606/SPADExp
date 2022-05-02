@@ -178,7 +178,10 @@ char* PA_output_data;          // what to output: Band, PAD (default), PAD_real,
 bool PA_output_data_set;
 double PA_sigma_max;           // max sigma of the envelope Gauss function
 double PA_decay_max;           // max sigma of the exponential weighting function
-
+bool PA_reflection;            // reflection correction
+bool PA_reflection_set;
+double PA_reflection_coef;     // coefficient for reflection correction
+bool PA_reflection_coef_set;
 
 /// files
 FILE* Log_file_obj;            // log file object

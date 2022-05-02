@@ -876,6 +876,28 @@ int load_input(){
 				}
 				PA_output_data_set=true; continue;
 			}
+			/// Reflection: bool
+			if(strcmp(keyword_buffer, "Reflection")==0){
+				if(PA_reflection_set){
+					output_error(line_number, (char*)"keyword Reflection already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_bool(input_line_c, &PA_reflection, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Reflection"); status=0; goto FINALIZATION;
+				}
+			  PA_reflection_set=true; continue;
+			}
+			/// Reflection_coef: double
+			if(strcmp(keyword_buffer, "Reflection_coef")==0){
+				if(PA_reflection_coef_set){
+					output_error(line_number, (char*)"keyword Reflection_coef already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PA_reflection_coef);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Reflection_coef"); status=0; goto FINALIZATION;
+				}
+			  PA_reflection_coef_set=true; continue;
+			}
 		}else if(*block_name==string("Phase-shift")){
 			// Ph block
 			/// Skip_points (Ph_skip_points): int
