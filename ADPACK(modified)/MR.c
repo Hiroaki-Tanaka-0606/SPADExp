@@ -1,0 +1,2040 @@
+/**********************************************************************
+  MR.c:
+
+     MR.c is a subroutine to calculate norm conseving pseudo
+     potentials using a multi references (MR) scheme.
+
+  Log of MR.c:
+
+     6/July/2004  Released by T.Ozaki
+
+***********************************************************************/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include "adpack.h"
+
+static void Calc_PAO(int so, int n, int l, int num_nodes,
+                     double rc, int rc_i,
+                     double *TE, double *TR, double *TIR,
+                     double LowerE,  
+                     double Reduce_Num_grid,
+                     double Vps[ASIZE1], double pw[ASIZE1]);
+static void Find_PAO(int state_num,
+                     int so, int n, int l,
+                     int num_nodes,
+                     double ep, double rc,
+                     double Reduce_Num_grid,
+                     double Vps[ASIZE1], 
+                     double pv[ASIZE1],
+                     double pw[ASIZE1]);
+static double Norm_Core(double af[ASIZE1], double rc);
+static double Norm_Core2(double Mb,
+			 int l,
+			 double rc,
+			 double c0,
+			 double c2,
+			 double c4,
+			 double c6,
+			 double c8,
+			 double cm);
+static double D_Norm(double Mb,
+                     int l,
+		     double ia[ASIZE6][ASIZE6],
+		     double b0[ASIZE6], double c[ASIZE6], double cm,
+		     double Ncore, double rc,
+		     double r1, double r2, double r3, double r4, double r5);
+
+#if 0
+static double Dlog_Norm(int l,
+                        double a[ASIZE6][ASIZE6],
+                        double a0[ASIZE6][ASIZE6],
+                        double b[ASIZE6], double c[ASIZE6], double c2,
+                        double Ncore,
+			double rc, double r2, double r3, double r4);
+#endif
+static void Spline_Func(double R, double fv[3], double af[ASIZE1]);
+static int Calc_VPS_PAO(double Mb,
+                        int so, int l, double rc, double ep,
+                        double AEW[ASIZE1], double AEV[ASIZE1],
+			double  PW[ASIZE1], double  PV[ASIZE1]);
+static double ip_phi0_phi1(double phi0[ASIZE1],double phi1[ASIZE1],double rc);
+static void Calc_PF_Under_Confinement(int state_num, double rcut);
+static void VP_MR(double rcut);
+static void Simpson_Normalization(int so, int n, int l);
+
+static int calc_states[ASIZE12][ASIZE12];
+
+void MR(int state_num)
+{ 
+  static int m,n,l,i,j,po,po1,numvps,ll,mul,mul1,Mb;
+  static int m1,n1,loop_num,loop_max,num_nodes,so,iter;
+  static int Num_Mb,rc_i;
+  static int cutoff_gp,num;
+  static int CountL[ASIZE12];
+  static double RMb[20];
+  static double max_SF,r,coe,min_diff;
+  static double ep,rc,a2,sum,dnorm,da,dnorm_p;
+  static double a_p,lower_a,upper_a,lower_d,upper_d;
+  static double Threshold_PF;
+  static double PseudoW[15][ASIZE4][ASIZE1],PseudoV[ASIZE4][ASIZE1];
+  static double W3[ASIZE4][ASIZE1],V3[ASIZE1];
+  static double Coes[10][20];
+  static double Trial_E[15][ASIZE4];
+  static double Trial_R[15][ASIZE4];
+  static double Trial_IntR[15][ASIZE4];
+  static double Ref_IntR[3][ASIZE2+1][10];
+  char *s_vec[20];
+
+  /*********************************************
+    setting of indices of additional functions 
+  *********************************************/
+
+  Num_Mb = 8;
+
+  RMb[1]  = 1.0;
+  RMb[2]  = 1.2;
+  RMb[3]  = 1.4;
+  RMb[4]  = 1.6;
+  RMb[5]  = 1.8;
+  RMb[6]  = 2.2;
+  RMb[7]  = 2.4;
+  RMb[8]  = 2.6;
+  RMb[9]  = 13.0;
+  RMb[10] = 14.0;
+
+  /*********************************************
+    find a confinement radius
+  *********************************************/
+
+  Threshold_PF = 1.0e-6;
+  cutoff_gp = -1;
+
+  for (so=0; so<SOI_switch; so++){
+    for (l=0; l<=ASIZE14; l++){
+
+      if (0<NumVPS_L[l]){
+
+        for (num=0; num<NumVPS_L[l]; num++){
+
+	  m = GI_VPS[l][num];
+	  n = NVPS[m];
+
+	  po = 0; 
+	  i = Grid_Num - 1;
+
+	  do{
+	    if ( (Threshold_PF<fabs(PF[so][n][l][i])) && (cutoff_gp<i) ){
+	      cutoff_gp = i;
+	      po = 1;
+	      printf("l=%2d cutoff_gp=%2d MRV[cutoff_gp]=%10.5f\n",l,cutoff_gp,MRV[cutoff_gp]);
+	    }
+
+	    i--;         
+
+	  } while (po==0 && 0<=i);
+	}
+
+      }
+    }
+  }  
+  
+  if (cutoff_gp==(Grid_Num-1)){
+    printf("The use of a larger grid.xmax is recommended.\n");
+  }
+  
+  /*********************************************************
+   calculate bound states under the confinement potential
+  *********************************************************/
+  
+  printf("Num_MR_ES=%2d\n",Num_MR_ES);
+  
+  Calc_PF_Under_Confinement(state_num, MRV[cutoff_gp]);
+  
+  
+  
+
+  
+      
+
+  //  exit(0);
+
+
+  for (so=0; so<SOI_switch; so++){
+    for (l=0; l<=ASIZE14; l++) CountL[l] = 0;
+    for (l=0; l<=ASIZE14; l++){
+
+      s_vec[0]="None";   s_vec[1]="KB";
+      s_vec[2]="Blochl"; s_vec[3]="Vanderbilt with a single potential";
+      s_vec[4]="Multi References";
+
+      printf("<VPS>  VPS of SO=%i L=%d is generated by %s scheme\n",so,l,s_vec[4]);
+
+      /*********************************************
+          make pseudo potentials if 0<NumVPS_L[l]
+      *********************************************/
+
+      if (0<NumVPS_L[l]){
+
+	m = GI_VPS[l][0];
+	n = NVPS[m];
+	ep = E[state_num][so][n][l];
+	rc = VPS_Rcut[m];
+
+	for (Mb=1; Mb<=Num_Mb; Mb++){
+	  po1 = Calc_VPS_PAO(RMb[Mb],so,l,rc,ep,PF[so][n][l],V,PseudoW[Mb][0],PseudoV[Mb]);
+	}
+
+        CountL[l]++;
+      }
+
+      /*********************************************
+         make pseudo potentials if NumVPS_L[l]==0
+      *********************************************/
+
+      else if (CountL[l]==0) {
+        printf("l=%2d GI_VPS[l][0]=%2d\n",l,GI_VPS[l][0]);
+
+        /*******************************************************
+         calculate bound states under the confinement potential
+        *******************************************************/
+
+        n = 1;
+        do{
+
+          if (calc_states[n][l]==2){
+            for (Mb=1; Mb<=Num_Mb; Mb++){
+              rc = 4.0; 
+              ep = E[state_num][so][n][l];
+              po1 = Calc_VPS_PAO(RMb[Mb],so,l,rc,ep,PF[so][n][l],V,PseudoW[Mb][0],PseudoV[Mb]);
+	    }
+
+            CountL[l]++;
+          }
+
+          n++;
+	} while (n<=(ASIZE14+1) && CountL[l]==0);
+      }
+ 
+
+      /*
+      for (i=0; i<Grid_Num; i++){
+	printf("%10.7f %10.7f %10.7f %10.7f %10.7f %10.7f\n",
+                MRV[i],
+                PseudoV[1][i],PseudoV[2][i],
+                PseudoV[3][i],PseudoV[4][i],PseudoV[5][i]);
+      }
+      exit(0);
+      */
+
+
+	/*
+      for (i=0; i<Grid_Num; i++){
+	printf("%10.7f %10.7f %10.7f %10.7f %10.7f %10.7f\n",
+                MRV[i],
+                PseudoW[1][0][i],PseudoW[2][0][i],
+                PseudoW[3][0][i],PseudoW[4][0][i],PseudoW[5][0][i]);
+      }
+      exit(0);
+	*/
+
+
+        for (n=1; n<=(ASIZE14+1); n++){
+          printf("n=%2d l=%2d calc_states[n][l]=%2d\n",n,l,calc_states[n][l]);
+	}
+
+
+
+	min_diff = 1.0e+10; 
+	for (i=0; i<Grid_Num; i++){
+	  if (fabs(MRV[i] - rc)<min_diff){
+	    min_diff = fabs(MRV[i] - rc);
+	    rc_i = i;
+	  }
+	} 
+
+        CountL[l] = 0; 
+        
+        for (n=1; n<=(ASIZE14+1); n++){
+
+          if (calc_states[n][l]!=0){
+
+            /* find IntR */
+            ep = E[state_num][so][n][l];
+            mul = CountL[l];
+            Ref_IntR[so][l][mul] = ip_phi0_phi1(PF[so][n][l],PF[so][n][l],rc);
+
+            /* calc PAO */
+
+  	    for (Mb=1; Mb<=Num_Mb; Mb++){
+
+              if (mul==0){
+	        Calc_PAO(so,n,l,mul,rc,rc_i,
+		       &Trial_E[Mb][mul],&Trial_R[Mb][mul],&Trial_IntR[Mb][mul],
+                       E[state_num][so][n][l]-0.3,
+  		       RNG[n][l],PseudoV[Mb],PseudoW[Mb][mul]);
+	      }
+              else{
+	        Calc_PAO(so,n,l,mul,rc,rc_i,
+		       &Trial_E[Mb][mul],&Trial_R[Mb][mul],&Trial_IntR[Mb][mul],
+                       Trial_E[Mb][mul-1]+1.0e-9,
+  		       RNG[n][l],PseudoV[Mb],PseudoW[Mb][mul]);
+              } 
+
+	      printf("Ref    n=%2d l=%2d Mb=%2d mul=%2d %15.12f %15.12f %18.15f\n",n,l,Mb,mul,
+		     ep,PF[so][n][l][rc_i],Ref_IntR[so][l][mul]);
+
+	      printf("Trial  n=%2d l=%2d Mb=%2d mul=%2d %15.12f %15.12f %18.15f\n",n,l,Mb,mul,
+		     Trial_E[Mb][mul],Trial_R[Mb][mul],Trial_IntR[Mb][mul]);
+	    }
+
+            CountL[l]++;
+          }
+        }
+
+	/*
+	if (l==1){
+	  for (i=0; i<Grid_Num; i++){
+	    printf("%10.7f %10.7f %10.7f %10.7f %10.7f %10.7f %10.7f\n",
+	    MRV[i],
+	    PseudoW[1][0][i],PseudoW[2][0][i],
+	    PseudoW[3][0][i],PseudoW[4][0][i],PseudoW[5][0][i],PF[so][2][1][i]);
+	  }
+	}
+	*/
+
+
+	if (l==2){
+          for (i=0; i<Grid_Num; i++){
+	    printf("%10.7f %10.7f %10.7f %10.7f %10.7f %10.7f %10.7f\n",
+                   MRV[i],
+                   PseudoV[1][i],PseudoV[2][i],
+                   PseudoV[3][i],PseudoV[4][i],PseudoV[5][i],V[i]);
+          }
+	}
+
+
+
+
+	/*
+      }
+	*/
+
+    } /* l */ 
+  } /* so */
+
+
+
+
+  exit(0);
+
+
+
+
+  Density_V(state_num,OcpN);
+  Hartree(rho_V[state_num],Vh_V);
+      
+  if (PCC_switch==0){
+    if      (XC_switch==0) XC_CA(rho_V[state_num],Vxc_V,1);
+    else if (XC_switch==1) XC4atom_PBE(rho_V[state_num],Vxc_V,1);
+  }
+  else {
+    Density_PCC(rho_PCC,state_num,OcpN);
+    for (i=0; i<Grid_Num; i++){
+      rho[1][i] = rho_V[state_num][i] + rho_PCC[i];
+    }
+    if      (XC_switch==0) XC_CA(rho[1],Vxc_V,1);
+    else if (XC_switch==1) XC4atom_PBE(rho[1],Vxc_V,1);
+  }
+  
+  for (so=0; so<SOI_switch; so++){
+    for (m=0; m<Number_VPS; m++){
+      for (i=0; i<Grid_Num; i++){
+        VPS[0][so][m][i] = V2[so][m][i] - Vh_V[i] - Vxc_V[i];
+      }
+    }
+  }
+
+  /* for std output */  
+  printf("\n");
+
+}
+
+
+double Norm_Core(double af[ASIZE1], double rc)
+{
+  static int i,n,j,l,nf,fg;
+  static double r,rmin,rmax,Sr,Dr,sum,dum,fv[3];
+
+  n = ASIZE7-2;
+  nf = n;
+  fg = 1;
+
+  Gauss_Legendre(n,x,w,&nf,&fg);
+
+  rmin = MRV[0];
+  rmax = rc;
+  Sr = rmax + rmin;
+  Dr = rmax - rmin;
+
+  sum = 0.0;
+  for (i=0; i<=(n-1); i++){
+    r = 0.50*(Dr*x[i] + Sr);
+    Spline_Func(r,fv,af);
+    sum = sum + 0.5*Dr*fv[0]*fv[0]*w[i];
+  }
+
+  return sum;
+
+}
+
+
+
+double D_Norm(double Mb,
+              int l,
+              double ia[ASIZE6][ASIZE6],
+              double b0[ASIZE6], double c[ASIZE6], double cm,
+              double Ncore, double rc,
+              double r4, double r3, double r2, double r1, double r0)
+{
+  static int i,j;
+  static double c0,c4,c6,c8,c10,c12;
+  static double b[ASIZE6];
+  static double sum;
+  static double Norm2,DLN;
+
+  b[0] = b0[0] - cm*r0;
+  b[1] = b0[1] - cm*Mb*r1;
+  b[2] = b0[2] - cm*Mb*(Mb-1.0)*r2;
+  b[3] = b0[3] - cm*Mb*(Mb-1.0)*(Mb-2.0)*r3;
+  b[4] = b0[4] - cm*Mb*(Mb-1.0)*(Mb-2.0)*(Mb-3.0)*r4; 
+
+  for (i=0; i<=4; i++){
+    sum = 0.0;
+    for (j=0; j<=4; j++){
+      sum += ia[i][j]*b[j];
+    }
+    c[i] = sum;
+  }
+
+  Norm2 = Norm_Core2(Mb,l,rc,c[0],c[1],c[2],c[3],c[4],cm);
+  DLN = log(Ncore) - 2.0*c[0] - log(Norm2);
+
+  /*
+  printf("B1  %15.12f %15.12f %15.12f %15.12f %15.12f %15.12f %15.12f %15.12f %15.12f\n",
+         c[0],c[1],c[2],c[3],c[4],cm,Ncore,Norm2,log(Norm2));
+  */
+
+  return DLN;
+}
+
+
+#if 0
+double Dlog_Norm(int l,
+                 double a[ASIZE6][ASIZE6],
+                 double a0[ASIZE6][ASIZE6],
+                 double b[ASIZE6], double c[ASIZE6], double c2,
+                 double Ncore,
+                 double rc, double r2, double r3, double r4)
+{
+  static int i,j;
+  static double c0,c4,c6,c8,c10,c12;
+  static double Norm2,DLN;
+
+  for (i=0; i<=4; i++){
+    for (j=0; j<=4; j++){
+      a[i][j] = a0[i][j];
+    }
+  }
+
+  c4 = -c2*c2/(2.0*l + 5.0);
+
+  a[0][5] = b[0] - c2*r2 - c4*r4;
+  a[1][5] = b[1] - 2.0*c2*rc - 4.0*c4*r3;
+  a[2][5] = b[2] - 2.0*c2 - 12.0*c4*r2;
+  a[3][5] = b[3] - 24.0*c4*rc;
+  a[4][5] = b[4] - 24.0*c4;
+
+  Gauss_LEQ(4,a,c);
+  c0  = c[0];
+  c6  = c[1];
+  c8  = c[2];
+  c10 = c[3];
+  c12 = c[4];
+  c[5] = c4;
+  Norm2 = Norm_Core2(l,rc,c0,c2,c4,c6,c8,c10,c12);
+  DLN = log(Ncore) - 2.0*c0 - log(Norm2);
+  return DLN;
+}
+#endif
+
+double Norm_Core2(double Mb,
+                  int l,
+                  double rc,
+                  double c0,
+                  double c2,
+                  double c4,
+                  double c6,
+                  double c8,
+                  double cm)
+{
+  static int i,n,j,nf,fg;
+  static double rl,rm,r1,r2,r3,r4,r5,r6,r7,r8,p,p1;
+  static double rmin,rmax,Sr,Dr,sum,dum,fv[3];
+
+  n = ASIZE7-2;
+  nf = n;
+  fg = 1;
+
+  Gauss_Legendre(n,x,w,&nf,&fg);
+
+  rmin = MRV[0];
+  rmax = rc;
+  Sr = rmax + rmin;
+  Dr = rmax - rmin;
+
+  sum = 0.0;
+  for (i=0; i<=(n-1); i++){
+    r1  = 0.50*(Dr*x[i] + Sr);
+    r2  = r1*r1;
+    r4  = r2*r2;
+    r6  = r4*r2;
+    r8  = r4*r4;
+    rm = pow(r1,Mb);
+    p = c0 + c2*r2 + c4*r4 + c6*r6 + c8*r8 + cm*rm;
+    p1 = (2.0*p - 2.0*c0);
+    if (20.0<p1) p1 = 20.0;  
+    dum = pow(r1,2.0*((double)l+1.0))*exp(p1);
+    sum = sum + 0.5*Dr*dum*w[i];
+  }
+
+  if (sum<1.0e-14) sum = 1.0e-14;
+
+  return sum;
+}
+
+
+void Spline_Func(double R, double fv[3], double af[ASIZE1])
+{
+
+  static int mp_min,mp_max,m;
+  static double h1,h2,h3,f1,f2,f3,f4;
+  static double g1,g2,x1,x2,y1,y2,f,Df,D2f;
+  static double result;
+
+  mp_min = 4;
+  mp_max = Grid_Num - 1;
+ 
+  if (R<MRV[4]){
+    m = 5;
+  }
+  else if (MRV[Grid_Num-1]<R){
+    m = Grid_Num - 3;
+  } 
+  else{
+    do{ 
+      m = (mp_min + mp_max)/2;
+      if (MRV[m]<R)
+        mp_min = m;
+      else 
+        mp_max = m;
+    }
+    while((mp_max-mp_min)!=1);
+    m = mp_max;
+  }
+
+  /****************************************************
+                 Spline like interpolation
+  ****************************************************/
+
+  h1 = MRV[m-1] - MRV[m-2];
+  h2 = MRV[m]   - MRV[m-1];
+  h3 = MRV[m+1] - MRV[m];
+
+  f1 = af[m-2];
+  f2 = af[m-1];
+  f3 = af[m];
+  f4 = af[m+1];
+
+  /****************************************************
+                 Treatment of edge points
+  ****************************************************/
+
+  if (m==1){
+    h1 = -(h2+h3);
+    f1 = f4;
+  }
+  if (m==(Grid_Num-1)){
+    h3 = -(h1+h2);
+    f4 = f1;
+  }
+
+  /****************************************************
+              Calculate the values at R
+  ****************************************************/
+
+  g1 = ((f3-f2)*h1/h2 + (f2-f1)*h2/h1)/(h1+h2);
+  g2 = ((f4-f3)*h2/h3 + (f3-f2)*h3/h2)/(h2+h3);
+
+  x1 = R - MRV[m-1];
+  x2 = R - MRV[m];
+  y1 = x1/h2;
+  y2 = x2/h2;
+
+  f =  y2*y2*(3.0*f2 + h2*g1 + (2.0*f2 + h2*g1)*y2)
+    + y1*y1*(3.0*f3 - h2*g2 - (2.0*f3 - h2*g2)*y1);
+
+  Df = 2.0*y2/h2*(3.0*f2 + h2*g1 + (2.0*f2 + h2*g1)*y2)
+    + y2*y2*(2.0*f2 + h2*g1)/h2
+    + 2.0*y1/h2*(3.0*f3 - h2*g2 - (2.0*f3 - h2*g2)*y1)
+    - y1*y1*(2.0*f3 - h2*g2)/h2;
+    
+  D2f =  2.0*(3.0*f2 + h2*g1 + (2.0*f2 + h2*g1)*y2)
+    + 4.0*y2*(2.0*f2 + h2*g1)
+    + 2.0*(3.0*f3 - h2*g2 - (2.0*f3 - h2*g2)*y1)
+    - 4.0*y1*(2.0*f3 - h2*g2);
+  D2f = D2f/h2/h2;
+
+  fv[0] = f;
+  fv[1] = Df;
+  fv[2] = D2f;
+}
+
+
+int Calc_VPS_PAO(double Mb,
+                 int so, int l, double rc, double ep,
+                 double AEW[ASIZE1], double AEV[ASIZE1],
+                 double  PW[ASIZE1], double  PV[ASIZE1])
+{
+  static int i,j,k,po,calc_fail;
+  static int loop_max,loop_num;
+  static double sum,cm,dl,r,dc,fv[3];
+  static double p,p0,p1,v0,v1,v2,Ncore,Norm2;
+  static double r0,r1,r2,r3,r4,r5,r6,r7,r8,rm9,rm;
+  static double c2max,c2min,c0,c2,c4,c6,c8,c10,c12;
+  static double DN_p,DN,DN_max,DN_min;
+  static double cmmax,cmmin,tmp;
+
+  static double DLN,DLN_max,DLN_min,DLN_p,pf1,pf2;
+  static double a[ASIZE6][ASIZE6],b0[ASIZE6],b[ASIZE6];
+  static double a0[ASIZE6][ASIZE6],ia[ASIZE6][ASIZE6];
+  static double c[ASIZE6];
+
+  calc_fail = 0;
+  loop_max = 10000;
+  dl = (double)l;
+
+  /****************************************************
+        Input data from all electron calculation
+  ****************************************************/
+
+  Spline_Func(rc,fv,AEW);
+  p0 = fv[0];
+  p1 = fv[1];
+  Spline_Func(rc,fv,AEV);
+  v0 = fv[0];
+  v1 = fv[1];
+  v2 = fv[2];
+  Ncore = Norm_Core(AEW,rc);
+
+
+  b0[0] = log(p0/pow(rc,dl+1.0));
+  b0[1] = p1/p0 - (dl + 1.0)/rc;
+  b0[2] = 2.0*v0 - 2.0*ep - 2.0*b0[1]*(dl + 1.0)/rc - b0[1]*b0[1];
+  b0[3] = 2.0*v1 + 2.0*b0[1]*(dl + 1.0)/rc/rc
+         -2.0*b0[2]*(dl + 1.0)/rc - 2.0*b0[1]*b0[2];
+  b0[4] = 2.0*v2 - 4.0*b0[1]*(dl + 1.0)/rc/rc/rc
+        + 4.0*b0[2]*(dl + 1.0)/rc/rc
+        - 2.0*b0[3]*(dl + 1.0)/rc - 2.0*b0[2]*b0[2] - 2.0*b0[1]*b0[3];
+
+
+  /*
+  printf("A p0=%15.12f\n",b0[0]);
+  printf("A p1=%15.12f\n",b0[1]);
+  printf("A p2=%15.12f\n",b0[2]);
+  printf("A p3=%15.12f\n",b0[3]);
+  printf("A p4=%15.12f\n",b0[4]);
+  */
+
+
+
+
+  r1 = rc;
+  r2 = rc*rc;
+  r3 = r2*rc;
+  r4 = r2*r2;
+  r5 = r4*rc;
+  r6 = r4*r2;
+  r7 = r6*rc;
+  r8 = r4*r4;
+
+  a[0][0] = 1.0;
+  a[0][1] = r2;
+  a[0][2] = r4; 
+  a[0][3] = r6; 
+  a[0][4] = r8;
+
+  a[1][0] = 0.0;
+  a[1][1] = 2.0*r1;
+  a[1][2] = 4.0*r3; 
+  a[1][3] = 6.0*r5; 
+  a[1][4] = 8.0*r7;
+ 
+  a[2][0] = 0.0;
+  a[2][1] = 2.0;
+  a[2][2] = 12.0*r2; 
+  a[2][3] = 30.0*r4; 
+  a[2][4] = 56.0*r6;
+
+  a[3][0] = 0.0;
+  a[3][1] = 0.0;
+  a[3][2] =  24.0*r1; 
+  a[3][3] = 120.0*r3; 
+  a[3][4] = 336.0*r5;
+
+  a[4][0] = 0.0;
+  a[4][1] = 0.0;
+  a[4][2] =   24.0;
+  a[4][3] =  360.0*r2; 
+  a[4][4] = 1680.0*r4;
+
+
+  /*
+  printf("rc=%15.12f\n",rc);
+
+  for (i=0; i<=4; i++){
+    for (j=0; j<=4; j++){
+      printf("%10.7f ",a[i][j]);
+    }
+    printf("\n");
+  }
+  */
+
+  /* calculate the inverse of a */
+
+  for (k=0; k<=4; k++){
+    for (i=0; i<=5; i++){
+      for (j=0; j<=5; j++){
+        a0[i][j] = 0.0;
+      }
+    }
+
+    for (i=0; i<=4; i++){
+      for (j=0; j<=4; j++){
+        a0[i][j] = a[i][j];
+      }
+    }
+
+    a0[k][5] = 1.0;
+    Gauss_LEQ(4,a0,c);
+    for (i=0; i<=4; i++) ia[i][k] = c[i];
+  }
+
+
+  /*  
+  for (i=0; i<=4; i++){
+    for (j=0; j<=4; j++){
+      sum = 0.0;
+      for (k=0; k<=4; k++){
+        sum += a[i][k]*ia[k][j];
+      }
+      printf("%10.7f ",sum);
+    }
+    printf("\n");
+  }
+  exit(0);
+  */
+
+  /*
+  for (i=0; i<Grid_Num; i++){
+    printf("%15.12f %15.12f\n",MRV[i],AEW[i]);
+  }
+  exit(0);
+  */
+
+  /****************************************************
+           Search the upper and lower points
+              of the bisection method
+  ****************************************************/
+
+  po = 0.0;
+  cm = -60.0;
+  dc = 0.1;
+  loop_num = 0.0;
+
+  r0 = pow(rc,Mb    );
+  r1 = pow(rc,Mb-1.0);
+  r2 = pow(rc,Mb-2.0);
+  r3 = pow(rc,Mb-3.0);
+  r4 = pow(rc,Mb-4.0);
+
+  DN_p = D_Norm(Mb,l,ia,b0,c,cm,Ncore,rc,r4,r3,r2,r1,r0);
+
+  /*
+  printf("DN_p=%15.12f\n",DN_p);
+  printf("c0=%15.12f\n",c[0]);
+  printf("c2=%15.12f\n",c[1]);
+  printf("c4=%15.12f\n",c[2]);
+  printf("c6=%15.12f\n",c[3]);
+  printf("c8=%15.12f\n",c[4]);
+  exit(0);
+  */
+ 
+
+  do {
+    cm = cm + dc;
+
+    DN = D_Norm(Mb,l,ia,b0,c,cm,Ncore,rc,r4,r3,r2,r1,r0);
+
+    /*
+    printf("A1 l=%2d Mb=%2d cm=%15.10f DN=%15.12f\n",l,Mb,cm,DN);
+    */
+
+    if (DN*DN_p<0.0){
+      po = 1;
+      cmmax = cm;
+      cmmin = cm - dc;
+      DN_max = DN; 
+      DN_min = DN_p;
+    }
+    else{
+      DN_p = DN;
+    }
+
+    loop_num++;      
+
+    if (loop_max<loop_num){
+      printf("********************************************************\n");
+      printf("Could not find an appropriate value of the parameter cm\n");
+      printf("in the pseudo potential generation by the MR scheme.\n");
+      printf("Please check cutoff radii of both pseudo potentials and\n");
+      printf("pseudo atomic oribtals, or change the initial value of cm\n");
+      printf("********************************************************\n");
+      exit(0); 
+    }
+
+  } while (po==0);
+
+
+  /*
+  printf("DN_p=%15.12f\n",DN_p);
+  printf("c0=%15.12f\n",c[0]);
+  printf("c1=%15.12f\n",c[1]);
+  printf("c2=%15.12f\n",c[2]);
+  printf("c3=%15.12f\n",c[3]);
+  printf("c4=%15.12f\n",c[4]);
+  exit(0);
+  */
+
+  /****************************************************
+                       Bisection
+  ****************************************************/
+
+  po = 0;
+  loop_num = 0;
+  do {
+    cm = 0.50*(cmmin + cmmax);
+    DN = D_Norm(Mb,l,ia,b0,c,cm,Ncore,rc,r4,r3,r2,r1,r0);
+
+    /*
+    printf("A2 l=%2d Mb=%2d cm=%15.10f DN=%15.12f\n",l,Mb,cm,DN);
+    */
+
+    if (sgn(DN)==sgn(DN_min)){
+      DN_min = DN;
+      cmmin = cm;
+    }
+    else{
+      DN_max = DN;
+      cmmax = cm;
+    }
+    if (fabs(DN)<=1.0e-12) po = 1;
+
+    loop_num++;      
+
+    if (loop_max<loop_num){
+      printf("********************************************************\n");
+      printf("Failure in searching of an appropriate cm\n");
+      printf("in the pseudo potential generation by the MR scheme.\n");
+      printf("Please check cutoff radii of both pseudo potentials and\n");
+      printf("pseudo atomic oribtals\n");
+      printf("********************************************************\n");
+      exit(0); 
+    }
+
+  } while (po==0);
+
+  c0 = c[0];
+  c2 = c[1];
+  c4 = c[2]; 
+  c6 = c[3];
+  c8 = c[4];
+
+  /*
+  printf("DN=%15.12f\n",DN);
+  printf("c0=%15.12f\n",c[0]);
+  printf("c2=%15.12f\n",c[1]);
+  printf("c4=%15.12f\n",c[2]);
+  printf("c6=%15.12f\n",c[3]);
+  printf("c8=%15.12f\n",c[4]);
+  printf("cm=%15.12f\n",cm);
+  */
+
+  /****************************************************
+                       W2 and VPS
+  ****************************************************/
+
+  for (i=0; i<Grid_Num; i++){
+    r = MRV[i]; 
+    if (r<=rc){
+
+      r2 = r*r;
+      r3 = r2*r; 
+      r4 = r2*r2;
+      r5 = r4*r;
+      r6 = r4*r2;
+      r7 = r6*r;
+      r8 = r4*r4;
+      rm = pow(r,(double)Mb);
+
+      p = c0 + c2*r2 + c4*r4 + c6*r6 + c8*r8 + cm*rm;
+
+      pf1 = 2.0*c2*r + 4.0*c4*r3 + 6.0*c6*r5 + 8.0*c8*r7
+	  + (double)Mb*cm*rm/r;
+
+      pf2 = 2.0*c2 + 12.0*c4*r2 + 30.0*c6*r4 + 56.0*c8*r6
+	  + (double)Mb*((double)Mb -1.0)*cm*rm/r/r;
+
+      PW[i] = pow(r,dl+1.0)*exp(p);
+      PV[i] = ep + (dl + 1.0)*pf1/r + 0.5*(pf2 + pf1*pf1);
+    }
+    else{
+      PW[i] = AEW[i];
+      PV[i] = AEV[i];
+    }
+  }
+
+  return calc_fail;
+}
+
+double ip_phi0_phi1(double phi0[ASIZE1],double phi1[ASIZE1],double rc)
+{
+  static int i,n,j,l,nf,fg;
+  static double r,rmin,rmax,Sr,Dr,sum,dum;
+  static double fv0[3],fv1[3];
+
+  n = ASIZE7-2;
+  nf = n;
+  fg = 1;
+
+  Gauss_Legendre(n,x,w,&nf,&fg);
+
+  rmin = MRV[0];
+  rmax = rc;
+  Sr = rmax + rmin;
+  Dr = rmax - rmin;
+
+  sum = 0.0;
+  for (i=0; i<=(n-1); i++){
+    r = 0.50*(Dr*x[i] + Sr);
+    Spline_Func(r,fv0,phi0);
+    Spline_Func(r,fv1,phi1);
+    sum = sum + 0.5*Dr*fv0[0]*fv1[0]*w[i];
+  }
+
+  return sum;
+}
+
+
+
+
+
+
+
+void Find_PAO(int state_num,
+              int so, int n, int l,
+              int num_nodes,
+              double ep, double rc,
+              double Reduce_Num_grid,
+              double Vps[ASIZE1], 
+              double pv[ASIZE1],
+              double pw[ASIZE1])
+{
+  static int num,i,po,p,q,num_div,j;
+  static int node_c,node_p,ref_switch,loop_num,loop_max;
+  static int find_switch,match_p,match_p0;
+  static int floop_num,floop_max;
+  static double Mo[ASIZE1],Lo[ASIZE1],DMo[ASIZE1];
+  static double Mi[ASIZE1],Li[ASIZE1],DMi[ASIZE1];
+  static double MaxE,MinE,trial_ene,DD_c,DD_p,kappa;
+  static double Deriv_O,Deriv_I,dE,ratio,tmp0;
+  static double DD_MinE,DD_MaxE,Local_Ratio_MatP;
+  static double min_diff,r;
+
+  /**************************************************
+    search roughly
+  ***************************************************/
+
+  Local_Ratio_MatP = 0.5;
+  floop_num = 0.0;
+  floop_max = 5;
+
+  do {
+
+    floop_num++;
+
+    MinE = E[state_num][so][n][l] - 1.0;
+
+    if (Calc_Type!=2){
+      MaxE = -1.0e-4;
+    }
+    else{ 
+      MaxE = smallest(height_wall,5.0);
+    }
+
+    num_div = 700;
+    dE = (MaxE - MinE)/(double)(num_div-1);
+    trial_ene = MinE;
+    find_switch = 0;
+    DD_p = 0.0;
+    DD_c = 0.0;
+    num = -1;
+
+    /* find the matching point */
+
+    min_diff = 1.0e+10; 
+    for (i=0; i<Grid_Num; i++){
+      if (fabs(MRV[i] - rc)<min_diff){
+        min_diff = fabs(MRV[i] - rc);
+        match_p = i;
+      }
+    } 
+
+    printf("match_p=%2d rc=%15.12f MRV[match_p]=%15.12f\n",match_p,rc,MRV[match_p]);
+
+ 
+    do {
+ 
+      num++;
+
+      Hamming_I(0,l,       ep,kappa,Mi,Li,DMi,Vps,Vps,Reduce_Num_grid);
+      Hamming_O(0,l,trial_ene,kappa,Mo,Lo,DMo,Vps,Vps,Reduce_Num_grid);
+
+      if ( LL_grid<match_p && match_p<UL_grid){
+        /* It's OK, nothitg to be done */         
+      }
+      else{
+	printf("Could not find an appropriate matching point in MR.c\n");
+	exit(0);
+      }
+
+      /* Deviation between the derivatives for MinE */
+
+      DD_p = DD_c;
+      ratio = Lo[match_p]/Li[match_p];
+      Deriv_O = Mo[match_p];
+      Deriv_I = ratio*Mi[match_p];
+      DD_c = Deriv_O - Deriv_I;
+
+      /* recalc # of nodes */
+
+      for (i=0; i<=match_p; i++)           pw[i] = Lo[i];
+      for (i=(match_p+1); i<Grid_Num; i++) pw[i] = ratio*Li[i];
+      node_p = node_c;
+      node_c = 0;
+      for (i=0; i<(Grid_Num-1); i++){
+	if (pw[i]*pw[i+1]<0.0) node_c++;
+      }
+
+      if ( (node_p==num_nodes || node_c==num_nodes) && DD_p*DD_c<0.0 ){
+	if (find_switch==0){ 
+
+
+	  printf("AA find_switch=%3d %10.6f %10.6f   %10.6f %10.6f\n",
+		 find_switch,ep,trial_ene,DD_p,DD_c);
+
+
+	  find_switch = 1;
+	  MaxE = trial_ene  +    dE;
+	  MinE = trial_ene - 2.0*dE;
+	  DD_MinE = DD_p;
+	  DD_MaxE = DD_c;
+	  match_p0 = match_p;
+	}
+      }
+
+      /*
+      printf("Rough l=%d ep=%15.12f trial_ene=%15.12f node_c=%d match_p=%4d DD_c=%15.12f\n",
+	     l,ep,trial_ene,node_c,match_p,DD_c);
+      */
+
+      /* new trial_ene */
+      trial_ene += dE;
+    }
+    while (num<num_div && find_switch==0);
+
+    if (find_switch==0){
+      num_div = num_div + 200;
+    }
+
+  } while (find_switch==0 && floop_num<floop_max);
+
+  /**************************************************
+    refine 
+  ***************************************************/
+
+  if (find_switch==1){
+
+    po = 0;
+    DD_p = 0.0;
+    node_c = 100;
+    loop_num = 0; 
+    loop_max = 3000; 
+
+    do{
+
+      loop_num++;
+
+      trial_ene = 0.5*(MaxE + MinE);
+
+      Hamming_I(0,l,       ep,kappa,Mi,Li,DMi,Vps,Vps,Reduce_Num_grid);
+      Hamming_O(0,l,trial_ene,kappa,Mo,Lo,DMo,Vps,Vps,Reduce_Num_grid);
+      
+      /* Deviation between the derivatives for MinE */
+
+      DD_p = DD_c;
+      ratio = Lo[match_p0]/Li[match_p0];
+      Deriv_O = Mo[match_p0];
+      Deriv_I = ratio*Mi[match_p0];
+
+      DD_c = Deriv_O - Deriv_I;
+
+      /* recalc # of nodes */
+
+      for (i=0; i<=match_p0; i++)           pw[i] = Lo[i];
+      for (i=(match_p0+1); i<Grid_Num; i++) pw[i] = ratio*Li[i];
+      node_p = node_c;
+      node_c = 0;
+      for (i=0; i<(Grid_Num-1); i++){
+        if (pw[i]*pw[i+1]<0.0) node_c++;
+      }
+
+      /* bisection */
+
+      if (sgn(DD_c)==sgn(DD_MaxE)){
+        MaxE = trial_ene; 
+        DD_MaxE = DD_c;
+      }
+      else {
+        MinE = trial_ene; 
+        DD_MinE = DD_c;
+      }
+
+      /* convergence? */
+      if (fabs(DD_c)<1.0e-12) po = 1; 
+
+      /*
+      printf("Refine l=%d trial_ene=%15.12f node_c=%d match_p0=%4d DD_c=%15.12f\n",
+              l,trial_ene,node_c,match_p0,DD_c);
+      */
+
+      if (loop_num==loop_max){
+        printf("Warning: not fully convergence in TM.c\n");
+        printf("Please compare criterion and fabs(DD_c)\n");
+        printf("criterion  = %18.15f\n",1.0e-12);   
+        printf("fabs(DD_c) = %18.15f\n",fabs(DD_c));   
+        printf("Acceptable or not??\n");
+        po = 1;   
+      }
+
+    } while(po==0 && loop_num<loop_max);
+  }
+  else{
+    printf("Could not find the eigenstate of VPS\n");
+    exit(0);
+  }
+
+
+  if (po==1){
+
+    /* pw */
+
+    for (i=0; i<=match_p0; i++){
+      pw[i] = pow(MRV[i],(double)l+1.0)*Lo[i];
+    }
+    for (i=(match_p0+1); i<Grid_Num; i++){
+      pw[i] = pow(MRV[i],(double)l+1.0)*ratio*Li[i];
+    }
+    tmp0 = 1.0/sqrt(ip_phi0_phi1(pw,pw,MRV[Grid_Num-1]));
+    for (i=0; i<Grid_Num; i++){
+      pw[i] = tmp0*pw[i];
+
+      /*  printf("%2d %2d %2d %15.12f %15.12f\n",so,n,l,MRV[i],pw[i]);  */
+    }
+
+    /* pv */
+
+    for (i=0; i<=match_p0; i++){
+      r = MRV[i];      
+      pv[i] = ep + (trial_ene-ep)*exp(-100.0*(r-rc)*(r-rc))
+                 + ( DMo[i] + (2.0*(double)l + 1.0)*Mo[i] )/(2.0*r*r*Lo[i]);
+    }
+
+    for (i=(match_p0+1); i<Grid_Num; i++){
+      r = MRV[i];      
+      pv[i] = ep + ( DMi[i] + (2.0*(double)l + 1.0)*Mi[i] )/(2.0*r*r*Li[i]);
+    }
+
+  }
+  else{
+    printf("Could not find the second orbital for L=%d in VPS\n");
+    exit(0);
+  }
+}
+
+
+
+
+
+
+void Calc_PAO(int so, int n, int l, int num_nodes,
+              double rc, int rc_i,
+              double *TE, double *TR, double *TIR,
+              double LowerE,  
+              double Reduce_Num_grid,
+              double Vps[ASIZE1], double pw[ASIZE1])
+{
+
+  static int num,i,po,p,q,num_div,j,CTP_P;
+  static int node_c,node_p,ref_switch,loop_num,loop_max;
+  static int find_switch,match_p,match_p0;
+  static int floop_num,floop_max;
+  static double Mo[ASIZE1],Lo[ASIZE1],DMo[ASIZE1];
+  static double Mi[ASIZE1],Li[ASIZE1],DMi[ASIZE1];
+  static double MaxE,MinE,trial_ene,DD_c,DD_p,kappa;
+  static double Deriv_O,Deriv_I,dE,ratio,tmp0;
+  static double DD_MinE,DD_MaxE,Local_Ratio_MatP;
+
+  /**************************************************
+    search roughly
+  ***************************************************/
+
+  floop_num = 0.0;
+  floop_max = 10;
+  num_div = 500;
+
+  do {
+
+    floop_num++;
+
+    MinE = LowerE;
+    MaxE = smallest(height_wall,5.0);
+    num_div = num_div + 200;
+
+    CTP_P = 40;
+    dE = (MaxE - MinE)/(double)(num_div-1);
+    trial_ene = MinE;
+    find_switch = 0;
+    DD_p = 0.0;
+    DD_c = 0.0;
+    num = -1;
+
+    do {
+ 
+      num++;
+
+      Hamming_O(0,l,trial_ene,kappa,Mo,Lo,DMo,Vps,Vps,Reduce_Num_grid);
+      Hamming_I(0,l,trial_ene,kappa,Mi,Li,DMi,Vps,Vps,Reduce_Num_grid);
+
+      /* Matching point */
+      if (LL_grid<=UL_grid){
+	if (LL_grid<=(CTP+CTP_P) && (CTP+CTP_P)<=UL_grid){
+	  match_p = MCP[so][n][l];
+	}
+	else{
+	  match_p = (LL_grid + UL_grid)/2;
+	}
+      }
+      else{
+	printf("Could not find an appropriate matching point in TM.c\n");
+	exit(0);
+      }
+
+      /* Deviation between the derivatives for MinE */
+
+      DD_p = DD_c;
+      ratio = Lo[match_p]/Li[match_p];
+      Deriv_O = Mo[match_p];
+      Deriv_I = ratio*Mi[match_p];
+      DD_c = Deriv_O - Deriv_I;
+
+      /* recalc # of nodes */
+
+      for (i=0; i<=match_p; i++)           pw[i] = Lo[i];
+      for (i=(match_p+1); i<Grid_Num; i++) pw[i] = ratio*Li[i];
+      node_p = node_c;
+      node_c = 0;
+      for (i=0; i<(Grid_Num-1); i++){
+	if (pw[i]*pw[i+1]<0.0) node_c++;
+      }
+
+
+      /*
+      printf("A1 find_switch=%3d %10.6f %10.6f %10.6f %3d\n",
+	         find_switch,trial_ene,DD_p,DD_c,node_c);
+      */
+
+
+
+      if ( (node_p==num_nodes || node_c==num_nodes) && DD_p*DD_c<0.0 ){
+	if (find_switch==0){ 
+
+	  /*
+	  printf("AA find_switch=%3d %10.6f %10.6f %10.6f %3d\n",
+		 find_switch,trial_ene,DD_p,DD_c,node_c);
+	  */
+
+	  find_switch = 1;
+	  MaxE = trial_ene + 1.0001*dE;
+	  MinE = trial_ene - 1.0001*dE;
+	  DD_MinE = DD_p;
+	  DD_MaxE = DD_c;
+	  match_p0 = match_p;
+	}
+      }
+
+      else if ( (num_nodes+1)<node_c ){
+        find_switch = 2;
+      }
+
+      /*
+      printf("Rough l=%d trial_ene=%15.12f node_c=%d match_p=%4d DD_c=%15.12f\n",
+	     l,trial_ene,node_c,match_p,DD_c);
+      */
+
+
+      /* new trial_ene */
+      trial_ene += dE;
+    }
+    while (num<num_div && find_switch==0);
+
+    if (find_switch==2) find_switch = 0; 
+
+  } while (find_switch==0 && floop_num<floop_max);
+
+  /**************************************************
+    refine 
+  ***************************************************/
+
+  if (find_switch==1){
+
+    po = 0;
+    DD_p = 0.0;
+    node_c = 100;
+    loop_num = 0; 
+    loop_max = 3000; 
+
+    do{
+
+      loop_num++;
+
+      trial_ene = 0.5*(MaxE + MinE);
+      Hamming_O(0,l,trial_ene,kappa,Mo,Lo,DMo,Vps,Vps,Reduce_Num_grid);
+      Hamming_I(0,l,trial_ene,kappa,Mi,Li,DMi,Vps,Vps,Reduce_Num_grid);
+      
+      /* Deviation between the derivatives for MinE */
+
+      DD_p = DD_c;
+      ratio = Lo[match_p0]/Li[match_p0];
+      Deriv_O = Mo[match_p0];
+      Deriv_I = ratio*Mi[match_p0];
+      DD_c = Deriv_O - Deriv_I;
+
+      /* recalc # of nodes */
+
+      for (i=0; i<=match_p0; i++)           pw[i] = Lo[i];
+      for (i=(match_p0+1); i<Grid_Num; i++) pw[i] = ratio*Li[i];
+      node_p = node_c;
+      node_c = 0;
+      for (i=0; i<(Grid_Num-1); i++){
+        if (pw[i]*pw[i+1]<0.0) node_c++;
+      }
+
+      /* bisection */
+
+      if (sgn(DD_c)==sgn(DD_MaxE)){
+        MaxE = trial_ene; 
+        DD_MaxE = DD_c;
+      }
+      else {
+        MinE = trial_ene; 
+        DD_MinE = DD_c;
+      }
+
+      /* convergence? */
+      if (fabs(DD_c)<1.0e-12) po = 1; 
+
+
+      /*
+      printf("Refine l=%d trial_ene=%15.12f node_c=%d match_p0=%4d DD_c=%15.12f\n",
+              l,trial_ene,node_c,match_p0,DD_c);
+      */
+
+
+      if (loop_num==loop_max){
+        printf("Warning: not fully convergence in TM.c\n");
+        printf("Please compare criterion and fabs(DD_c)\n");
+        printf("criterion  = %18.15f\n",1.0e-12);   
+        printf("fabs(DD_c) = %18.15f\n",fabs(DD_c));   
+        printf("Acceptable or not??\n");
+        po = 1;   
+      }
+
+    } while(po==0 && loop_num<loop_max);
+  }
+  else{
+    printf("Could not find the eigenstate of VPS\n");
+    exit(0);
+  }
+
+  /*
+  printf("Refine l=%d trial_ene=%15.12f node_c=%d match_p0=%4d DD_c=%15.12f\n",
+          l,trial_ene,node_c,match_p0,DD_c);
+  */
+
+
+  if (po==1){
+    for (i=0; i<=match_p0; i++){
+      pw[i] = pow(MRV[i],(double)l+1.0)*Lo[i];
+    }
+    for (i=(match_p0+1); i<Grid_Num; i++){
+      pw[i] = pow(MRV[i],(double)l+1.0)*ratio*Li[i];
+    }
+    tmp0 = 1.0/sqrt(ip_phi0_phi1(pw,pw,MRV[Grid_Num-1]));
+
+
+    if (0.0<=pw[Grid_Num-200]){
+      for (i=0; i<Grid_Num; i++){
+        pw[i] = tmp0*pw[i];
+        /*
+        printf("%2d %2d %2d %15.12f %15.12f\n",so,n,l,MRV[i],pw[i]);
+        */
+      }
+    }
+    else{
+      for (i=0; i<Grid_Num; i++){
+        pw[i] = -tmp0*pw[i];
+        /*
+        printf("%2d %2d %2d %15.12f %15.12f\n",so,n,l,MRV[i],pw[i]);
+        */
+      }
+    }
+
+    *TE  = trial_ene;
+    *TR  = pw[rc_i];
+    *TIR = ip_phi0_phi1(pw,pw,rc);
+
+  }
+  else{
+    printf("Could not find the second orbital for L=%d in VPS\n");
+    exit(0);
+  }
+}
+
+
+
+
+
+
+
+void Calc_PF_Under_Confinement(int state_num, double rcut)
+{
+  static int i0,i1,imin,p_node,so;
+  static int i,j,k,n,l,po,SCF,SCF_OK,po_node,CTP_P;
+  static int cNode,pNode,Node_min,Node_max,MatP_fix_switch;
+  static int Enum,Divided_Num,Reduce_po;
+  static int m,num,div_num,po_ok,num_loop;
+  static int CountL[ASIZE12];
+  static double EneL[ASIZE12][ASIZE14];
+  static double minMapD,tmp0,tmp1,tmp2,cDD,pDD,pDD2,pOEE,Fugou;
+  static double DD_max,DD_min,di,Reduce_Num_grid;
+  static double Mo[ASIZE1],Lo[ASIZE1],DMo[ASIZE1];
+  static double Mi[ASIZE1],Li[ASIZE1],DMi[ASIZE1];
+  static double Ltmp[ASIZE1];
+  static double ratio,Deriv_O,Deriv_I,ep,sum,dG,r;
+  static double kei,DD_old,DD_new,s0,s1,s2,OEE,MaxE,MinE;
+  static double Min_ep,Max_ep,Min_D,Max_D,Trial_ep,Trial_D,pTrial_D;
+  static double p_ep,p_D,cri,scale,al,c,kappa;
+  static double StepE,E_old[ASIZE13][ASIZE3][ASIZE2];
+
+  if (Calc_Type==0 || Calc_Type==1)
+    CTP_P = 40;
+  else 
+    CTP_P = 20;
+
+  for (n=1; n<=(ASIZE14+1); n++){
+    for (l=0; l<n; l++){
+      RNG[n][l] = 1.0; 
+    }
+  }
+
+  /****************************************************
+          calculate the confinement potential
+  ****************************************************/
+
+  VP_MR(rcut);
+
+  /****************************************************
+        Set a switch to calculate the bound states
+             under the confinement potential          
+  ****************************************************/
+
+  /* initialize */
+
+  for (l=0; l<=ASIZE14; l++) CountL[l] = 0;
+
+  for (n=1; n<=(ASIZE14+1); n++){
+    for (l=0; l<n; l++){
+      calc_states[n][l] = 0;
+    }
+  }
+
+  /* occupied states */
+
+  for (l=0; l<=ASIZE14; l++){
+    for (num=0; num<NumVPS_L[l]; num++){
+      m = GI_VPS[l][num];
+      n = NVPS[m];
+      calc_states[n][l] = 1;
+      CountL[l]++;
+    }
+  }
+
+  /* unoccupied states */
+
+  for (n=1; n<=(ASIZE14+1); n++){
+    for (l=0; l<n; l++){
+      if ( calc_states[n][l]==0 && CountL[l]<(NumVPS_L[l]+Num_MR_ES)
+        && OcpN[state_num][0][n][l]==0.0 ){
+         calc_states[n][l] = 2;
+         CountL[l]++;
+      }
+    }
+  }
+
+  for (so=0; so<SOI_switch; so++){
+    for (n=1; n<=max_ocupied_N; n++){
+      for (l=0; l<n; l++){
+        if (calc_states[n][l]==2){
+          E[state_num][so][n][l] = -0.1;
+	}
+      }
+    }
+  }
+
+  /*
+  for (n=1; n<=(ASIZE14+1); n++){
+    for (l=0; l<n; l++){
+      printf("%3d ",calc_states[n][l]);  
+    }
+    printf("\n");
+  }
+
+  exit(0);
+  */
+
+
+  /****************************************************
+             search eigenvalues for n and l  
+  ****************************************************/
+
+  for (so=0; so<SOI_switch; so++){
+    for (l=0; l<=ASIZE14; l++) CountL[l] = 0;
+    for (n=1; n<=(ASIZE14+1); n++){
+      for (l=0; l<n; l++){
+
+	if (l==0){
+	  kappa = -1.0;    /* for j=l+1/2 */
+	} 
+	else{ 
+	  if      (so==0)  kappa = (double)(-l-1);    /* for j=l+1/2 */
+	  else if (so==1)  kappa = (double)l;         /* for j=l-1/2 */
+	}
+
+	if (calc_states[n][l]!=0){
+
+	  /****************************************************
+             find the lower and upper bounds of the solution 
+	  ****************************************************/
+
+	  scale = 1.0;
+	  Reduce_Num_grid = RNG[n][l];
+	  Reduce_po = 0;
+
+          div_num = 200;
+          MatP_ratio = 0.6;
+          po_ok = 0;
+          num_loop = 0;
+
+          do{ /* first loop */
+	    do{ /* second loop */
+
+	      num_loop++;
+
+	      if (calc_states[n][l]==1){
+		MinE = E[state_num][so][n][l] - 0.3;
+		MaxE = E[state_num][so][n][l] + 0.7;
+	      }
+	      else if (calc_states[n][l]==2){
+		if (CountL[l]==0){
+		  MinE = -0.3;
+		  MaxE =  0.7;
+		}
+		else{
+		  MinE = EneL[l][CountL[l]-1] + 0.001;
+		  MaxE = EneL[l][CountL[l]-1] + 0.700;
+		}
+
+	      }
+
+	      if (Vinf<MaxE) MaxE = Vinf - 1.0e-14;
+
+	      div_num = div_num + 300;
+	      StepE = (MaxE - MinE)/(double)div_num;
+
+	      MatP_ratio = MatP_ratio + 0.1;
+	      if (0.99<MatP_ratio) MatP_ratio = 0.99;
+
+	      Trial_ep = MinE; 
+	      Trial_D = 0.0;
+	      cNode = -10;
+	      pNode = -10;
+
+	      po = 0;
+	      i = 0;
+
+	      do{ /* third loop */
+
+		i++;
+
+		Trial_ep += StepE;
+
+		if (Equation_Type==0){      /* Schrodinger equation */
+		  Hamming_O(0,l,Trial_ep,kappa,Mo,Lo,DMo,V,V,Reduce_Num_grid);
+		  Hamming_I(0,l,Trial_ep,kappa,Mi,Li,DMi,V,V,Reduce_Num_grid);
+		}
+		else if (Equation_Type==1){ /* scalar relativistic equation */
+		  Hamming_O(2,l,Trial_ep,kappa,Mo,Lo,DMo,V,V,Reduce_Num_grid);
+		  Hamming_I(2,l,Trial_ep,kappa,Mi,Li,DMi,V,V,Reduce_Num_grid);
+		}
+		else if (Equation_Type==2){ /* full relativistic equation */
+		  Hamming_O(3,l,Trial_ep,kappa,Mo,Lo,DMo,V,V,Reduce_Num_grid);
+		  Hamming_I(3,l,Trial_ep,kappa,Mi,Li,DMi,V,V,Reduce_Num_grid);
+		}
+
+		/* Matching point */
+
+		if (LL_grid<=UL_grid){
+		  j = Reduce_Num_grid*Grid_Num*MatP_ratio;
+		  MatP[so][n][l] = j;
+		}
+		else{
+		  Reduce_po = 1;
+		  Reduce_Num_grid = 0.70*Reduce_Num_grid;
+		  if (Reduce_Num_grid<RNG[n][l]){
+		    RNG[n][l] = Reduce_Num_grid;
+		    if (Check_switch==1){ 
+		      printf("A n=%i  l=%i  Reduce_Num_grid=%5.2f\n",n,l,RNG[n][l]);
+		    }
+		  }
+		}
+
+		/* Deviation between the derivatives */
+
+		if (Reduce_po==0){
+		  ratio = Lo[j]/Li[j];
+		  Deriv_O = Mo[j];
+		  Deriv_I = ratio*Mi[j];
+		  pTrial_D = Trial_D;
+		  Trial_D = Deriv_O - Deriv_I;
+		}
+
+		/* Recalculation of the number of nodes */
+
+		if (Reduce_po==0){
+		  for (i1=0; i1<=j; i1++){
+		    Ltmp[i1] = Lo[i1];
+		  }
+		  for (i1=(j+1); i1<Grid_Num; i1++){
+		    Ltmp[i1] = ratio*Li[i1];
+		  }
+
+		  pNode = cNode;
+		  cNode = 0;
+		  for (i1=1; i1<=(Grid_Num-2); i1++){
+		    if (Ltmp[i1]*Ltmp[i1+1]<0.0) cNode++;
+		  }
+		}
+
+		/*
+		printf("num_loop=%2d n=%2d l=%2d Trial_ep=%15.12f Trial_D=%15.12f %15.12f cNode=%3d %3d\n",
+		       num_loop,n,l,Trial_ep,Trial_D,pTrial_D,cNode,pNode);
+		*/
+
+		if ( ( (n-l-1)==cNode || (n-l-1)==pNode ) && pTrial_D*Trial_D<0.0){
+		  po = 1;
+		  po_ok = 1;
+		  Min_ep = Trial_ep - StepE;
+		  Max_ep = Trial_ep;                 
+		  Min_D = pTrial_D; 
+		  Max_D = Trial_D; 
+		  Node_min = pNode;
+		  Node_max = cNode;
+		}
+
+		else if (((n-l-1)+1)<cNode){
+		  po = 1;
+		}
+
+	      } while (po==0 && i<div_num);
+
+	    } while (po_ok==0 && num_loop<5);
+
+	    if (po==0){
+	      printf("Could not find bound states under the confinement potential in MR.c\n");
+	      exit(0);
+	    }  
+
+	    /****************************************************
+		 Refinement of the eigenvalue by 
+		 the linear interpolation
+	    ****************************************************/
+
+	    if (Check_switch==1){ 
+	      printf("i=%i Min_ep=%10.6f Max_ep=%10.6f Min_D=%10.6f Max_D=%10.6f ",
+		     i,Min_ep,Max_ep,Min_D,Max_D);
+	      printf("Node_min=%2d Node_max=%2d\n",Node_min,Node_max);
+	    }
+
+	    i = 0;
+	    po = 0;
+	    do{
+
+	      i++; 
+
+	      if (1<i && i<20 && Max_D*Min_D<0.0 &&
+		  abs(Node_min-(n-l-1))<=1 && abs(Node_max-(n-l-1))<=1 &&
+		  (Node_min==(n-l-1) || Node_min==(n-l-1))
+		  ){
+
+		Trial_ep = (Min_ep*Max_D - Max_ep*Min_D)/(Max_D - Min_D);
+	      }
+	      else{ 
+		Trial_ep = 0.50*(Min_ep + Max_ep);
+	      }
+
+	      if (Equation_Type==0){       /* Schrodinger equation */
+		Hamming_O(0,l,Trial_ep,kappa,Mo,Lo,DMo,V,V,Reduce_Num_grid);
+		Hamming_I(0,l,Trial_ep,kappa,Mi,Li,DMi,V,V,Reduce_Num_grid);
+	      }
+	      else if (Equation_Type==1){  /* scalar relativistic equation */
+		Hamming_O(2,l,Trial_ep,kappa,Mo,Lo,DMo,V,V,Reduce_Num_grid);
+		Hamming_I(2,l,Trial_ep,kappa,Mi,Li,DMi,V,V,Reduce_Num_grid);
+	      }
+	      else if (Equation_Type==2){  /* full relativistic equation */
+		Hamming_O(3,l,Trial_ep,kappa,Mo,Lo,DMo,V,V,Reduce_Num_grid);
+		Hamming_I(3,l,Trial_ep,kappa,Mi,Li,DMi,V,V,Reduce_Num_grid);
+	      }
+
+	      /* Matching point */
+
+	      if (LL_grid<=UL_grid){
+		j = Reduce_Num_grid*Grid_Num*MatP_ratio;
+		MatP[so][n][l] = j;
+	      }
+	      else{
+		Reduce_Num_grid = 0.70*Reduce_Num_grid;
+		if (Reduce_Num_grid<RNG[n][l]){
+		  RNG[n][l] = Reduce_Num_grid;
+		  if (Check_switch==1){ 
+		    printf("C n=%i  l=%i  Reduce_Num_grid=%5.2f\n",n,l,RNG[n][l]);
+		  }
+		}
+	      }
+
+	      ratio = Lo[j]/Li[j];
+	      Deriv_O = Mo[j];
+	      Deriv_I = ratio*Mi[j];
+	      Trial_D = Deriv_O - Deriv_I;
+
+	      /* Recalculation of the number of nodes */
+
+	      for (i1=0; i1<=j; i1++){
+		Ltmp[i1] = Lo[i1];
+	      }
+	      for (i1=(j+1); i1<Grid_Num; i1++){
+		Ltmp[i1] = ratio*Li[i1];
+	      }
+
+	      node = 0;
+	      for (i1=1; i1<=(Grid_Num-2); i1++){
+		if (Ltmp[i1]*Ltmp[i1+1]<0.0) node++;
+	      }
+
+	      if (Check_switch==1){
+		printf("SCF=%2d i=%2d n=%2d l=%2d T_ep=%16.12f T_D=%18.15f ",
+		       SCF,i,n,l,Trial_ep,Trial_D);
+		printf("node=%2d\n",node);
+	      }
+
+	      cri = 1.0e-12;
+
+	      if ( i!=1 && fabs(Deriv_O-Deriv_I)<=cri && node==(n-l-1) ){
+		po = 1;
+		ep = Trial_ep; 
+		MCP[so][n][l] = j;
+
+		if (Check_switch==1){
+		  printf("SCF=%2d  i=%2d  n l ep D %i %i %18.14f %18.14f\n",
+			 SCF,i,n,l,Trial_ep,Trial_D);
+		}
+	      }
+ 
+              else if (50<i){
+                po = 2;
+              }
+
+	      else{
+
+		if ((n-l-1)<node){
+		  p_D = Max_D;
+		  p_ep = Max_ep;
+		  p_node = Node_max; 
+		  Max_D = Trial_D;
+		  Max_ep = Trial_ep;
+		  Node_max = node;
+		}
+		else if ((n-l-1)==node){
+
+		  /****************************************************
+		     if n-l-1 = an even number,
+		     minus to plus as the energy decreases 
+		     if n-l-1 = an odd number 
+		     plus to minus as the energy decreases 
+		  ****************************************************/
+
+		  if ((n-l-1)%2==0){
+		    if (0.0<=Trial_D){
+		      p_D = Min_D;
+		      p_ep = Min_ep;
+		      p_node = Node_min; 
+		      Min_D = Trial_D;
+		      Min_ep = Trial_ep;
+		      Node_min = node;
+		    }
+		    else{
+		      p_D = Max_D;
+		      p_ep = Max_ep;
+		      p_node = Node_max; 
+		      Max_D = Trial_D;
+		      Max_ep = Trial_ep;
+		      Node_max = node;
+		    }
+		  }
+		  else{
+		    if (0.0<=Trial_D){
+		      p_D = Max_D;
+		      p_ep = Max_ep;
+		      p_node = Node_max; 
+		      Max_D = Trial_D;
+		      Max_ep = Trial_ep;
+		      Node_max = node;
+		    }
+		    else{
+		      p_D = Min_D;
+		      p_ep = Min_ep;
+		      p_node = Node_min; 
+		      Min_D = Trial_D;
+		      Min_ep = Trial_ep;
+		      Node_min = node;
+		    }
+		  }
+                  
+		}
+		else{
+		  p_D = Min_D;
+		  p_ep = Min_ep;
+		  p_node = Node_min; 
+		  Min_D = Trial_D;
+		  Min_ep = Trial_ep;
+		  Node_min = node;
+		}
+
+	      }
+
+	    } while (po==0);
+
+	    if (po==2){
+	      div_num = div_num + 300;
+	      MatP_ratio = MatP_ratio + 0.1;
+	      if (0.99<MatP_ratio) MatP_ratio = 0.99;
+              po = 0;
+	    } 
+
+          } while (po==0);
+
+	  /****************************************************
+		    eigenenergy and radial wave function
+	  ****************************************************/
+
+  	  MCP[so][n][l] = j;
+
+	  E_old[so][n][l] = E[state_num][so][n][l];
+	  E[state_num][so][n][l] = ep;
+
+	  for (i=0; i<=MCP[so][n][l]; i++){
+	    PF[so][n][l][i] = pow(MRV[i],(double)l+1.0)*Lo[i];
+	  }
+
+	  for (i=(MCP[so][n][l]+1); i<Grid_Num; i++){
+	    PF[so][n][l][i] = pow(MRV[i],(double)l+1.0)*ratio*Li[i];
+	  }
+
+	  /* In case of Dirac equation, compute the small wave function */
+
+	  if (TwoComp_frag){
+
+	    c = 137.0359895;
+	    al = 1.0/c;
+	    for (i=0; i<=MCP[so][n][l]; i++){
+	      r = MRV[i];
+	      tmp0 = 1.0/(al*(2.0/al/al + ep - V[i]));
+	      dG = pow(r,(double)l)*(((double)l+1.0)*Lo[i] + Mo[i]);
+	      FF[so][n][l][i] = tmp0*(dG + kappa*PF[so][n][l][i]/r);
+	    }
+	    for (i=(MCP[so][n][l]+1); i<Grid_Num; i++){
+	      r = MRV[i];
+	      tmp0 = 1.0/(al*(2.0/al/al + ep - V[i]));
+	      dG = ratio*pow(r,(double)l)*(((double)l+1.0)*Li[i] + Mi[i]);
+	      FF[so][n][l][i] = tmp0*(dG + kappa*PF[so][n][l][i]/r);
+	    }
+	  }
+
+	  /****************************************************
+		    Normalization by Simpson Integration
+	  ****************************************************/
+
+	  Simpson_Normalization(so, n, l);
+	  if (Check_switch==1){
+	    printf("SCF=%2d n=%2d l=%2d so=%2d eigenvalue=%15.12f (Hartree)\n",
+		   SCF,n,l,so,E[state_num][so][n][l]);
+	  }
+
+          EneL[l][CountL[l]] = E[state_num][so][n][l];
+          CountL[l]++; 
+
+	} /* if (calc_states[n][l]!=0) */ 
+      }  /* l */
+    }  /* n */
+  } /* so */
+
+} 
+
+
+void Simpson_Normalization(int so, int n, int l)
+{
+
+  /****************************************************
+           Normalization by Simpson Integration
+  ****************************************************/
+
+  static int i;
+  static double s0,s1,s2,sumG,sumF,sum,mul0;
+  static double tmp0;
+
+  sumG = 0.0;
+  sumF = 0.0;
+
+  s0 = PF[so][n][l][0]*PF[so][n][l][0]*MRV[0]
+     + PF[so][n][l][Grid_Num-1]*PF[so][n][l][Grid_Num-1]*MRV[Grid_Num-1];
+
+  s1 = 0.0;
+  for (i=1; i<=(Grid_Num-2); i=i+2){
+    s1 = s1 + PF[so][n][l][i]*PF[so][n][l][i]*MRV[i];
+  }
+
+  s2 = 0.0; 
+  for (i=2; i<=(Grid_Num-3); i=i+2){
+    s2 = s2 + PF[so][n][l][i]*PF[so][n][l][i]*MRV[i];
+  }
+  sumG = (s0 + 4.0*s1 + 2.0*s2)*dx/3.0;
+
+  /* In case of a full relativistic equation, the contribution
+     of the minor wave function */
+
+  if (TwoComp_frag){
+    s0 = FF[so][n][l][0]*FF[so][n][l][0]*MRV[0]
+       + FF[so][n][l][Grid_Num-1]*FF[so][n][l][Grid_Num-1]*MRV[Grid_Num-1];
+
+    s1 = 0.0;
+    for (i=1; i<=(Grid_Num-2); i=i+2){
+      s1 = s1 + FF[so][n][l][i]*FF[so][n][l][i]*MRV[i];
+    }
+
+    s2 = 0.0; 
+    for (i=2; i<=(Grid_Num-3); i=i+2){
+      s2 = s2 + FF[so][n][l][i]*FF[so][n][l][i]*MRV[i];
+    }
+    sumF = (s0 + 4.0*s1 + 2.0*s2)*dx/3.0;
+  }
+
+  /* normalize */
+  /* printf("sumG=%15.12f sumF=%15.12f\n",sumG,sumF); */
+
+  tmp0 = 1.0/sqrt(sumG + sumF);
+
+  if (0.0<=PF[so][n][l][Grid_Num-200]){
+    for (i=0; i<=(Grid_Num-1); i++){
+      PF[so][n][l][i] = tmp0*PF[so][n][l][i];
+    }
+    if (TwoComp_frag){
+      for (i=0; i<=(Grid_Num-1); i++){
+        FF[so][n][l][i] = tmp0*FF[so][n][l][i];
+      }
+    }
+  }
+  else{
+    for (i=0; i<=(Grid_Num-1); i++){
+      PF[so][n][l][i] = -tmp0*PF[so][n][l][i];
+    }
+    if (TwoComp_frag){
+      for (i=0; i<=(Grid_Num-1); i++){
+        FF[so][n][l][i] = -tmp0*FF[so][n][l][i];
+      }
+    }
+  }
+
+}
+
+
+
+void VP_MR(double rcut)
+{
+  static int i;
+
+
+  PAO_Rcut = rcut;
+  height_wall = 100.0;
+  rising_edge = 0.5;
+
+  Calc_Type = 2;
+  Core(100,(double)AtomNum,Vcore);
+  Calc_Type = 1;
+
+
+  for (i=0; i<Grid_Num; i++){
+    V[i] = Vcore[i] + Vh[i] + Vxc[i];
+  }
+
+}
