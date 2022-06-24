@@ -968,7 +968,7 @@ void calculate_PAD(){
 								// cout << endl;
 								complex<double> atom_phase2;
 								if(strcmp(PA_final_state, "Calc")==0){
-									atom_phase2=atom_phase*complex<double>(cos(final_states_phase[k_index-k_index_min][is][lp]), -sin(final_states_phase[k_index-k_index_min][is][lp]));
+									atom_phase2=atom_phase*complex<double>(cos(final_states_phase[k_index-k_index_min][is][lp]), sin(final_states_phase[k_index-k_index_min][is][lp]));
 								}else{
 									atom_phase2=atom_phase;
 								}
