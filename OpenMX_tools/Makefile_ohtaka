@@ -2,7 +2,7 @@ library = inputTools.o
 # directory specified by --prefix=DIR in ./configure of HDF5
 # written in config.log
 # hdf5-x.y.z/hdf5 by default
-hdf5 = /home/p0081/p008100/hdf5-1.12.1/hdf5
+hdf5 = /home/p0084/p008400/hdf5-1.12.2/hdf5
 
 # compile option can be checked by
 # >$(hdf5)/bin/h5c++ (filename) -show
