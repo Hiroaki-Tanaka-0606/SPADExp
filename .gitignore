@@ -3,6 +3,7 @@
 *.dat
 *.hdf5
 *.log
+Makefile
 Test/
 Config.py
 __pycache__

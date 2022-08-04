@@ -4,7 +4,10 @@
 from pyqtgraph.Qt import QtGui, QtCore, QtWidgets
 
 # Working directory
-workingDirectory="/home/hiroaki/OpenMX/openmx3.9/DFT_DATA19"
+workingDirectory="/path/to/OpenMX/openmx3.9/DFT_DATA19"
+
+# (modified) adpack
+adpack="/path/to/ADPACK/adpack2.2/work/adpack"
 
 # Element symbols
 el_symbol=[ \
@@ -38,8 +41,6 @@ num_of_partition_coeff=2.0
 
 invert_criterion=-0.2
 
-# (modified) adpack
-adpack="/home/hiroaki/adpack2.2/work/adpack"
 
 # For Gui
 fontFamilies=["Segoe UI", "Yu Gothic UI"]
@@ -147,7 +148,7 @@ database_list=[\
       [71, "Lu8.0",  "Lu_CA19"],  [71, "Lu8.0",  "Lu_PBE19"],\
       [72, "Hf9.0",  "Hf_CA19"],  [72, "Hf9.0",  "Hf_PBE19"],\
       [73, "Ta7.0",  "Ta_CA19"],  [73, "Ta7.0",  "Ta_PBE19"],\
-      [74, "W7.0",   "W_CA19"],   [74, "W7.0",   "W_PBE19"],\ 
+      [74, "W7.0",   "W_CA19"],   [74, "W7.0",   "W_PBE19"],\
       [75, "Re7.0",  "Re_CA19"],  [75, "Re7.0",  "Re_PBE19"],\
       [76, "Os7.0",  "Os_CA19"],  [76, "Os7.0",  "Os_PBE19"],\
       [77, "Ir7.0",  "Ir_CA19"],  [77, "Ir7.0",  "Ir_PBE19"],\
@@ -157,7 +158,7 @@ database_list=[\
       [81, "Tl8.0",  "Tl_CA19"],  [81, "Tl8.0",  "Tl_PBE19"],\
       [82, "Pb8.0",  "Pb_CA19"],  [82, "Pb8.0",  "Pb_PBE19"],\
       [83, "Bi8.0",  "Bi_CA19"],  [83, "Bi8.0",  "Bi_PBE19"],\
-      [84, "Po8.0",  "Po_CA19"],  [84, "Po8.0",  "Po_PBE19"],\  
+      [84, "Po8.0",  "Po_CA19"],  [84, "Po8.0",  "Po_PBE19"],\
 ]
 
 

@@ -45,4 +45,4 @@ postproc_Weyl.o: postproc_Weyl_main.o HDF5_tools.o $(library)
 	$(CXX) $(compileOption) -c $<
 
 preproc.o: inputTools.hpp
-postproc.o: inputTools.hpp HDF5_tools.hpp
+postproc.o: inputTools.hpp HDF5_tools.hpp
