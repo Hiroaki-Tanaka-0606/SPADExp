@@ -23,14 +23,14 @@ gridAlpha=50 # 100 =max
 plot3D_minWidth=400
 plot3D_minHeight=400
 
-PAO_and_AO="/data/Ubuntu/SPADExp/GUI_tools/OpenMX_orbitals/PAO_and_AO_after_opt.hdf5"
+PAO_and_AO="/path/to/PAO_and_AO_after_opt.hdf5"
 pen_AO=(0, 0, 255)
 pen_PAO=(0, 128, 255)
 pen_finalp1=(255, 128, 0)
 pen_finalm1=(128, 255, 0)
 
 # for realSpace drawing
-elements_file="/home/hiroaki/VESTA-x86_64/elements.ini"
+elements_file="/path/to/VESTA/VESTA-win64/elements.ini"
 radius_index=0
 not_found_element=96
 radius_coeff=0.3
