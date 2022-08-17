@@ -27,7 +27,7 @@ using namespace std;
 
 // main function
 int main(int argc, const char** argv){
-	cout << "Starting calcPSF program..." << endl;
+	cout << "Starting SPADExp program..." << endl;
 	
 	// stdin, stdout, stderr are terminal or not (file)
 	int stdin_is_terminal=isatty(fileno(stdin));

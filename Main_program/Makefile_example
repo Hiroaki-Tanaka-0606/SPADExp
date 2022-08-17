@@ -1,7 +1,10 @@
 # directory specified by --prefix=DIR in ./configure of HDF5
 # written in config.log
 # hdf5-x.y.z/hdf5 by default
-hdf5 = /home/hiroaki/hdf5-1.12.1/hdf5
+hdf5 = /path/to/hdf5/hdf5-1.12.1/hdf5
+
+# configuration for intel MKL
+MKLROOT = /opt/intel/compilers_and_libraries_2020.0.166/linux/mkl/lib/intel64_lin
 
 # compile option can be checked by
 # >$(hdf5)/bin/h5c++ (filename) -show
@@ -21,8 +24,6 @@ linkOption1 = -L $(hdf5)/lib
 # -Wl,-rpath,$(hdf5)/lib tells "ld" command to search $(hdf5)/lib directory 
 linkOption2 = -l hdf5_hl_cpp -l hdf5_cpp -l hdf5_hl -l hdf5 -Wl,-rpath,$(hdf5)/lib
 
-# configuration for intel MKL
-MKLROOT = /opt/intel/compilers_and_libraries_2020.0.166/linux/mkl/lib/intel64_lin
 option = -L${MKLROOT} -lmkl_scalapack_lp64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lmkl_blacs_openmpi_lp64 -liomp5 -lpthread -lm -ldl -lgfortran -fopenmp $(linkOption1) $(linkOption2)
 
 target = SPADExp_main.o setup.o load_input.o parse_inputs.o log.o validation_Thomas_Fermi.o calculation_Thomas_Fermi.o validation_atomic_wfn.o calculation_atomic_wfn.o validation_scf_atom.o calculation_scf_atom.o validation_phase_shift.o calculation_phase_shift.o validation_pad.o calculation_pad.o HDF5_tools.o physical_tools.o
