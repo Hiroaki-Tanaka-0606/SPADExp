@@ -137,7 +137,7 @@ void operator_coefficient(char* polarization, double theta, double phi, complex<
 	}else if(strcmp(polarization, "LCircular")==0){
 		Y_coeff[2]= sqrt(2.0*M_PI/3.0)*(-1.0+cos(theta))*complex<double>(cos(phi), -sin(phi));
 		Y_coeff[1]= sqrt(4.0*M_PI/3.0)*sin(theta);
-		Y_coeff[0]=-sqrt(2.0*M_PI/3.0)*( 1.0-cos(theta))*complex<double>(cos(phi), sin(phi));
+		Y_coeff[0]=-sqrt(2.0*M_PI/3.0)*( 1.0+cos(theta))*complex<double>(cos(phi), sin(phi));
 	}
 }
 
