@@ -42,7 +42,7 @@ int validation_atomic_wfn(){
 		status=0; goto FINALIZATION;
 	}
 	if(n_min<1){
-		write_log((char*)"Error: n must be larger than 1");
+		write_log((char*)"Error: n must be larger than 0");
 		status=0; goto FINALIZATION;
 	}
 	if(n_min==n_max){
@@ -77,7 +77,7 @@ int validation_atomic_wfn(){
 		status=0; goto FINALIZATION;
 	}
 	if(l_min<0){
-		write_log((char*)"Error: l must be larger than 0");
+		write_log((char*)"Error: l must be positive");
 		status=0; goto FINALIZATION;
 	}
 	if(l_min==l_max){

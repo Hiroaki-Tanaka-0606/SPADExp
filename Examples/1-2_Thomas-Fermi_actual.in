@@ -1,0 +1,8 @@
+&Control
+Calculation Thomas-Fermi
+Log_file 1-2_Thomas-Fermi_actual.log
+Console_log true
+Output_file 1-2_Thomas-Fermi_actual.dat
+/
+&Thomas-Fermi
+/

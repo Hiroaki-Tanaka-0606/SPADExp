@@ -1,0 +1,26 @@
+&Control
+Calculation Phase-shift
+Log_file 4-1_Phase-shift_Coulomb.log
+Console_log true
+Output_file 4-1_Phase-shift_Coulomb.dat
+/
+&Radial-grid 3
+0.0025 40
+0.0050 40
+0.0100 40000
+/
+&Atomic-wfn
+Z 6
+! Potential_file is not specified -> V(r)=-1/r
+/
+&Orbital 2
+2p 0.0
+3d 0.0
+/
+&Excitation-energy 1
+13.6057
+/
+&Phase-shift
+Skip_points 10
+Calc_points 10
+/

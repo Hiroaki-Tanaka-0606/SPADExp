@@ -1,0 +1,26 @@
+&Control
+Calculation Phase-shift
+Log_file 4-2_Phase-shift_C.log
+Console_log true
+Output_file 4-2_Phase-shift_C.dat
+/
+&Radial-grid 3
+0.0025 40
+0.0050 40
+0.0100 40000
+/
+&Atomic-wfn
+Z 6
+Potential_file 3_SCF-atom_C.hdf5
+/
+&Orbital 2
+2p 0.0
+3d 0.0
+/
+&Excitation-energy 1
+13.6057
+/
+&Phase-shift
+Skip_points 10
+Calc_points 10
+/

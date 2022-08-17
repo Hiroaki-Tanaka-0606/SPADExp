@@ -1,0 +1,16 @@
+&Control
+Calculation SCF-atom
+Log_file 3_SCF-atom_C.log
+Console_log true
+Output_file 3_SCF-atom_C.hdf5
+/
+&Atomic-wfn
+Z 6
+Potential_file 1-2_Thomas-Fermi_actual.dat
+/
+&Occupation 2
+2
+2 2
+/
+&SCF-atom
+/

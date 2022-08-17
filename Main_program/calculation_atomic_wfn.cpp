@@ -1,4 +1,4 @@
-// calcPSF calculation of atomic wavefunction
+// SPADExp calculation of atomic wavefunction
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -29,7 +29,7 @@ void sequence_atomic_wfn(){
 	double E_n_l;
 	write_log((char*)"----Sequential calculation of atomic wavefunctions----");
 
-	fprintf(Output_file_obj, "# calcPSF\n");
+	fprintf(Output_file_obj, "# SPADExp\n");
 	fprintf(Output_file_obj, "# Sequential calculation of atomic wavefunctions\n");
 	fprintf(Output_file_obj, "# Z ");
 	for(n_current=n_min; n_current<=n_max; n_current++){
@@ -68,10 +68,11 @@ void sequence_atomic_wfn(){
 				fprintf(Output_file_obj, "%12.5e ", E_n_l);
 
 				/* debug: wfn */
+				/*
 				for(i=0; i<x_count; i++){
 					sprintf(sprintf_buffer, "%10.5e %10.5e", x_coordinates[i], At_p_x[i]);
 					write_log(sprintf_buffer);
-				}
+					}*/
 			}
 		}
 		fprintf(Output_file_obj, "\n");

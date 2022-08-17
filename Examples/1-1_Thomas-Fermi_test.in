@@ -1,0 +1,12 @@
+&Control
+Calculation Thomas-Fermi
+Log_file 1-1_Thomas-Fermi_test.log
+Console_log true
+Output_file 1-1_Thomas-Fermi_test.dat
+/
+&Thomas-Fermi
+Calculation_test True     ! default False
+Initial_diff_offset -2    ! no default, required
+Initial_diff_delta  0.1   ! no default, required
+Initial_diff_size   10    ! no default, required
+/

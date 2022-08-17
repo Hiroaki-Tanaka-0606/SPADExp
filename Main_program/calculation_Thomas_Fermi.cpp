@@ -1,4 +1,4 @@
-// calcPSF calculation of Thomas-Fermi potential calculation
+// SPADExp calculation of Thomas-Fermi potential calculation
 
 #include <cmath>
 #include <cstring>
@@ -16,7 +16,7 @@ void test_Thomas_Fermi(){
 	double** TF_phis=new double*[Initial_diff_size+1];
 	double Initial_diff;
 
-	fprintf(Output_file_obj, "# calcPSF\n");
+	fprintf(Output_file_obj, "# SPADExp\n");
 	fprintf(Output_file_obj, "# Thomas-Fermi calculation, test-mode\n");
 
 	for(i=0; i<= Initial_diff_size; i++){
@@ -61,7 +61,7 @@ double trial_Thomas_Fermi(double Initial_diff){
 void calc_Thomas_Fermi(){
 	// find the adequate Initial_diff using bisection method
 	write_log((char*)"----Actual calculation----");
-	fprintf(Output_file_obj, "# calcPSF\n");
+	fprintf(Output_file_obj, "# SPADExp\n");
 	fprintf(Output_file_obj, "# Thomas-Fermi calculation, actual-mode\n");
 
 	char* sprintf_buffer=new char[Log_length+1];

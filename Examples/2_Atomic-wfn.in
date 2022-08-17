@@ -1,0 +1,17 @@
+&Control
+Calculation Atomic-wfn
+Log_file 2_Atomic-wfn_H.log
+Console_log true
+Output_file 2_Atomic-wfn_H.dat
+/
+&Atomic-wfn
+n_min 1
+n_max 3
+l_min 0
+l_max 3
+Z 1
+Potential Thomas-Fermi
+Potential_file 1-2_Thomas-Fermi_actual.dat
+/
+
+
