@@ -10,6 +10,7 @@ As a result, we can calculate the PADs of large systems such as quasicrystals an
 - make
 - HDF5 (compiled with the ```--enable-cxx``` option)
 - OpenMP
+- BLAS
 
 ## Python3
 - PyQt5
