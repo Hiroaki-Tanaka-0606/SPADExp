@@ -142,12 +142,12 @@ int validation_atomic_wfn(){
 		}
 	}
 
-	/// Solution (At_solution): RK1, RK4, Numerov
-	if(strcmp(At_solution, "RK1")==0 || strcmp(At_solution, "RK4")==0 || strcmp(At_solution, "Numerov")==0){
+	/// Solution (At_solution): RK1, Numerov
+	if(strcmp(At_solution, "RK1")==0 /*|| strcmp(At_solution, "RK4")==0*/ || strcmp(At_solution, "Numerov")==0){
 		sprintf(sprintf_buffer, "%32s = %s", "Solution", At_solution);
 		write_log(sprintf_buffer);
 	}else{
-		write_log((char*)"Error: Solution should be 'RK1', 'RK4', or 'Numerov'");
+		write_log((char*)"Error: Solution should be 'RK1' or 'Numerov'");
 		status=0; goto FINALIZATION;
 	}
 
