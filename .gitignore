@@ -1,8 +1,8 @@
 *~
 *.o
 *.dat
-*.hdf5
 *.log
+*.hdf5
 Makefile
 Test/
 Config.py
