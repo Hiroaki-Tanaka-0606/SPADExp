@@ -1,0 +1,54 @@
+#
+# for OpenMX
+#
+
+System.Name                      graphene
+DATA.PATH /path/to/OpenMX/openmx3.9/DFT_DATA19
+
+Species.Number       1
+<Definition.of.Atomic.Species
+ C C6.0-s2p2d1 C_CA19
+Definition.of.Atomic.Species>
+
+Atoms.Number 2
+Atoms.SpeciesAndCoordinates.Unit FRAC
+<Atoms.SpeciesAndCoordinates       
+1 C 0.43333 0.76667 0.50000 2.0 2.0
+2 C 0.10000 0.10000 0.50000 2.0 2.0
+Atoms.SpeciesAndCoordinates>
+Atoms.UnitVectors.Unit Ang 
+<Atoms.UnitVectors                    
+ 2.4620 0.0000 0.0000
+-1.2310 2.1322 0.0000
+ 0.0000 0.0000 30.000
+Atoms.UnitVectors>
+
+scf.XcType                 LDA     
+scf.SpinPolarization       off     
+scf.maxIter                100      
+scf.EigenvalueSolver       band    
+scf.Kgrid                  9 9 1      
+scf.restart                on
+
+<Band.KPath.UnitCell
+ 2.4620 0.0000 0.0000
+-1.2310 2.1322 0.0000
+ 0.0000 0.0000 1.000
+Band.KPath.UnitCell>
+
+#
+# for SPADExp
+#
+
+SPADExp.dimension 2
+SPADExp.curved false
+SPADExp.origin 0.00 0.00 0.6368
+<SPADExp.range
+1.00 -0.50 0.00 -1.0 1.0 201
+0.00  1.00 0.00 -0.5 0.5 101
+SPADExp.range>
+SPADExp.minN 0
+SPADExp.maxN 4
+
+num.HOMOs 0
+num.LUMOs 0

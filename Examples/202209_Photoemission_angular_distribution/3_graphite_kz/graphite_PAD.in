@@ -1,0 +1,34 @@
+&Control
+Calculation PAD
+Log_file graphite_PAD.log
+Console_log true
+Output_file graphite_PAD.hdf5
+/
+
+&Atomic-wfn
+Potential_file /path/to/Atomic_potentials.hdf5
+/
+
+&PAD
+Input_file graphite.hdf5
+E_min -10
+E_max 0
+E_pixel 0.05
+dE 0.1
+Initial_state AO
+Final_state Calc
+Final_state_step 0.01
+Polarization Linear
+Theta 30
+Phi 180
+Atomic_orbitals_file /path/to/PAO_and_AO_after_opt.hdf5
+/
+&Radial-grid 3
+0.0025 40
+0.005  40
+0.01   40000
+/
+&Phase-shift
+Skip_points 10
+Calc_points 10
+/

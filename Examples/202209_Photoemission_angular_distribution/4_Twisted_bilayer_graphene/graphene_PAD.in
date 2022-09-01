@@ -1,0 +1,33 @@
+&Control
+Calculation PAD
+Log_file graphene_4x7_PAD.log
+Console_log false
+Output_file graphene_4x7_PAD.hdf5
+/
+&Atomic-wfn
+Potential_file /path/to/Atomic_potentials.hdf5
+/
+&Radial-grid 3
+0.0025 40
+0.005  40
+0.01   40000
+/
+&Phase-shift
+Skip_points 10
+Calc_points 10
+/
+&PAD
+Input_file graphene_4x7.hdf5
+E_min -2
+E_max 2
+E_pixel 0.05
+dE 0.1
+Initial_state AO
+Final_state Calc
+Polarization Linear
+Theta 90
+Phi 0
+Atomic_orbitals_file /path/to/PAO_and_AO_after_opt.hdf5
+Extend 5 5 5 5
+! Output_data Band
+/
