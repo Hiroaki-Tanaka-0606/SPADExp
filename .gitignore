@@ -2,7 +2,8 @@
 *.o
 *.dat
 *.log
-*.hdf5
+Atomic_potentials/*.hdf5
+GUI_tools/*.hdf5
 Makefile
 Test/
 Config.py
