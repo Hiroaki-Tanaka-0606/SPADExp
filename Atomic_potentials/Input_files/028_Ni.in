@@ -1,0 +1,18 @@
+&Control
+Calculation SCF-atom
+Log_file Log_files/028_Ni.log
+Console_log true
+Output_file Output_files/028_Ni.hdf5
+/
+&Atomic-wfn
+Z 28
+Potential Thomas-Fermi ! not necessary
+Potential_file TF_potential.dat
+/
+&Occupation 4
+2
+2 6
+2 6 8
+2 0 0 0
+/
+

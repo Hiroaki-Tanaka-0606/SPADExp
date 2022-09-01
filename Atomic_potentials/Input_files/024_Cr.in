@@ -1,0 +1,18 @@
+&Control
+Calculation SCF-atom
+Log_file Log_files/024_Cr.log
+Console_log true
+Output_file Output_files/024_Cr.hdf5
+/
+&Atomic-wfn
+Z 24
+Potential Thomas-Fermi ! not necessary
+Potential_file TF_potential.dat
+/
+&Occupation 4
+2
+2 6
+2 6 5
+1 0 0 0
+/
+

@@ -1,0 +1,17 @@
+&Control
+Calculation SCF-atom
+Log_file Log_files/011_Na.log
+Console_log true
+Output_file Output_files/011_Na.hdf5
+/
+&Atomic-wfn
+Z 11
+Potential Thomas-Fermi ! not necessary
+Potential_file TF_potential.dat
+/
+&Occupation 3
+2
+2 6
+1 0 0
+/
+

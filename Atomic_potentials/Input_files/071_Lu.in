@@ -1,0 +1,20 @@
+&Control
+Calculation SCF-atom
+Log_file Log_files/071_Lu.log
+Console_log true
+Output_file Output_files/071_Lu.hdf5
+/
+&Atomic-wfn
+Z 71
+Potential Thomas-Fermi ! not necessary
+Potential_file TF_potential.dat
+/
+&Occupation 6
+2
+2 6
+2 6 10
+2 6 10 14
+2 6  1  0 0
+2 0  0  0 0 0
+/
+

@@ -1,0 +1,18 @@
+&Control
+Calculation SCF-atom
+Log_file Log_files/036_Kr.log
+Console_log true
+Output_file Output_files/036_Kr.hdf5
+/
+&Atomic-wfn
+Z 36
+Potential Thomas-Fermi ! not necessary
+Potential_file TF_potential.dat
+/
+&Occupation 4
+2
+2 6
+2 6 10
+2 6  0 0
+/
+

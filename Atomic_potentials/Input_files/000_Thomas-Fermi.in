@@ -1,0 +1,7 @@
+&Control
+Calculation Thomas-Fermi
+Log_file Log_files/000_Thomas-Fermi.log
+Console_log true
+Output_file TF_potential.dat
+/
+

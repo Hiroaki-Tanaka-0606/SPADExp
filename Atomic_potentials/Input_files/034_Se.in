@@ -1,0 +1,18 @@
+&Control
+Calculation SCF-atom
+Log_file Log_files/034_Se.log
+Console_log true
+Output_file Output_files/034_Se.hdf5
+/
+&Atomic-wfn
+Z 34
+Potential Thomas-Fermi ! not necessary
+Potential_file TF_potential.dat
+/
+&Occupation 4
+2
+2 6
+2 6 10
+2 4  0 0
+/
+

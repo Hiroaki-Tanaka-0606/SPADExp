@@ -1,0 +1,20 @@
+&Control
+Calculation SCF-atom
+Log_file Log_files/080_Hg.log
+Console_log true
+Output_file Output_files/080_Hg.hdf5
+/
+&Atomic-wfn
+Z 80
+Potential Thomas-Fermi ! not necessary
+Potential_file TF_potential.dat
+/
+&Occupation 6
+2
+2 6
+2 6 10
+2 6 10 14
+2 6 10  0 0
+2 0  0  0 0 0
+/
+
