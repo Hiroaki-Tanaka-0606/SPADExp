@@ -9,3 +9,7 @@ Test/
 Config.py
 __pycache__
 Docs_resources
+Atomic_potentials/Output_files/
+Examples/*.hdf5
+GUI_tools/OpenMX_band/*.hdf5
+Main_GUI/*.hdf5
