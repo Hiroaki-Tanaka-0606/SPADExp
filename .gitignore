@@ -3,7 +3,7 @@
 *.dat
 *.log
 Atomic_potentials/*.hdf5
-GUI_tools/*.hdf5
+GUI_tools/OpenMX_orbitals/*.hdf5
 Makefile
 Test/
 Config.py
