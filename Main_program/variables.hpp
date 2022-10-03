@@ -166,7 +166,7 @@ bool PA_weighting;             // weighting for the surface states calculation
 bool PA_weighting_set;
 double* PA_weighting_axis;     // axis perpendicular to the surface
 bool PA_weighting_axis_set;
-char* PA_weighting_shape;      // weighting shape ("Rect" rectangular or "Exp" exponential)
+char* PA_weighting_shape;      // weighting shape ("Rect" rectangular, "Exp" exponential, "Tri" triangular)
 bool PA_weighting_shape_set;
 double PA_weighting_origin;    // the origin is on weighting axis, with distance of this value from (0, 0, 0), negative value means the origin is on the opposite direction from the weighting axis
 bool PA_weighting_origin_set;

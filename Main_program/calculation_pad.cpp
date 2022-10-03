@@ -524,6 +524,9 @@ void calculate_PAD(){
 	//// if width>0 [origin, origin+width*decay_max]*exp(-(x-origin)/(|width|*2))
 	//// if width<0 [origin+width*decay_max, origin]*exp((x-origin)/(|width|*2))
 	//// both exp part are the same
+	/// Tri:
+	//// if width>0 [origin, origin+width]*(x-(origin+width))*(-1/width)
+	//// if width<0 [origin-|width|, origin]*(x-(origin-|width|))*(1/|width|)
 	
 	double atom_weighting[atom_length];
 	bool atom_weighting_flag[atom_length];
@@ -559,13 +562,22 @@ void calculate_PAD(){
 				range_min=origin_au+width_au;
 				range_max=origin_au;
 			}
-		}else{
+		}else if(strcmp(PA_weighting_shape, "Exp")==0){
 			// Exp
 			if(width_au>=0){
 				range_min=origin_au;
 				range_max=origin_au+width_au*PA_decay_max;
 			}else{
 				range_min=origin_au+width_au*PA_decay_max;
+				range_max=origin_au;
+			}
+		}else{
+			// Tri
+			if(width_au>=0){
+				range_min=origin_au;
+				range_max=origin_au+width_au;
+			}else{
+				range_min=origin_au+width_au;
 				range_max=origin_au;
 			}
 		}
@@ -577,8 +589,10 @@ void calculate_PAD(){
 				atom_weighting_flag[i]=true;
 				if(strcmp(PA_weighting_shape, "Rect")==0){
 					atom_weighting[i]=1;
-				}else{
+				}else if(strcmp(PA_weighting_shape, "Exp")==0){
 					atom_weighting[i]=exp(-(signed_length-origin_au)/(width_au*2));
+				}else{
+					atom_weighting[i]=(signed_length-(origin_au+width_au))*(-1.0/width_au);
 				}
 			}else{
 				atom_weighting_flag[i]=false;
