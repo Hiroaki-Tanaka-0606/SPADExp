@@ -21,8 +21,7 @@ As a result, we can calculate the PADs of large systems such as quasicrystals an
 
 # [Docs](https://github.com/Hiroaki-Tanaka-0606/SPADExp/tree/main/Docs)
 - [Docs (ja)](https://github.com/Hiroaki-Tanaka-0606/SPADExp/raw/main/Docs/SPADExp_docs_ja.pdf)
-
-We will serve docs both in Japanese and English.
+- [Docs (en)](https://github.com/Hiroaki-Tanaka-0606/SPADExp/raw/main/Docs/SPADExp_docs_en.pdf)
 
 # [Examples](https://github.com/Hiroaki-Tanaka-0606/SPADExp/tree/main/Examples)
 See also docs to learn what keywords in the input file mean.
