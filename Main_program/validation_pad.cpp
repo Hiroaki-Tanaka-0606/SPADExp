@@ -160,11 +160,11 @@ int validation_PAD(){
 		}
 		/// Weighting_shape
 		if(PA_weighting_shape_set){
-			if(strcmp(PA_weighting_shape, "Rect")==0 || strcmp(PA_weighting_shape, "Exp")==0 || strcmp(PA_weighting_shape, "Tri")==0){
+			if(strcmp(PA_weighting_shape, "Rect")==0 || strcmp(PA_weighting_shape, "Exp")==0 || strcmp(PA_weighting_shape, "Tri")==0 || strcmp(PA_weighting_shape, "Sqrt")==0){
 				sprintf(sprintf_buffer, "%32s = %s", "Weighting_shape", PA_weighting_shape);
 				write_log(sprintf_buffer);
 			}else{
-				write_log((char*)"Error: Weighting_shape should be Rect, Exp, or Tri");
+				write_log((char*)"Error: Weighting_shape should be Rect, Exp, Tri, or Sqrt");
 				status=0; goto FINALIZATION;
 			}
 		}else{

@@ -572,7 +572,7 @@ void calculate_PAD(){
 				range_max=origin_au;
 			}
 		}else{
-			// Tri
+			// Tri or Sqrt
 			if(width_au>=0){
 				range_min=origin_au;
 				range_max=origin_au+width_au;
@@ -591,8 +591,10 @@ void calculate_PAD(){
 					atom_weighting[i]=1;
 				}else if(strcmp(PA_weighting_shape, "Exp")==0){
 					atom_weighting[i]=exp(-(signed_length-origin_au)/(width_au*2));
-				}else{
+				}else if(strcmp(PA_weighting_shape, "Tri")==0){
 					atom_weighting[i]=(signed_length-(origin_au+width_au))*(-1.0/width_au);
+				}else{ // Sqrt
+					atom_weighting[i]=sqrt((signed_length-(origin_au+width_au))*(-1.0/width_au));
 				}
 			}else{
 				atom_weighting_flag[i]=false;
