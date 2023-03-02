@@ -20,7 +20,7 @@ Calc_points 10
 Input_file Bi2Se3.hdf5
 E_min -0.5
 E_max 0.5
-E_pixel 0.005
+E_pixel 0.002
 dE 0.01
 Initial_state AO
 Final_state Calc

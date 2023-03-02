@@ -44,8 +44,8 @@ SPADExp.dimension 2
 SPADExp.curved false
 SPADExp.origin 0.00 0.00 0.6368
 <SPADExp.range
-1.00 -0.50 0.00 -1.0 1.0 201
-0.00  1.00 0.00 -0.5 0.5 101
+1.00 -0.50 0.00 -1.0 1.0 801
+0.00  1.00 0.00 -0.5 0.5 401
 SPADExp.range>
 SPADExp.minN 0
 SPADExp.maxN 4

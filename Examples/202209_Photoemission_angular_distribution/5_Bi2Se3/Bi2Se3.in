@@ -87,12 +87,11 @@ esm.buffer.range 4.5
 # for SPADExp
 #
 
-SPADExp.dimension 2
+SPADExp.dimension 1
 SPADExp.curved false
 SPADExp.origin 63.00 0.00 0.00
 <SPADExp.range
-0.00 1.0 -0.5 -0.1 0.1 71
-0.00 0.0 1.0 -0.1 0.1  71
+0.00 1.0 -0.5 -0.1 0.1 501
 SPADExp.range>
 
 SPADExp.minN 378
