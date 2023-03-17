@@ -160,8 +160,12 @@ void spherical_harmonics(double* r, complex<double>* Ylm2){
 	}
     
 	double r_length=sqrt(inner_product(r, r));
-	double cosT=r[2]/r_length;
-  double sinT=sqrt(r[0]*r[0]+r[1]*r[1])/r_length;
+	double cosT=1;
+	double sinT=0;
+	if(r_length>1e-5){
+		cosT=r[2]/r_length;
+		sinT=sqrt(r[0]*r[0]+r[1]*r[1])/r_length;	
+	}
 	double cosP=1;
 	double sinP=0;
 	if(abs(sinT)>1e-5){

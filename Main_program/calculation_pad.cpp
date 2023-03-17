@@ -398,6 +398,28 @@ void calculate_PAD(){
 		sprintf(AO_group_name, "%s&%s", atom_spec_PAO[is], atom_spec_PS[is]);
 		sprintf(sprintf_buffer, "----Open %s----", AO_group_name);
 		write_log(sprintf_buffer);
+		bool empty_atom=false;
+		if(strcmp(atom_spec_PS[is], "E")==0){
+			write_log((char*)"This orbital is for an empty atom");
+			empty_atom=true;
+			int is_for_read=-1;
+			for(int is2=0; is2<atom_spec_length; is2++){
+				if(is2==is){
+					continue;
+				}
+				if(strcmp(atom_spec_PAO[is], atom_spec_PAO[is2])==0){
+					is_for_read=is2;
+					break;
+				}
+			}
+			if(is_for_read==-1){
+				write_log((char*)"Orbital not found from occupied atoms");
+				return;
+			}
+			sprintf(AO_group_name, "%s&%s", atom_spec_PAO[is_for_read], atom_spec_PS[is_for_read]);
+		}
+		// printf("%s\n", AO_group_name);
+		
 		Group AOG(AO_file.openGroup(AO_group_name));
 		wfn_length[is]=r_att_int(AOG, "length");
 		Z[is]=r_att_int(AOG, "Z");
@@ -413,13 +435,16 @@ void calculate_PAD(){
 			r_data_2d(AOG, orbital_list[is][io], 2, wfn_length[is], (double**) wfn_both);
 			wfn_phi_rdr[is][io]=new double[wfn_length[is]];
 			for(j=0; j<wfn_length[is]-1; j++){
-				if(strcmp(PA_initial_state, "PAO")==0){
+				if(empty_atom==true || strcmp(PA_initial_state, "PAO")==0){
 					wfn_phi_rdr[is][io][j]=wfn_both[0][j]*wfn_r[is][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
 				}else{
 					wfn_phi_rdr[is][io][j]=wfn_both[1][j]*wfn_r[is][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
 				}
 			}
 			wfn_phi_rdr[is][io][wfn_length[is]-1]=0;
+			/*for(j=0; j<wfn_length[is]; j++){
+				printf("%f %f\n", wfn_r[is][j], wfn_phi_rdr[is][io][j]);
+				}*/
 		} 
 	}
 
@@ -527,6 +552,7 @@ void calculate_PAD(){
 	/// Tri:
 	//// if width>0 [origin, origin+width]*(x-(origin+width))*(-1/width)
 	//// if width<0 [origin-|width|, origin]*(x-(origin-|width|))*(1/|width|)
+	/// When Include_neg_depth = true, z satisfying (width>0 && origin>z) || (width<0 && origin<z) becomes 1 in Exp, Tri, and Sqrt
 	
 	double atom_weighting[atom_length];
 	bool atom_weighting_flag[atom_length];
@@ -599,6 +625,15 @@ void calculate_PAD(){
 			}else{
 				atom_weighting_flag[i]=false;
 				atom_weighting[i]=0;
+			}
+		}
+		if(PA_include_neg_depth==true){
+			for(i=0; i<atom_length; i++){
+				double signed_length=inner_product(axis_au, atom_coordinates[i]);
+				if((width_au>0 && signed_length<origin_au) || (width_au<0 && signed_length>origin_au)){
+					atom_weighting_flag[i]=true;
+					atom_weighting[i]=1.0;
+				}
 			}
 		}
 		write_log((char*)"----Weighting----");
@@ -704,6 +739,7 @@ void calculate_PAD(){
 	double tail[tail_index+1];
 	for(i=0; i<=tail_index; i++){
 		tail[i]=1.0/(PA_dE*sqrt(2*M_PI))*exp(-1.0/2.0*(i*PA_E_pixel/PA_dE)*(i*PA_E_pixel/PA_dE));
+		// printf("%d %f\n", i, tail[i]);
 	}
 
 
@@ -817,7 +853,12 @@ void calculate_PAD(){
 	}
   
 	/// 3-5. calculation for each k point
-	double dispersion2[total_count_ext][num_points_E]={0};
+	double dispersion2[total_count_ext][num_points_E];
+	for(i=0; i<total_count_ext; i++){
+		for(j=0; j<num_points_E; j++){
+			dispersion2[i][j]=0.0;
+		}
+	}
 	int ik; // for k point
 	int ib; // for band index
 	int sp; // for spin: 0=Up, 1=Dn
@@ -827,17 +868,19 @@ void calculate_PAD(){
 	complex<double> m1jlp[5]={complex<double>(1, 0), complex<double>(0, -1), complex<double>(-1, 0), complex<double>(0, 1), complex<double>(1, 0)};
 	complex<double> Ylm_k[5][9];
 	complex<double> Ylm_k2[5][9];
-	double Gaunt_arr[4][7][5][9]={0}; // [l][m+l][lp][mp+lp];
+	double Gaunt_arr[4][7][5][9]; // [l][m+l][lp][mp+lp];
 	int ip, jp;
 	for(i=0; i<4; i++){
 		for(j=0; j<7; j++){
 			for(ip=0; ip<5; ip++){
 				for(jp=0; jp<9; jp++){
 					Gaunt_arr[i][j][ip][jp]=Gaunt(ip, jp-ip, i, j-i);
+					// printf("%e ", Gaunt_arr[i][j][ip][jp]);
 				}
 			}
 		}
 	}
+	
   end=chrono::system_clock::now();
   duration=chrono::duration_cast<chrono::milliseconds>(end-start).count();
 	sprintf(sprintf_buffer, "PAD preparation time: %.3f [ms]", duration);
@@ -898,6 +941,7 @@ void calculate_PAD(){
 				complex<double> PAD_2(0, 0);
 				if(strcmp(PA_output_data, "Band")==0){
 					PAD_1=complex<double>(1, 0);
+					PAD_2=complex<double>(1, 0);
 				}else{
 					for(ia=0; ia<atom_length; ia++){
 						if(PA_weighting==true && atom_weighting_flag[ia]==false){
@@ -915,8 +959,13 @@ void calculate_PAD(){
 							num_orbits2*=2;
 						}
 						double final_states[5][wfn_length[is]];
+						for(il=0; il<5; il++){
+							for(ir=0; ir<wfn_length[is]; ir++){
+								final_states[il][ir]=0.0;
+							}
+						}
 						int k_index;
-						if(strcmp(PA_final_state, "PW")==0){
+						if(strcmp(PA_final_state, "PW")==0 && k_length>1e-5){
 							for(il=0; il<5; il++){
 								for(ir=0; ir<wfn_length[is]; ir++){
 									final_states[il][ir]=wfn_r[is][ir]*sp_bessel(il, wfn_r[is][ir]*k_length);
@@ -974,6 +1023,7 @@ void calculate_PAD(){
 										}else{
 											coeff1+=(Ylm_k[lp][mpplp]+PA_reflection_coef*Ylm_k2[lp][mpplp])*Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1];
 										}
+										// cout << Ylm_k[lp][mpplp] << " ";
 									}
 									// cout << coeff1 << endl;
 									coeff2_1+=LCAO_use[mpl][0]*coeff1;

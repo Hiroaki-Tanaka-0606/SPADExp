@@ -182,6 +182,8 @@ bool PA_reflection;            // reflection correction
 bool PA_reflection_set;
 double PA_reflection_coef;     // coefficient for reflection correction
 bool PA_reflection_coef_set;
+bool PA_include_neg_depth;     // whether the atoms with negative depth (above surface) are included in the intensity calculations
+bool PA_include_neg_depth_set; 
 
 /// files
 FILE* Log_file_obj;            // log file object

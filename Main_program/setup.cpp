@@ -146,6 +146,8 @@ void initialize(){
 	PA_reflection_set=false;
 	PA_reflection_coef=0.0;
 	PA_reflection_coef_set=false;
+	PA_include_neg_depth=true;
+	PA_include_neg_depth_set=false;
 }
 
 void finalize(){

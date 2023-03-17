@@ -197,6 +197,9 @@ int validation_PAD(){
 			write_log((char*)"Error: Weighting_width is necessary");
 			status=0; goto FINALIZATION;
 		}
+		/// Include_neg_depth
+		sprintf(sprintf_buffer, "%32s = %s", "Include_neg_depth", PA_include_neg_depth ? "true": "false");
+		write_log(sprintf_buffer);
 	}
 	/// Reflection
 	if(PA_reflection){

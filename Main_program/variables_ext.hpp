@@ -181,6 +181,8 @@ extern bool PA_reflection;
 extern bool PA_reflection_set;
 extern double PA_reflection_coef;
 extern double PA_reflection_coef_set;
+extern bool PA_include_neg_depth;
+extern bool PA_include_neg_depth_set;
 /// files
 extern FILE* Log_file_obj;
 extern FILE* Output_file_obj;

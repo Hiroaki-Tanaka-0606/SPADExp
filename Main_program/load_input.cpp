@@ -898,6 +898,17 @@ int load_input(){
 				}
 			  PA_reflection_coef_set=true; continue;
 			}
+			/// Include_neg_depth: bool
+			if(strcmp(keyword_buffer, "Include_neg_depth")==0){
+				if(PA_include_neg_depth_set){
+					output_error(line_number, (char*)"keyword Include_neg_depth already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_bool(input_line_c, &PA_include_neg_depth, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Include_neg_depth"); status=0; goto FINALIZATION;
+				}
+				PA_include_neg_depth_set=true; continue;
+			}
 		}else if(*block_name==string("Phase-shift")){
 			// Ph block
 			/// Skip_points (Ph_skip_points): int
