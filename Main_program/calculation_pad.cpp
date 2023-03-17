@@ -385,6 +385,7 @@ void calculate_PAD(){
 	write_log((char*)"----Load initial states----");
 
 	double*** wfn_phi_rdr=new double**[atom_spec_length]; // [is][io][r]
+	double*** wfn_phi=new double**[atom_spec_length]; //[is][io][r] for FPFS
 	double** wfn_r=new double*[atom_spec_length]; // [is][r]
 	char AO_group_name[item_size*2];
 	int wfn_length[atom_spec_length];
@@ -395,6 +396,9 @@ void calculate_PAD(){
 	
 	for(is=0; is<atom_spec_length; is++){
 		wfn_phi_rdr[is]=new double*[num_orbits[is]];
+		if(PA_FPFS){
+			wfn_phi[is]=new double*[num_orbits[is]];
+		}
 		sprintf(AO_group_name, "%s&%s", atom_spec_PAO[is], atom_spec_PS[is]);
 		sprintf(sprintf_buffer, "----Open %s----", AO_group_name);
 		write_log(sprintf_buffer);
@@ -434,11 +438,20 @@ void calculate_PAD(){
 			double wfn_both[2][wfn_length[is]];
 			r_data_2d(AOG, orbital_list[is][io], 2, wfn_length[is], (double**) wfn_both);
 			wfn_phi_rdr[is][io]=new double[wfn_length[is]];
+			if(PA_FPFS){
+				wfn_phi[is][io]=new double[wfn_length[is]];
+			}
 			for(j=0; j<wfn_length[is]-1; j++){
 				if(empty_atom==true || strcmp(PA_initial_state, "PAO")==0){
 					wfn_phi_rdr[is][io][j]=wfn_both[0][j]*wfn_r[is][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
+					if(PA_FPFS){
+						wfn_phi[is][io][j]=wfn_both[0][j];
+					}
 				}else{
 					wfn_phi_rdr[is][io][j]=wfn_both[1][j]*wfn_r[is][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
+					if(PA_FPFS){
+						wfn_phi[is][io][j]=wfn_both[1][j];
+					}
 				}
 			}
 			wfn_phi_rdr[is][io][wfn_length[is]-1]=0;
@@ -747,8 +760,11 @@ void calculate_PAD(){
 	int k_index_min=-1;
 	int k_index_max=-1;
 	int final_states_count;
-	double**** final_states_calc; // [k_index][atom_spec][l][r]
-	double*** final_states_phase; // [k_index][atom_spec][l]
+	double**** final_states_calc; // [k_index][atom_spec][l][r] for Calc
+	double*** final_states_phase; // [k_index][atom_spec][l] for Calc
+	double****** final_states_FP;  // [total_count_ext][FPIndex][atom_spec][l][m+l][r] for FP_PAO and FP_AO
+	int** final_states_EScale;    // [total_count_ext][FPIndex]=round(E/FPFS_energy_step)
+	int** final_states_spin;      // [total_count_ext][FPIndex]=up(0) or down(1), always zero for spin_i==0 (off)
 	if(strcmp(PA_final_state, "Calc")==0){
 		write_log((char*)"----Calculate final states----");
 		for(i=0; i<total_count_ext; i++){
@@ -850,6 +866,149 @@ void calculate_PAD(){
 			}*/
 				
 		// return;
+	}else if(PA_FPFS){
+		write_log((char*)"----Calculate First-principles final states----");
+		double E_min_tail=PA_E_min-PA_dE*PA_sigma_max;
+		double E_max_tail=PA_E_max+PA_dE*PA_sigma_max;
+		int E_min_scale=round(E_min_tail/PA_FPFS_energy_step);
+		int E_max_scale=round(E_max_tail/PA_FPFS_energy_step);
+		int scale_width=E_max_scale-E_min_scale+1;
+		bool band_exists[scale_width];
+		bool band_exists_up[scale_width];
+		bool band_exists_dn[scale_width];
+		int count, count_up, count_dn;
+		final_states_FP=new double*****[total_count_ext];
+		final_states_EScale=new int*[total_count_ext];
+		final_states_spin=new int*[total_count_ext];
+		
+		for(i=0; i<total_count_ext; i++){
+			double* k_point;
+			int k_index=i;
+			if(PA_ext_set){
+				k_point=k_points_ext[i];
+				k_index=k_index_reduced[k_index];
+			}else{
+				k_point=k_points[i];
+			}
+			int sp;
+			int sp_max=(spin_i==0 || spin_i==2)? 1 : 2;
+			for(sp=0; sp<sp_max;sp++){
+				// initialization
+				for(j=0; j<scale_width; j++){
+					band_exists[j]=false;
+					band_exists_up[j]=false;
+					band_exists_dn[j]=false;
+				}
+				count=0;
+				count_up=0;
+				count_dn=0;
+				// fill
+				for(j=0; j<num_bands; j++){
+					double eigen;
+					if(spin_i==0 || spin_i==2){
+						eigen=(band[k_index][j]-EF_Eh)*Eh;
+					}else if(sp==0){
+						eigen=(band_up[k_index][j]-EF_Eh)*Eh;
+					}else{
+						eigen=(band_dn[k_index][j]-EF_Eh)*Eh;
+					}
+					int eigen_scale=round(eigen/PA_FPFS_energy_step);
+					int eigen_scale_offset=eigen_scale-E_min_scale;
+					if(E_min_scale<= eigen_scale && eigen_scale<=E_max_scale){
+						if(spin_i==0 || spin_i==2){
+							if(band_exists[eigen_scale_offset]==false){
+								count++;
+								band_exists[eigen_scale_offset]=true;
+							}
+						}else if(sp==0){
+							if(band_exists_up[eigen_scale_offset]==false){
+								count_up++;
+								band_exists_up[eigen_scale_offset]=true;
+							}
+						}else{
+							if(band_exists_dn[eigen_scale_offset]==false){
+								band_exists_dn[eigen_scale_offset]=true;
+								count_dn++;
+							}
+						}
+					}
+				}
+			}
+			// allocate matrices
+			int FPIndex_size=0;
+			if(spin_i==0){
+				FPIndex_size=count;
+			}else if(spin_i==1){
+				FPIndex_size=count_up+count_dn;
+			}else{
+				FPIndex_size=count*2;
+			}
+			final_states_FP[i]=new double****[FPIndex_size];
+			for(j=0; j<FPIndex_size; j++){
+				final_states_FP[i][j]=new double***[atom_spec_length];
+				for(int j1=0; j1<atom_spec_length; j1++){
+					final_states_FP[i][j][j1]=new double**[5];
+					for(int l=0; l<5; l++){
+						final_states_FP[i][j][j1][l]=new double*[2*l+1];
+						for(int m=0; m<2*l+1; m++){
+							final_states_FP[i][j][j1][l][m]=new double[wfn_length[j1]];
+						}
+					}
+				}
+			}
+			final_states_EScale[i]=new int[FPIndex_size];
+			final_states_spin[i]=new int[FPIndex_size];
+			int FPIndex=0;
+			// fill
+			for(sp=0; sp<sp_max;sp++){
+				for(j=0; j<num_bands; j++){
+					double eigen;
+					if(spin_i==0 || spin_i==2){
+						eigen=(band[k_index][j]-EF_Eh)*Eh;
+					}else if(sp==0){
+						eigen=(band_up[k_index][j]-EF_Eh)*Eh;
+					}else{
+						eigen=(band_dn[k_index][j]-EF_Eh)*Eh;
+					}
+					int eigen_scale=round(eigen/PA_FPFS_energy_step);
+					if(E_min_scale<= eigen_scale && eigen_scale<=E_max_scale){
+						bool needAddition=false;
+						if(FPIndex==0){
+							needAddition=true;
+						}else{
+							if((spin_i==0 || spin_i==2) && final_states_EScale[i][FPIndex-1]!=eigen_scale){
+								needAddition=true;
+							}else if(spin_i==1 && (final_states_EScale[i][FPIndex-1]!=eigen_scale || final_states_spin[i][FPIndex-1]!=sp)){
+								needAddition=true;
+							}
+						}
+						if(needAddition){
+							if(spin_i==0){
+								final_states_EScale[i][FPIndex]=eigen_scale;
+								final_states_spin[i][FPIndex]=0;
+								FPIndex++;
+							}else if(spin_i==1){
+								final_states_EScale[i][FPIndex]=eigen_scale;
+								final_states_spin[i][FPIndex]=sp;
+								FPIndex++;
+							}else{
+								final_states_EScale[i][FPIndex]=eigen_scale;
+								final_states_spin[i][FPIndex]=0;
+								final_states_EScale[i][FPIndex+1]=eigen_scale;
+								final_states_spin[i][FPIndex+1]=1;
+								FPIndex+=2;
+							}
+						}
+					}
+				}
+			}
+			// for debug
+			printf("k=%d, count=%d\n", i, FPIndex_size);
+			for(j=0; j<FPIndex_size; j++){
+				printf("Scale=%d, Energy=%f eV, spin=%d\n",
+							 final_states_EScale[i][j], final_states_EScale[i][j]*PA_FPFS_energy_step, final_states_spin[i][j]);
+			}
+		}
 	}
   
 	/// 3-5. calculation for each k point

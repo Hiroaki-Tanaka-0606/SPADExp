@@ -148,6 +148,12 @@ void initialize(){
 	PA_reflection_coef_set=false;
 	PA_include_neg_depth=true;
 	PA_include_neg_depth_set=false;
+	PA_excitation_energy=0;
+	PA_excitation_energy_set=false;
+	PA_FPFS_energy_step=0.01;
+	PA_FPFS_energy_step_set=false;
+	PA_FPFS_range=10;
+	PA_FPFS=false;
 }
 
 void finalize(){

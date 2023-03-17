@@ -183,6 +183,12 @@ extern double PA_reflection_coef;
 extern double PA_reflection_coef_set;
 extern bool PA_include_neg_depth;
 extern bool PA_include_neg_depth_set;
+extern double PA_excitation_energy;
+extern bool PA_excitation_energy_set;
+extern double PA_FPFS_energy_step;
+extern bool PA_FPFS_energy_step_set;
+extern int PA_FPFS_range;
+extern bool PA_FPFS;
 /// files
 extern FILE* Log_file_obj;
 extern FILE* Output_file_obj;

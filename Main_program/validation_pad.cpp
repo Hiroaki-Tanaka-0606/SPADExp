@@ -102,8 +102,22 @@ int validation_PAD(){
 				}
 	
 			}
+		}else if(strcmp(PA_final_state, "FP_PAO")==0 || strcmp(PA_final_state, "FP_AO")==0){
+			PA_FPFS=true;
+			sprintf(sprintf_buffer, "%32s = %s", "Final_state", PA_final_state);
+			write_log(sprintf_buffer);
+			/// Excitation energy
+			if(PA_excitation_energy_set==false){
+				write_log((char*)"Error: Excitation_energy is necessary");
+				status=0; goto FINALIZATION;
+			}
+			sprintf(sprintf_buffer, "%32s = %.2f eV", "Excitation_energy", PA_excitation_energy);
+			write_log(sprintf_buffer);
+			/// FPFS_energy_step
+			sprintf(sprintf_buffer, "%32s = %.3f eV", "FPFS_energy_step", PA_FPFS_energy_step);
+			write_log(sprintf_buffer);
 		}else{
-			write_log((char*)"Error: Final_state should be 'PW' or 'Calc'");
+			write_log((char*)"Error: Final_state should be 'PW', 'Calc', 'FP_PAO', or 'FP_AO'");
 			status=0; goto FINALIZATION;
 		}
 	}

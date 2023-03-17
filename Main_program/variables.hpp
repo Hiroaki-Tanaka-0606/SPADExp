@@ -145,7 +145,7 @@ double PA_E_pixel;             // delta E of the calculation of the dispersion
 bool PA_E_pixel_set;
 char* PA_initial_state;        // initial state ("PAO" or "AO")
 bool PA_initial_state_set;
-char* PA_final_state;          // final state ("PW" or "Calc")
+char* PA_final_state;          // final state ("PW", "Calc", "FP_PAO", or "FP_AO")
 bool PA_final_state_set;
 double PA_final_state_step;    // calculation step of final states (Bohr^-1)
 bool PA_final_state_step_set;
@@ -184,6 +184,12 @@ double PA_reflection_coef;     // coefficient for reflection correction
 bool PA_reflection_coef_set;
 bool PA_include_neg_depth;     // whether the atoms with negative depth (above surface) are included in the intensity calculations
 bool PA_include_neg_depth_set; 
+double PA_excitation_energy;   // Excitation energy for first-principles final states (FPFSs)
+bool PA_excitation_energy_set;
+double PA_FPFS_energy_step;    // energy step to calculate FPFSs
+bool PA_FPFS_energy_step_set;
+int PA_FPFS_range;             // index range used to determine the in-plane search area
+bool PA_FPFS;                  // whether final_state is (FP_PAO or FP_AO)
 
 /// files
 FILE* Log_file_obj;            // log file object

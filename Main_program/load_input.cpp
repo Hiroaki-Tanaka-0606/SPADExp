@@ -909,6 +909,28 @@ int load_input(){
 				}
 				PA_include_neg_depth_set=true; continue;
 			}
+			/// Excitation_energy: double
+			if(strcmp(keyword_buffer, "Excitation_energy")==0){
+				if(PA_excitation_energy_set){
+					output_error(line_number, (char*)"keyword Excitation_energy already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PA_excitation_energy);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Excitation_energy"); status=0; goto FINALIZATION;
+				}
+			  PA_excitation_energy_set=true; continue;
+			}
+			/// FPFS_energy_step: double
+			if(strcmp(keyword_buffer, "FPFS_energy_step")==0){
+				if(PA_FPFS_energy_step_set){
+					output_error(line_number, (char*)"keyword FPFS_energy_step already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PA_FPFS_energy_step);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of FPFS_energy_step"); status=0; goto FINALIZATION;
+				}
+			  PA_FPFS_energy_step_set=true; continue;
+			}
 		}else if(*block_name==string("Phase-shift")){
 			// Ph block
 			/// Skip_points (Ph_skip_points): int
