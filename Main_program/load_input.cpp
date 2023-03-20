@@ -931,6 +931,17 @@ int load_input(){
 				}
 			  PA_FPFS_energy_step_set=true; continue;
 			}
+			/// FPFS_file: char
+			if(strcmp(keyword_buffer, "FPFS_file")==0){
+				if(PA_FPFS_file_set){
+					output_error(line_number, (char*)"keyword FPFS_file already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_char(input_line_c, (char*)"FPFS_file", PA_FPFS_file, HDF5_file_length, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of FPFS_file"); status=0; goto FINALIZATION;
+				}
+			  PA_FPFS_file_set=true; continue;
+			}
 		}else if(*block_name==string("Phase-shift")){
 			// Ph block
 			/// Skip_points (Ph_skip_points): int

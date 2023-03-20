@@ -242,6 +242,52 @@ void r_att_1d(Group g, const char* key, int size, double* value){
 	at.read(PredType::NATIVE_DOUBLE, value);
 }
 
+void s_att_1d(Group g, const char* key, int* size){
+	Attribute at=g.openAttribute(key);
+	DataSpace dsp=at.getSpace();
+
+	int rank=dsp.getSimpleExtentNdims();
+	if(rank!=1){
+		write_log((char*)"s_att_1d error: different rank");
+		return;
+	}
+	hsize_t dims[1];
+	dsp.getSimpleExtentDims(dims, NULL);
+	*size=dims[0];
+}
+
+void r_att_1i(Group g, const char* key, int size, int* value){
+	Attribute at=g.openAttribute(key);
+	DataSpace dsp=at.getSpace();
+
+	int rank=dsp.getSimpleExtentNdims();
+	if(rank!=1){
+		write_log((char*)"r_att_1i error: different rank");
+		return;
+	}
+	hsize_t dims[1];
+	dsp.getSimpleExtentDims(dims, NULL);
+	if(dims[0]!=size){
+		write_log((char*)"r_att_1i error: size mismatch");
+		return;
+	}
+	at.read(PredType::NATIVE_INT, value);
+}
+
+void s_att_1i(Group g, const char* key, int* size){
+	Attribute at=g.openAttribute(key);
+	DataSpace dsp=at.getSpace();
+
+	int rank=dsp.getSimpleExtentNdims();
+	if(rank!=1){
+		write_log((char*)"s_att_1i error: different rank");
+		return;
+	}
+	hsize_t dims[1];
+	dsp.getSimpleExtentDims(dims, NULL);
+	*size=dims[0];
+}
+
 double r_att_double(Group g, const char* key){
 	Attribute at=g.openAttribute(key);
 	double data;

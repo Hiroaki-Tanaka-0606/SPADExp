@@ -43,4 +43,7 @@ string r_att_str(Group g, const char* key);
 int r_att_int(Group g, const char* key);
 bool r_att_bool(Group g, const char* key);
 void r_att_1d(Group g, const char* key, int size, double* value);
+void s_att_1d(Group g, const char* key, int* size);
+void r_att_1i(Group g, const char* key, int size, int* value);
+void s_att_1i(Group g, const char* key, int* size);
 double r_att_double(Group g, const char* key);

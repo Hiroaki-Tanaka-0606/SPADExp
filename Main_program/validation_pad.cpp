@@ -106,6 +106,16 @@ int validation_PAD(){
 			PA_FPFS=true;
 			sprintf(sprintf_buffer, "%32s = %s", "Final_state", PA_final_state);
 			write_log(sprintf_buffer);
+			// weighting axis and origin are used to determine empty atoms
+			if(PA_weighting==false){
+				write_log((char*)"Error: Weighting should be set to true in FP_PAO or FP_AO");
+				status=0; goto FINALIZATION;
+			}
+			// reflection cannot be used
+			if(PA_reflection==true){
+				write_log((char*)"Error: Reflection cannot be used in FP_PAO and FP_AO");
+				status=0; goto FINALIZATION;
+			}
 			/// Excitation energy
 			if(PA_excitation_energy_set==false){
 				write_log((char*)"Error: Excitation_energy is necessary");

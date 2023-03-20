@@ -1,4 +1,4 @@
-// calcPSF photoemission angular distribution calculation
+// First-principles final state analysis
 
 #include <iostream>
 #include <complex>
@@ -11,14 +11,9 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include <ctime>
-#include <filesystem>
-#include "log.hpp"
-#include "variables_ext.hpp"
 #include "HDF5_tools.hpp"
 #include "physical_tools.hpp"
-#include "calculation_phase_shift.hpp"
-#include "calculation_atomic_wfn.hpp"
-#include "setup.hpp"
+#include "variables.hpp"
 
 using namespace std;
 using namespace H5;
@@ -30,15 +25,6 @@ extern "C"{
 							 int* INCX,
 							 double* CY,
 							 int* INCY);
-	void zgesv_(
-							int* N,
-							int* NRHS,
-							complex<double>* A,
-							int* LDA,
-							int* IPIV,
-							complex<double>* B,
-							int* LDB,
-							int* INFO);
 }
 
 double ddot(int* N, double* X, double* Y){
@@ -46,22 +32,213 @@ double ddot(int* N, double* X, double* Y){
 	return ddot_(N, &X[0], &INC, &Y[0], &INC);
 }
 
-bool zgesv_1_0(int* N, complex<double>* A, complex<double>* B){
-	for(int i=0; i<*N; i++){
-		B[i]=complex<double>(i==0?1:0, 0);
+int main(int argc, char** argv){
+	if(argc<2){
+		printf("Usage: %s .hdf5\n", argv[0]);
+		return -1;
 	}
-	int INFO=0;
-	int NRHS=1;
-	int IPIV[*N];
-	zgesv_(N, &NRHS, &A[0], N, &IPIV[0], &B[0], N, &INFO);
-	if(INFO==0){
-		return true;
-	}else{
-		return false;
-	}
-}
+	// arguments
+	char* file_name=argv[1];
 
-void calculate_PAD(){
+	// constants
+	int FPFS_range=10;
+	int item_size=64;
+
+	// buffers
+	char group_name[item_size];
+
+	printf("----Load %s----\n", file_name);
+
+	H5File input(file_name, H5F_ACC_RDONLY);
+	Group rootG(input.openGroup("/"));
+	
+	int dimension=r_att_int(rootG, "Dimension");
+	printf("%32s = %d\n", "Dimension", dimension);
+
+	int size[3]={0, 0, 0};
+	r_att_1i(rootG, "Size", dimension+1, &size[0]);
+	printf("%32s = [%d, %d, %d]\n", "Size", size[0], size[1], size[2]);
+	
+	int total_count=size[0];
+	if(dimension==2){
+		total_count*=size[1];
+	}
+	printf("%32s = %d\n", "Total count", total_count);
+
+	Group AtomG(rootG.openGroup("Atoms"));
+	int atom_length;
+	int label_length;
+	s_data_1c(AtomG, "Labels", &atom_length, &label_length);
+	char atom_labels[atom_length][label_length];
+	r_data_1c(AtomG, "Labels", atom_length, label_length, (char**)atom_labels);
+
+	int atom_spec_length;
+	s_data_1c(AtomG, "Species", &atom_spec_length, &label_length);
+	char atom_spec_label[atom_spec_length][label_length];
+	r_data_1c(AtomG, "Species", atom_spec_length, label_length, (char**)atom_spec_label);
+
+	int atom_spec_index[atom_length];
+	for(int ia=0; ia<atom_length; ia++){
+		for(int is_search=0; is_search<atom_spec_length; is_search++){
+			if(strcmp(atom_labels[ia], atom_spec_label[is_search])==0){
+				atom_spec_index[ia]=is_search;
+				break;
+			}	
+		}
+	}
+	
+	double atom_coordinates[atom_length][3];
+	r_data_2d(AtomG, "Coordinates", atom_length, 3, (double**)atom_coordinates);
+
+	Group FPFSG(rootG.openGroup("FPFS"));
+	int atom_props[atom_length];
+	r_att_1i(FPFSG, "Atom_props", atom_length, (int*)atom_props);
+	
+	for(int i=0; i<atom_length; i++){
+		printf("%32s (%9.4f, %9.4f, %9.4f) [a.u.]: %s\n", atom_labels[i], atom_coordinates[i][0], atom_coordinates[i][1], atom_coordinates[i][2], atom_props[i]==-1 ? "Below the slab": (atom_props[i]==0 ? "In the slab": "Above the slab"));
+	}
+	
+	double unit_cell[3][3];
+	r_data_2d(AtomG, "UnitCell", 3, 3, (double**)unit_cell);
+	for(int i=0; i<3; i++){
+		printf("%31s%1d = (%9.4f, %9.4f, %9.4f) [a.u.]\n", "a", (i+1), unit_cell[i][0], unit_cell[i][1], unit_cell[i][2]);
+	}
+
+	double rec_cell[3][3];
+	double acrossb[3];
+	outer_product(unit_cell[1], unit_cell[2], acrossb);
+	double abc=inner_product(acrossb, unit_cell[0]);
+	for(int i=0; i<3; i++){
+		rec_cell[0][i]=2*M_PI*acrossb[i]/abc;
+	}
+	outer_product(unit_cell[2], unit_cell[0], acrossb);
+	for(int i=0; i<3; i++){
+		rec_cell[1][i]=2*M_PI*acrossb[i]/abc;
+	}
+	outer_product(unit_cell[0], unit_cell[1], acrossb);
+	for(int i=0; i<3; i++){
+		rec_cell[2][i]=2*M_PI*acrossb[i]/abc;
+	}
+
+	for(int i=0; i<3; i++){
+		printf("%31s%1d = (%9.4f, %9.4f, %9.4f) [/a.u.]\n", "b", (i+1), rec_cell[i][0], rec_cell[i][1], rec_cell[i][2]);
+	}
+
+	int spin_i=r_att_int(FPFSG, "Spin_i");
+	printf("%32s = %d\n", "Spin degree of freedom", spin_i);
+	int digit=spin_i==2?2:1;
+	
+	// orbitals
+	int wfn_length[atom_spec_length];
+	double** wfn_phi[atom_spec_length]; // [is][io][r]
+	double* wfn_r[atom_spec_length];
+	int* l_list[atom_spec_length];
+	int num_orbits[atom_spec_length];
+	for(int is=0; is<atom_spec_length; is++){
+		sprintf(group_name, "%d_%s", is+1, atom_spec_label[is]);
+		Group FPFSG_is(FPFSG.openGroup(group_name));
+		// r
+		s_att_1d(FPFSG_is, "r", &wfn_length[is]);
+		wfn_r[is]=new double[wfn_length[is]];
+		r_att_1d(FPFSG_is, "r", wfn_length[is], &wfn_r[is][0]);
+		// l_list
+		s_att_1i(FPFSG_is, "l_list", &num_orbits[is]);
+		l_list[is]=new int[num_orbits[is]];
+		r_att_1i(FPFSG_is, "l_list", num_orbits[is], &l_list[is][0]);
+		// wfn_phi
+		wfn_phi[is]=new double*[num_orbits[is]];
+		for(int io=0; io<num_orbits[is]; io++){
+			sprintf(group_name, "orbital_%d", io);
+			wfn_phi[is][io]=new double[wfn_length[is]];
+			r_data_1d(FPFSG_is, group_name, wfn_length[is], &wfn_phi[is][io][0]);
+		}
+	}
+	
+	complex<double> m1jlp[5]={complex<double>(1, 0), complex<double>(0, -1), complex<double>(-1, 0), complex<double>(0, 1), complex<double>(1, 0)};
+	complex<double> Ylm_k[5][9];
+	for(int ik=0; ik<total_count; ik++){
+		printf("k index = %d\n", ik);
+		if(dimension==1){
+			sprintf(group_name, "%d", ik);
+		}else{
+			int ikx=ik%size[0];
+			int iky=(ik-ikx)/size[0];
+			sprintf(group_name, "%d_%d", ikx, iky);
+		}
+		Group FPFSG_k(FPFSG.openGroup(group_name));
+		int count=r_att_int(FPFSG_k, "Count");
+		printf("  Number of final states = %d\n", count);
+		int spin[count];
+		r_att_1i(FPFSG_k, "Spin", count, &spin[0]);
+		for(int j=0; j<count; j++){
+			printf("  state index = %d\n", j);
+			sprintf(group_name, "%d", j);
+			Group FPFSG_ke(FPFSG_k.openGroup(group_name));
+			double k[3];
+			r_att_1d(FPFSG_ke, "k", 3, &k[0]);
+			printf("    k vector = [%7.3f, %7.3f, %7.3f]\n", k[0], k[1], k[2]);
+			printf("    spin = %s\n", spin[j]==0 ? "Up": "Dn");
+			printf("    t kx ky kz  fourier components\n");
+			double k_t[3]={k[0], k[1], k[2]};			
+			for(double t=1.1; t>=-1.1; t-=0.1){
+				k_t[0]=t*k[0];
+				spherical_harmonics(k_t, &Ylm_k[0][0]);
+				complex<double> final_state_fourier[digit];
+				for(int id=0; id<digit; id++){
+					final_state_fourier[id]=complex<double>(0, 0);
+				}
+				double k_t_length=sqrt(inner_product(k_t, k_t));
+				// radial part calculations
+				double** final_state_integral=new double*[atom_spec_length]; // [is][io]
+				for(int is=0; is<atom_spec_length; is++){
+					double* wfn_spBessel_rdr=new double[wfn_length[is]];
+					final_state_integral[is]=new double[num_orbits[is]];
+					for(int io=0; io<num_orbits[is]; io++){
+						int final_state_l=l_list[is][io];
+						for(int ir=0; ir<wfn_length[is]-1; ir++){
+							wfn_spBessel_rdr[ir]=wfn_r[is][ir]*sp_bessel(final_state_l, wfn_r[is][ir]*k_t_length)*(wfn_r[is][ir+1]-wfn_r[is][ir]);
+						}
+						wfn_spBessel_rdr[wfn_length[is]-1]=0;
+						final_state_integral[is][io]=ddot(&wfn_length[is], &wfn_spBessel_rdr[0], &wfn_phi[is][io][0]);
+						// printf("is=%d, io=%d, mat=%e\n", is, io, final_state_integral[is][io]);
+					}
+				}
+				// multiply LCAO
+				for(int ia=0; ia<atom_length; ia++){
+					if(atom_props[ia]!=1){
+						continue;
+					}
+					int is=atom_spec_index[ia];
+					double kt=inner_product(k_t, atom_coordinates[ia]);
+					complex<double> atom_phase(cos(kt), -sin(kt));
+					
+					sprintf(group_name, "%d_%s", (ia+1), atom_labels[ia]);
+					Group FPFSG_kea(FPFSG_ke.openGroup(group_name));
+					for(int io=0; io<num_orbits[is]; io++){
+						int l=l_list[is][io];
+						complex<double> coeff=4*M_PI*atom_phase*m1jlp[l];
+						double LCAO_component[2*l+1][digit*2];
+						sprintf(group_name, "orbital_%d", io);
+						r_data_2d(FPFSG_kea, group_name, 2*l+1, digit*2, (double**)&LCAO_component[0][0]);
+						for(int mpl=0; mpl<2*l+1; mpl++){
+							for(int id=0; id<digit; id++){
+								complex<double> LCAO_element(LCAO_component[mpl][id*2], LCAO_component[mpl][id*2+1]);
+								final_state_fourier[id]+=coeff*Ylm_k[l][mpl]*LCAO_element*final_state_integral[is][io];
+							}
+						}
+					}
+				}
+				// export
+				printf("%5.2f %7.3f %7.3f %7.3f  ", t, k_t[0], k_t[1], k_t[2]);
+				for(int id=0; id<digit; id++){
+					printf("%7.3f %7.3f  ", final_state_fourier[id].real(), final_state_fourier[id].imag());
+				}
+				printf("\n");
+			}
+		}
+	}
+	/*
+	
 	// 1. load input
 	write_log((char*)"----Load input data----");
 	char* sprintf_buffer=new char[Log_length+1];
@@ -358,38 +535,38 @@ void calculate_PAD(){
 					}
 					cout << endl;
 					}
-					}*/
-			}else{
-				sprintf(ds_name, "%sUp", orbital_list[is][io]);
-				s_data_4d(atomG, ds_name, &size1, &size2, &size3, &size4);
-				if(size1!=total_count || size2!=num_bands || size3!=twoLp1){
-					write_log((char*)"LCAO size mismatch");
-					return;
-				}
-				double* LCAO_rawUp=new double[size1*size2*size3*size4];
-				r_data_4d(atomG, ds_name, size1, size2, size3, size4, (double****) LCAO_rawUp);
-				LCAO[ia][io*2]=convert_LCAO(size1, size2, size3, size4, LCAO_rawUp);
-				/*
+					}
+				}else{
+					sprintf(ds_name, "%sUp", orbital_list[is][io]);
+					s_data_4d(atomG, ds_name, &size1, &size2, &size3, &size4);
+					if(size1!=total_count || size2!=num_bands || size3!=twoLp1){
+						write_log((char*)"LCAO size mismatch");
+						return;
+					}
+					double* LCAO_rawUp=new double[size1*size2*size3*size4];
+					r_data_4d(atomG, ds_name, size1, size2, size3, size4, (double****) LCAO_rawUp);
+					LCAO[ia][io*2]=convert_LCAO(size1, size2, size3, size4, LCAO_rawUp);
+					/*
 					if(ia==0){
-					for(int iii=0; iii<size3; iii++){
-					for(int jjj=0; jjj<size4/2; jjj++){
-					cout << LCAO[ia][io][0][0][iii][jjj];
-					}
-					cout << endl;
-					}
-					}*/
-				delete LCAO_rawUp;
+						for(int iii=0; iii<size3; iii++){
+							for(int jjj=0; jjj<size4/2; jjj++){
+								cout << LCAO[ia][io][0][0][iii][jjj];
+							}
+							cout << endl;
+						}
+						}
+					delete LCAO_rawUp;
 					
-				sprintf(ds_name, "%sDn", orbital_list[is][io]);
-				s_data_4d(atomG, ds_name, &size1, &size2, &size3, &size4);
-				if(size1!=total_count || size2!=num_bands || size3!=twoLp1){
-					write_log((char*)"LCAO size mismatch");
-					return;
-				}
-				double* LCAO_rawDn=new double[size1*size2*size3*size4];
-				r_data_4d(atomG, ds_name, size1, size2, size3, size4, (double****) LCAO_rawDn);
-				LCAO[ia][io*2+1]=convert_LCAO(size1, size2, size3, size4, LCAO_rawDn);
-				delete LCAO_rawDn;							
+					sprintf(ds_name, "%sDn", orbital_list[is][io]);
+					s_data_4d(atomG, ds_name, &size1, &size2, &size3, &size4);
+					if(size1!=total_count || size2!=num_bands || size3!=twoLp1){
+						write_log((char*)"LCAO size mismatch");
+						return;
+					}
+				  double* LCAO_rawDn=new double[size1*size2*size3*size4];
+					r_data_4d(atomG, ds_name, size1, size2, size3, size4, (double****) LCAO_rawDn);
+					LCAO[ia][io*2+1]=convert_LCAO(size1, size2, size3, size4, LCAO_rawDn);
+					delete LCAO_rawDn;							
 			}
 		}
 	}
@@ -399,12 +576,12 @@ void calculate_PAD(){
 	write_log(sprintf_buffer);
 
 	/*
-		for(i=0; i<atom_length; i++){
+	for(i=0; i<atom_length; i++){
 		for(j=0; j<num_orbits[i]; j++){
-		cout << orbital_list[i][j] << " ";
+			cout << orbital_list[i][j] << " ";
 		}
 		cout << endl;
-		}*/
+		}
 	
 	
 	// 2. load initial state
@@ -487,7 +664,7 @@ void calculate_PAD(){
 			wfn_phi[is][io][wfn_length[is]-1]=0;
 			/*for(j=0; j<wfn_length[is]; j++){
 				printf("%f %f\n", wfn_r[is][j], wfn_phi_rdr[is][io][j]);
-				}*/
+				}
 		} 
 	}
 
@@ -697,10 +874,10 @@ void calculate_PAD(){
 	}
 	
 	/*
-		for(i=0; i<atom_length; i++){
+	for(i=0; i<atom_length; i++){
 		sprintf(sprintf_buffer, "%8.3f %8.3f %8.3f", atom_coordinates[i][0], atom_coordinates[i][1], atom_coordinates[i][2]);
 		write_log(sprintf_buffer);
-		}*/
+		}
 	
 	/// k points
 	for(i=0; i<total_count; i++){
@@ -742,9 +919,9 @@ void calculate_PAD(){
 					}
 				}
 			}/*
-				 for(i=0; i<total_count_ext; i++){
-				 cout << k_index_reduced[i] << endl;
-				 }*/
+			for(i=0; i<total_count_ext; i++){
+				cout << k_index_reduced[i] << endl;
+				}
 		}else{
 			// E-k-k: use ext_up, ri, dn, and le
 			kx_count_ext=((kx_count-1)*(1+PA_ext_ri+PA_ext_le)+1);
@@ -797,12 +974,10 @@ void calculate_PAD(){
 	int final_states_count;
 	double**** final_states_calc; // [k_index][atom_spec][l][r] for Calc
 	double*** final_states_phase; // [k_index][atom_spec][l] for Calc
-	complex<double>******* final_states_FP;  // [total_count_ext][FPIndex][ia][l][m+l][r][digit] for FP_PAO and FP_AO
-	complex<double>****** final_states_LCAO; // [total_count_ext][FPIndex][ia][io][m+l][digit]
+	complex<double>****** final_states_FP;  // [total_count_ext][FPIndex][ia][l][m+l][r] for FP_PAO and FP_AO
 	int** final_states_EScale;    // [total_count_ext][FPIndex]=round(E/FPFS_energy_step)
 	int** final_states_spin;      // [total_count_ext][FPIndex]=up(0) or down(1), always zero for spin_i==0 (off)
 	double** final_states_EWidth; // [total_count_ext][FPIndex]=energy difference between final state bases
-	double*** final_states_k;      // [total_count_ext][FPIndex]=k vector (au^-1)
 	int* final_states_FP_size;    // [total_count_ext]=FPIndex_size
 	if(strcmp(PA_final_state, "Calc")==0){
 		write_log((char*)"----Calculate final states----");
@@ -892,17 +1067,17 @@ void calculate_PAD(){
 		}
 
 		/*		
-					for(k=0; k<5; k++){
-					for(i=0; i<final_states_count; i++){
-					for(j=0; j<atom_spec_length; j++){
+		for(k=0; k<5; k++){
+			for(i=0; i<final_states_count; i++){
+				for(j=0; j<atom_spec_length; j++){
 					cout << final_states_phase[i][j][k] << " ";
-					}		
-					}
-					cout << endl;
-					}return;
-					for(i=0; i<wfn_length[0]; i++){
-					cout << wfn_r[0][i] << " " << final_states_calc[0][0][0][i] << endl;
-					}*/
+				}		
+			}
+			cout << endl;
+		}return;
+		for(i=0; i<wfn_length[0]; i++){
+			cout << wfn_r[0][i] << " " << final_states_calc[0][0][0][i] << endl;
+			}
 				
 		// return;
 	}else if(PA_FPFS){
@@ -914,14 +1089,11 @@ void calculate_PAD(){
 		int E_min_scale=round(E_min_tail/PA_FPFS_energy_step);
 		int E_max_scale=round(E_max_tail/PA_FPFS_energy_step);
 		int scale_width=E_max_scale-E_min_scale+1;
-		final_states_FP=new complex<double>******[total_count_ext];
-		final_states_LCAO=new complex<double>*****[total_count_ext];
+		final_states_FP=new complex<double>*****[total_count_ext];
 		final_states_EScale=new int*[total_count_ext];
 		final_states_spin=new int*[total_count_ext];
 		final_states_EWidth=new double*[total_count_ext];
 		final_states_FP_size=new int[total_count_ext];
-		final_states_k=new double**[total_count_ext];
-		int digit=(spin_i==2)?2:1;
 		
 #pragma omp parallel firstprivate(scale_width, PA_ext_set, spin_i, num_bands, EF_Eh, Eh, PA_FPFS_energy_step, E_min_scale, E_max_scale, PA_excitation_energy, atom_above_surface, atom_length) private(j)
 #pragma omp for
@@ -993,41 +1165,18 @@ void calculate_PAD(){
 				FPIndex_size=count*2;
 			}
 			final_states_FP_size[i]=FPIndex_size;
-			final_states_FP[i]=new complex<double>*****[FPIndex_size];
+			final_states_FP[i]=new complex<double>****[FPIndex_size];
 			for(j=0; j<FPIndex_size; j++){
-				final_states_FP[i][j]=new complex<double>****[atom_length];
+				final_states_FP[i][j]=new complex<double>***[atom_length];
 				for(int ia=0; ia<atom_length; ia++){
 					int is=atom_spec_index[ia];
-					final_states_FP[i][j][ia]=new complex<double>***[num_orbits[is]];
+					final_states_FP[i][j][ia]=new complex<double>**[5];
 					for(int l=0; l<5; l++){
-						final_states_FP[i][j][ia][l]=new complex<double>**[2*l+1];
+						final_states_FP[i][j][ia][l]=new complex<double>*[2*l+1];
 						for(int m=0; m<2*l+1; m++){
-							final_states_FP[i][j][ia][l][m]=new complex<double>*[wfn_length[is]];
+							final_states_FP[i][j][ia][l][m]=new complex<double>[wfn_length[is]];
 							for(int ir=0; ir<wfn_length[is]; ir++){
-								final_states_FP[i][j][ia][l][m][ir]=new complex<double>[digit];
-								final_states_FP[i][j][ia][l][m][ir][0]=complex<double>(0, 0);
-								if(digit==2){
-									final_states_FP[i][j][ia][l][m][ir][1]=complex<double>(0, 0);
-								}
-							}
-						}
-					}
-				}
-			}
-			final_states_LCAO[i]=new complex<double>****[FPIndex_size];
-			for(j=0; j<FPIndex_size; j++){
-				final_states_LCAO[i][j]=new complex<double>***[atom_length];
-				for(int ia=0; ia<atom_length; ia++){
-					int is=atom_spec_index[ia];
-					final_states_LCAO[i][j][ia]=new complex<double>**[num_orbits[is]];
-					for(int io=0; io<num_orbits[is]; io++){
-						int l=l_list[is][io];
-						final_states_LCAO[i][j][ia][io]=new complex<double>*[2*l+1];
-						for(int m=0; m<2*l+1; m++){
-							final_states_LCAO[i][j][ia][io][m]=new complex<double>[digit];
-							final_states_LCAO[i][j][ia][io][m][0]=complex<double>(0, 0);
-							if(digit==2){
-								final_states_LCAO[i][j][ia][io][m][1]=complex<double>(0, 0);
+								final_states_FP[i][j][ia][l][m][ir]=complex<double>(0, 0);
 							}
 						}
 					}
@@ -1036,10 +1185,6 @@ void calculate_PAD(){
 			final_states_EScale[i]=new int[FPIndex_size];
 			final_states_spin[i]=new int[FPIndex_size];
 			final_states_EWidth[i]=new double[FPIndex_size];
-			final_states_k[i]=new double*[FPIndex_size];
-			for(j=0; j<FPIndex_size; j++){
-				final_states_k[i][j]=new double[3];
-			}
 			int FPIndex=0;
 			// fill
 			for(sp=0; sp<sp_max;sp++){
@@ -1087,9 +1232,9 @@ void calculate_PAD(){
 			// for debug
 			printf("k=%d, count=%d\n", i, FPIndex_size);
 			for(j=0; j<FPIndex_size; j++){
-				printf("Scale=%4d, Energy=%7.3f eV, spin=%d\n",
+				printf("Scale=%d, Energy=%f eV, spin=%d\n",
 							 final_states_EScale[i][j], final_states_EScale[i][j]*PA_FPFS_energy_step, final_states_spin[i][j]);
-			}
+							 }
 			// obtain plane wave by linear combination
 			for(j=0; j<FPIndex_size; j++){
 				int eigen_scale=final_states_EScale[i][j];
@@ -1104,9 +1249,6 @@ void calculate_PAD(){
 					continue;
 				}
 				k_au[0]=sqrt(kz_square);
-				for(int j1=0; j1<3; j1++){
-					final_states_k[i][j][j1]=k_au[j1];
-				}
 				// printf("k=(%.2f, %.2f, %.2f)\n", k_au[0], k_au[1], k_au[2]);
 				double k_test_au[2*PA_FPFS_range+1][2*PA_FPFS_range+1][3];
 				int k_count=0;
@@ -1126,9 +1268,9 @@ void calculate_PAD(){
 							k_test_au[n1p][n2p][0]=-1;
 						}
 						/*
-							if(k_test_au[n1p][n2p][0]>0){
+						if(k_test_au[n1p][n2p][0]>0){
 							printf("k[%d][%d]=(%.2f, %.2f, %.2f)\n", n1, n2, k_test_au[n1p][n2p][0], k_test_au[n1p][n2p][1], k_test_au[n1p][n2p][2]);
-							}*/
+							}
 					}
 				}
 				// +- pm
@@ -1184,12 +1326,12 @@ void calculate_PAD(){
 						spin_list[k_count/2+kp]=sub_spin;
 					}
 				}/*
-					 for(int list_index=0; list_index<k_count; list_index++){
-					 printf("n=(%2d, %2d), k=(%5.2f, %5.2f, %5.2f), s=%d\n",
-					 n_list[list_index][0], n_list[list_index][1],
-					 k_list[list_index][0], k_list[list_index][1], k_list[list_index][2],
-					 spin_list[list_index]);
-					 }*/
+				for(int list_index=0; list_index<k_count; list_index++){
+					printf("n=(%2d, %2d), k=(%5.2f, %5.2f, %5.2f), s=%d\n",
+								 n_list[list_index][0], n_list[list_index][1],
+								 k_list[list_index][0], k_list[list_index][1], k_list[list_index][2],
+								 spin_list[list_index]);
+								 }
 				// composite matrix
 				complex<double> final_state_matrix[k_count][k_count];
 				for(int im=0; im<k_count; im++){
@@ -1263,7 +1405,7 @@ void calculate_PAD(){
 					//printf("Band #%d: eigen=%.2f\n", ib, eigen);
 				}
 				final_states_EWidth[i][j]=(Ekin_max-Ekin_min)*Eh;
-				sprintf(sprintf_buffer, "Energy width: %.3f Eh = %.3f eV", Ekin_max-Ekin_min, (Ekin_max-Ekin_min)*Eh);
+				sprintf(sprintf_buffer, "Energy width: %.2f Eh = %.1f eV", Ekin_max-Ekin_min, (Ekin_max-Ekin_min)*Eh);
 				write_log(sprintf_buffer);
 				// matrix element calculation
 				complex<double> Ylm_k[5][9];
@@ -1271,9 +1413,9 @@ void calculate_PAD(){
 				for(int im=0; im<k_count; im++){
 					double* k_im=k_list[im];
 					int spin_im=spin_list[im];
-					int id=0;
+					int digit=0;
 					if(spin_i==2){
-						id=spin_im;
+						digit=spin_im;
 					}
 					spherical_harmonics(k_im, &Ylm_k[0][0]);
 					for(int ibi=0; ibi<k_count; ibi++){
@@ -1297,19 +1439,19 @@ void calculate_PAD(){
 								int l=l_list[is][io];
 								complex<double> coeff=4*M_PI*atom_phase*m1jlp[l];
 								for(int mpl=0; mpl<2*l+1; mpl++){
-									final_state_matrix[im][ibi]+=coeff*Ylm_k[l][mpl]*LCAO[ia][io2][k_index][ib][mpl][id]*final_state_integral[is][io];
+									final_state_matrix[im][ibi]+=coeff*Ylm_k[l][mpl]*LCAO[ia][io2][k_index][ib][mpl][digit]*final_state_integral[is][io];
 								}
 							}
 						}
 					}
 				}/*
-				 // matrix print for debug
-				 for(int im=0; im<k_count; im++){
-				 for(int ibi=0; ibi<k_count; ibi++){
-				 printf("(%6.3f, %6.3f) ", final_state_matrix[im][ibi].real(), final_state_matrix[im][ibi].imag());
-				 }
-				 printf("\n");
-				 }*/
+				// matrix print for debug
+				for(int im=0; im<k_count; im++){
+					for(int ibi=0; ibi<k_count; ibi++){
+						printf("(%6.3f, %6.3f) ", final_state_matrix[im][ibi].real(), final_state_matrix[im][ibi].imag());
+					}
+					printf("\n");
+					}
 				// index order is inverted due to the lapack implementation
 				complex<double> fsm_inv[k_count][k_count];
 				for(int im=0; im<k_count; im++){
@@ -1321,22 +1463,26 @@ void calculate_PAD(){
 				complex<double> LCVector[k_count];
 				if(zgesv_1_0(&k_count, &fsm_inv[0][0], LCVector)){
 					/*
-						write_log((char*)"zgesv succeeded");
-						// check
-						for(int im=0; im<k_count; im++){
+					write_log((char*)"zgesv succeeded");
+					// check
+					for(int im=0; im<k_count; im++){
 						complex<double> MV=complex<double>(0, 0);
 						for(int ibi=0; ibi<k_count; ibi++){
-						MV+=final_state_matrix[im][ibi]*LCVector[ibi];
+							MV+=final_state_matrix[im][ibi]*LCVector[ibi];
 						}
 						printf("MV[%2d]=(%6.3f, %6.3f)\n", im, MV.real(), MV.imag());
-						}*/
+						}
 				}else{
 					write_log((char*)"zgesv failed");
 					continue;
 				}
 				// composite final_states_FP
-				// [total_count_ext][FPIndex][ia][l][m+l][r][digit] for FP_PAO and FP_AO
+				// [total_count_ext][FPIndex][ia][l][m+l][r] for FP_PAO and FP_AO
 				for(int ibi=0; ibi<k_count; ibi++){
+					int digit=0;
+					if(spin_i==2){
+						digit=final_states_spin[i][j];
+					}
 					int ib=final_state_band_index[ibi];
 					for(int ia=0; ia<atom_length; ia++){
 						int is=atom_spec_index[ia];
@@ -1351,12 +1497,9 @@ void calculate_PAD(){
 							}
 							int l=l_list[is][io];
 							for(int mpl=0; mpl<2*l+1; mpl++){
-								for(int id=0; id<digit; id++){
-									complex<double> coeff=LCVector[ibi]*LCAO[ia][io2][k_index][ib][mpl][id];
-									final_states_LCAO[i][j][ia][io][mpl][id]+=coeff;
-									for(int ir=0; ir<wfn_length[is]; ir++){
-										final_states_FP[i][j][ia][l][mpl][ir][id]+=coeff*wfn_phi[is][io][ir];
-									}
+								complex<double> coeff=LCVector[ibi]*LCAO[ia][io2][k_index][ib][mpl][digit];
+								for(int ir=0; ir<wfn_length[is]; ir++){
+									final_states_FP[i][j][ia][l][mpl][ir]+=coeff*wfn_phi[is][io][ir];
 								}
 							}
 						}
@@ -1365,6 +1508,7 @@ void calculate_PAD(){
 			} // for(j=0; j<FPIndex_size; j++)
 		} // omp for(i=0; i<total_count_ext; i++)
 	} // if(FPFS)
+  
 	/// 3-5. calculation for each k point
 	double dispersion2[total_count_ext][num_points_E];
 	for(i=0; i<total_count_ext; i++){
@@ -1424,14 +1568,14 @@ void calculate_PAD(){
 		}
 		// printf("%lf %lf %lf | %lf %lf %lf\n", k_point[0], k_point[1], k_point[2], k_point2[0], k_point2[1], k_point2[2]);
 		/*
-			for(int ii=0; ii<5; ii++){
+		for(int ii=0; ii<5; ii++){
 			for(int jj=0; jj<9; jj++){
-			char buffer[1024];
-			sprintf(buffer, "%8.3f %8.3f", Ylm_k[ii][jj].real(), Ylm_k[ii][jj].imag());
-			write_log(buffer);
+				char buffer[1024];
+				sprintf(buffer, "%8.3f %8.3f", Ylm_k[ii][jj].real(), Ylm_k[ii][jj].imag());
+				write_log(buffer);
 			}
 			write_log((char*)"");
-			}*/
+			}
 		for(sp=0; sp<sp_max; sp++){
 			for(ib=0; ib<num_bands; ib++){
 				double eigen;
@@ -1630,79 +1774,40 @@ void calculate_PAD(){
 										int jp1St=max(-1, -(m+lp))+1; // include
 										int jp1En=min(1, lp-m)+2; // not include
 										int jp1;
-										complex<double> coeff11(0, 0);
-										complex<double> coeff12(0, 0);
-										complex<double> coeff21(0, 0);
-										complex<double> coeff22(0, 0);
+										complex<double> coeff1(0, 0);
+										complex<double> coeff2(0, 0);
 										for(jp1=jp1St; jp1<jp1En; jp1++){
 											int mpplp=jp1-1+m+lp;
-											if(spin_i==0 || spin_i==1){
-												// digit=0 |1> -> |1> or |0> -> |0>
+											// load final state
+											for(ir=0; ir<wfn_length[is]; ir++){
+												final_states_re[ir]=final_states_FP[ik][FPIndex_1][ia][lp][mpplp][ir].real();
+												final_states_im[ir]=final_states_FP[ik][FPIndex_1][ia][lp][mpplp][ir].imag();
+											}
+											// cout << jp1 << endl;
+											double radial_part_re=ddot(&wfn_length[is], &final_states_re[0], &wfn_phi_rdr[is][io2][0]);
+											double radial_part_im=ddot(&wfn_length[is], &final_states_im[0], &wfn_phi_rdr[is][io2][0]);
+											complex<double> radial_part(radial_part_re, -radial_part_im);
+											coeff1+=radial_part*Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1];
+											if(spin_i==2){
 												// load final state
 												for(ir=0; ir<wfn_length[is]; ir++){
-													final_states_re[ir]=final_states_FP[ik][FPIndex_1][ia][lp][mpplp][ir][0].real();
-													final_states_im[ir]=final_states_FP[ik][FPIndex_1][ia][lp][mpplp][ir][0].imag();
+													final_states_re[ir]=final_states_FP[ik][FPIndex_2][ia][lp][mpplp][ir].real();
+													final_states_im[ir]=final_states_FP[ik][FPIndex_2][ia][lp][mpplp][ir].imag();
 												}
-												// cout << jp1 << endl;
-												double radial_part_re=ddot(&wfn_length[is], &final_states_re[0], &wfn_phi_rdr[is][io2][0]);
-												double radial_part_im=ddot(&wfn_length[is], &final_states_im[0], &wfn_phi_rdr[is][io2][0]);
+												radial_part_re=ddot(&wfn_length[is], &final_states_re[0], &wfn_phi_rdr[is][io2][0]);
+												radial_part_im=ddot(&wfn_length[is], &final_states_im[0], &wfn_phi_rdr[is][io2][0]);
 												complex<double> radial_part(radial_part_re, -radial_part_im);
-												coeff11+=radial_part*Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1];
-											}else{
-												// digit=2
-												// FPIndex_1 = |0> in vacuum (PAD_1)
-												// FPIndex_2 = |1> in vacuum (PAD_2)
-												
-												// 11 = up ->FPIndex_1
-												for(ir=0; ir<wfn_length[is]; ir++){
-													final_states_re[ir]=final_states_FP[ik][FPIndex_1][ia][lp][mpplp][ir][0].real();
-													final_states_im[ir]=final_states_FP[ik][FPIndex_1][ia][lp][mpplp][ir][0].imag();
-												}
-												double radial_part_re=ddot(&wfn_length[is], &final_states_re[0], &wfn_phi_rdr[is][io2][0]);
-												double radial_part_im=ddot(&wfn_length[is], &final_states_im[0], &wfn_phi_rdr[is][io2][0]);
-												complex<double> radial_part(radial_part_re, -radial_part_im);
-												coeff11+=radial_part*Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1];
-												// 12 = up ->FPIndex_2
-												for(ir=0; ir<wfn_length[is]; ir++){
-													final_states_re[ir]=final_states_FP[ik][FPIndex_2][ia][lp][mpplp][ir][0].real();
-													final_states_im[ir]=final_states_FP[ik][FPIndex_2][ia][lp][mpplp][ir][0].imag();
-												}
-												radial_part_re=ddot(&wfn_length[is], &final_states_re[0], &wfn_phi_rdr[is][io2][0]);
-												radial_part_im=ddot(&wfn_length[is], &final_states_im[0], &wfn_phi_rdr[is][io2][0]);
-											  radial_part=complex<double>(radial_part_re, -radial_part_im);
-												coeff12+=radial_part*Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1];
-												// 21 = dn ->FPIndex_1
-												for(ir=0; ir<wfn_length[is]; ir++){
-													final_states_re[ir]=final_states_FP[ik][FPIndex_1][ia][lp][mpplp][ir][1].real();
-													final_states_im[ir]=final_states_FP[ik][FPIndex_1][ia][lp][mpplp][ir][1].imag();
-												}
-												radial_part_re=ddot(&wfn_length[is], &final_states_re[0], &wfn_phi_rdr[is][io2][0]);
-												radial_part_im=ddot(&wfn_length[is], &final_states_im[0], &wfn_phi_rdr[is][io2][0]);
-											  radial_part=complex<double>(radial_part_re, -radial_part_im);
-												coeff21+=radial_part*Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1];
-												// 22 = up ->FPIndex_1
-												for(ir=0; ir<wfn_length[is]; ir++){
-													final_states_re[ir]=final_states_FP[ik][FPIndex_2][ia][lp][mpplp][ir][1].real();
-													final_states_im[ir]=final_states_FP[ik][FPIndex_2][ia][lp][mpplp][ir][1].imag();
-												}
-												radial_part_re=ddot(&wfn_length[is], &final_states_re[0], &wfn_phi_rdr[is][io2][0]);
-												radial_part_im=ddot(&wfn_length[is], &final_states_im[0], &wfn_phi_rdr[is][io2][0]);
-											  radial_part=complex<double>(radial_part_re, -radial_part_im);
-												coeff22+=radial_part*Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1];
+												coeff2+=radial_part*Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1];
 											}
 										}
 										if(PA_weighting==true){
-											coeff11*=atom_weighting[ia];
-											coeff12*=atom_weighting[ia];
-											coeff21*=atom_weighting[ia];
-											coeff22*=atom_weighting[ia];
+											coeff1*=atom_weighting[ia];
+											coeff2*=atom_weighting[ia];
 										}
 										// cout << coeff1 << endl;
-										if(spin_i==0 || spin_i==1){
-											PAD_1+=LCAO_use[mpl][0]*coeff11;
-										}else{
-											PAD_1+=LCAO_use[mpl][0]*coeff11+LCAO_use[mpl][1]*coeff21;
-											PAD_2+=LCAO_use[mpl][0]*coeff21+LCAO_use[mpl][1]*coeff22;
+										PAD_1+=LCAO_use[mpl][0]*coeff1;
+										if(spin_i==2){
+											PAD_2+=LCAO_use[mpl][1]*coeff2;
 										}
 									}
 								}
@@ -1838,9 +1943,6 @@ void calculate_PAD(){
 	Group atomG_out(rootG.createGroup("Atoms"));
 	w_data_1c(atomG_out, "Labels", size1, length, (char**) atom_labels);
 
-	s_data_1c(SpecG, "Labels", &size1, &length);
-	w_data_1c(atomG_out, "Species", size1, length, (char**) atom_spec_label);
-
 	w_data_2d(atomG_out, "Coordinates", atom_length, 3, (double**) atom_coordinates);
 	if(PA_weighting==true){
 		w_data_1d(atomG_out, "Weighting", atom_length, (double*) atom_weighting);
@@ -1848,88 +1950,8 @@ void calculate_PAD(){
 
 	w_data_2d(atomG_out, "UnitCell", 3, 3, (double**) atom_cell);
 
-	if(PA_FPFS && PA_FPFS_file_set){
-		H5File output2(PA_FPFS_file, H5F_ACC_TRUNC);	// att Datetime @root
-		Group rootG(output2.openGroup("/"));
-		time_t datetime_now=time(NULL);
-		struct tm *timeptr=localtime(&datetime_now);
-		char time_str[val_size+1];
-		strftime(time_str, val_size, "%Y-%m-%d %H:%M:%S", timeptr);
-		w_att_str(rootG, "Datetime", time_str);
-		w_att_int(rootG, "Dimension", dimension);
-
-		if(dimension==1){
-			w_data_2d(rootG, "Dispersion", total_count_ext, num_points_E, (double**) dispersion2);
-		}else{
-			w_data_3d(rootG, "Dispersion", kx_count_ext, ky_count_ext, num_points_E, (double***) &dispersion3[0][0][0]);
-		}
-
-		if(dimension==1){
-			double kx_offset=kx_length*kx_range[0];
-			double E_offset=PA_E_min;
-			if(PA_ext_set){
-				kx_offset=kx_length*(kx_range[0]-(kx_range[1]-kx_range[0])*PA_ext_le);
-			}
-			double offset2[2]={kx_offset, E_offset};
-			w_att_1d(rootG, "Offset", 2, &offset2[0]);
-
-			double delta2[2]={dkx_length, PA_E_pixel};
-			w_att_1d(rootG, "Delta", 2, &delta2[0]);
-		
-			int Size2[2]={total_count_ext, num_points_E};
-			w_att_1i(rootG, "Size", 2, &Size2[0]);
-		
-			w_att_1d(rootG, "Xvector", 3, &kx_vector[0]);
-		}else{
-			double kx_offset=kx_length*kx_range[0];
-			double ky_offset=ky_length*ky_range[0];
-			double E_offset=PA_E_min;
-			if(PA_ext_set){
-				kx_offset=kx_length*(kx_range[0]-(kx_range[1]-kx_range[0])*PA_ext_le);
-				ky_offset=ky_length*(ky_range[0]-(ky_range[1]-ky_range[0])*PA_ext_dn);
-			}
-			double offset3[3]={kx_offset, ky_offset, E_offset};
-			w_att_1d(rootG, "Offset", 3, &offset3[0]);
-
-			double delta3[3]={dkx_length, dky_length, PA_E_pixel};
-			w_att_1d(rootG, "Delta", 3, &delta3[0]);
-		
-			int Size3[3]={kx_count_ext, ky_count_ext, num_points_E};
-			w_att_1i(rootG, "Size", 3, &Size3[0]);
-		
-			w_att_1d(rootG, "Xvector", 3, &kx_vector[0]);
-			w_att_1d(rootG, "Yvector", 3, &ky_vector[0]);
-		}
-
-		w_att_double(rootG, "dE", PA_dE);
-		w_att_str(rootG, "Initial_state", string(PA_initial_state));
-		w_att_str(rootG, "Final_state", string(PA_final_state));
-		if(strcmp(PA_final_state, "Calc")==0){
-			w_att_double(rootG, "Final_state_step", PA_final_state_step);
-		}
-		w_att_str(rootG, "Polarization", string(PA_polarization));
-		w_att_double(rootG, "Theta", PA_theta);
-		w_att_double(rootG, "Phi", PA_phi);
-
-		w_att_bool(rootG, "Weighting", PA_weighting);
-
-		s_data_1c(AtomG, "Labels", &size1, &length);
-		Group atomG_out(rootG.createGroup("Atoms"));
-		w_data_1c(atomG_out, "Labels", size1, length, (char**) atom_labels);
-
-		s_data_1c(SpecG, "Labels", &size1, &length);
-		w_data_1c(atomG_out, "Species", size1, length, (char**) atom_spec_label);
-
-		w_data_2d(atomG_out, "Coordinates", atom_length, 3, (double**) atom_coordinates);
-		if(PA_weighting==true){
-			w_data_1d(atomG_out, "Weighting", atom_length, (double*) atom_weighting);
-		}
-
-		w_data_2d(atomG_out, "UnitCell", 3, 3, (double**) atom_cell);
-
-		// FPFS part
+	if(PA_FPFS){
 		Group FPFSG(rootG.createGroup("FPFS"));
-		w_att_int(FPFSG, "Spin_i", spin_i);
 		w_att_double(FPFSG, "Excitation_energy", PA_excitation_energy);
 		w_att_double(FPFSG, "FPFS_energy_step", PA_FPFS_energy_step);
 		int atom_props[atom_length];
@@ -1946,19 +1968,6 @@ void calculate_PAD(){
 			}
 		}
 		w_att_1i(FPFSG, "Atom_props", atom_length, &atom_props[0]);
-		// orbitals
-		for(is=0; is<atom_spec_length; is++){
-			sprintf(group_name, "%d_%s", is+1, atom_spec_label[is]);
-			Group FPFSG_is(FPFSG.createGroup(group_name));
-			w_att_1i(FPFSG_is, "l_list", num_orbits[is], &l_list[is][0]);
-			w_att_1d(FPFSG_is, "r", wfn_length[is], &wfn_r[is][0]);
-			for(io=0; io<num_orbits[is]; io++){
-				sprintf(group_name, "orbital_%d", io);
-				w_data_1d(FPFSG_is, group_name, wfn_length[is], &wfn_phi[is][io][0]);
-			}
-		}
-
-		
 		for(i=0; i<total_count_ext; i++){
 			if(dimension==2){
 				int kx=i%kx_count_ext;
@@ -1975,31 +1984,31 @@ void calculate_PAD(){
 			for(j=0; j<final_states_FP_size[i]; j++){
 				sprintf(group_name, "%d", j);
 				Group FPFSG_ke(FPFSG_k.createGroup(group_name));
-				w_att_1d(FPFSG_ke, "k", 3, &final_states_k[i][j][0]);
 				for(ia=0; ia<atom_length; ia++){
 					int is=atom_spec_index[ia];
 					sprintf(group_name, "%d_%s", (ia+1), atom_labels[ia]);
 					Group FPFSG_kea(FPFSG_ke.createGroup(group_name));
-					int digit=(spin_i==2)?2:1;
-					
-					for(io=0; io<num_orbits[is]; io++){
-						int l=l_list[is][io];
-						sprintf(group_name, "orbital_%d", io);
-						double LCAO_component[2*l+1][digit*2];
+					w_att_1d(FPFSG_kea, "r", wfn_length[is], &wfn_r[is][0]);
+					double wfn_component[wfn_length[is]];
+					for(int l=0; l<5; l++){
 						for(int mpl=0; mpl<2*l+1; mpl++){
-							LCAO_component[mpl][0]=final_states_LCAO[i][j][ia][io][mpl][0].real();
-							LCAO_component[mpl][1]=final_states_LCAO[i][j][ia][io][mpl][0].imag();
-							if(digit==2){
-								LCAO_component[mpl][2]=final_states_LCAO[i][j][ia][io][mpl][1].real();
-								LCAO_component[mpl][3]=final_states_LCAO[i][j][ia][io][mpl][1].imag();
+							int m=mpl-l;
+							sprintf(group_name, "%d_%d_real", l, m);
+							for(ir=0; ir<wfn_length[is]; ir++){
+								wfn_component[ir]=final_states_FP[i][j][ia][l][mpl][ir].real();
 							}
+							w_data_1d(FPFSG_kea, group_name, wfn_length[is], &wfn_component[0]);
+							sprintf(group_name, "%d_%d_imag", l, m);
+							for(ir=0; ir<wfn_length[is]; ir++){
+								wfn_component[ir]=final_states_FP[i][j][ia][l][mpl][ir].imag();
+							}
+							w_data_1d(FPFSG_kea, group_name, wfn_length[is], &wfn_component[0]);
 						}
-						w_data_2d(FPFSG_kea, group_name, 2*l+1, digit*2, (double**)&LCAO_component[0][0]);
 					}
 				}
 			}
 		}
 	}
-	
-	return;
+	*/
+	return 0;
 }

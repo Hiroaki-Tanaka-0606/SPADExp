@@ -184,12 +184,14 @@ double PA_reflection_coef;     // coefficient for reflection correction
 bool PA_reflection_coef_set;
 bool PA_include_neg_depth;     // whether the atoms with negative depth (above surface) are included in the intensity calculations
 bool PA_include_neg_depth_set; 
-double PA_excitation_energy;   // Excitation energy for first-principles final states (FPFSs)
+double PA_excitation_energy;   // Excitation energy for first-principles final states (FPFSs) in unit of eV
 bool PA_excitation_energy_set;
 double PA_FPFS_energy_step;    // energy step to calculate FPFSs
 bool PA_FPFS_energy_step_set;
 int PA_FPFS_range;             // index range used to determine the in-plane search area
 bool PA_FPFS;                  // whether final_state is (FP_PAO or FP_AO)
+char* PA_FPFS_file;             // export destinaion
+bool PA_FPFS_file_set;
 
 /// files
 FILE* Log_file_obj;            // log file object
