@@ -176,12 +176,48 @@ int main(int argc, char** argv){
 			Group FPFSG_ke(FPFSG_k.openGroup(group_name));
 			double k[3];
 			r_att_1d(FPFSG_ke, "k", 3, &k[0]);
+			double k_length=sqrt(inner_product(k, k));
 			printf("    k vector = [%7.3f, %7.3f, %7.3f]\n", k[0], k[1], k[2]);
 			printf("    spin = %s\n", spin[j]==0 ? "Up": "Dn");
 			printf("    t kx ky kz  fourier components\n");
-			double k_t[3]={k[0], k[1], k[2]};			
-			for(double t=1.1; t>=-1.1; t-=0.1){
-				k_t[0]=t*k[0];
+			double* k_t;
+			double k_list[1024][3];
+			int t_count=0;
+			// prepare k_list
+			for(double tau=1.1; tau>=-1.1; tau-=0.1){
+				k_list[t_count][0]=tau*k[0];
+				k_list[t_count][1]=k[1];
+				k_list[t_count][2]=k[2];
+				t_count++;
+			}
+			double k_test[3];
+			for(int n1=-FPFS_range; n1<=FPFS_range; n1++){
+					for(int n2=-FPFS_range; n2<=FPFS_range; n2++){
+						// (n1, n2)=(0, 0) is skipped because it is the first element
+						k_test[0]=0.0;
+						for(int p=1; p<=2; p++){
+							k_test[p]=k[p]+rec_cell[1][p]*n1+rec_cell[2][p]*n2;
+						}
+						double kz_square=k_length*k_length-inner_product(k_test, k_test);
+						if(kz_square>0){
+							// printf("%d %d\n", n1, n2);
+							k_test[0]=sqrt(kz_square);
+							for(int p=0; p<3; p++){
+								k_list[t_count][p]=k_test[p];
+							}
+							t_count++;
+							k_test[0]*=-1;
+							for(int p=0; p<3; p++){
+								k_list[t_count][p]=k_test[p];
+							}
+							t_count++;
+						}
+					}
+				}
+
+			
+			for(int t=0; t<t_count; t++){
+				k_t=k_list[t];
 				spherical_harmonics(k_t, &Ylm_k[0][0]);
 				complex<double> final_state_fourier[digit];
 				for(int id=0; id<digit; id++){
@@ -229,7 +265,7 @@ int main(int argc, char** argv){
 					}
 				}
 				// export
-				printf("%5.2f %7.3f %7.3f %7.3f  ", t, k_t[0], k_t[1], k_t[2]);
+				printf("%3d %7.3f %7.3f %7.3f  ", t, k_t[0], k_t[1], k_t[2]);
 				for(int id=0; id<digit; id++){
 					printf("%7.3f %7.3f  ", final_state_fourier[id].real(), final_state_fourier[id].imag());
 				}
