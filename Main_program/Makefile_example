@@ -28,13 +28,19 @@ option = -L${MKLROOT} -lmkl_scalapack_lp64 -lmkl_intel_lp64 -lmkl_intel_thread -
 
 target = SPADExp_main.o setup.o load_input.o parse_inputs.o log.o validation_Thomas_Fermi.o calculation_Thomas_Fermi.o validation_atomic_wfn.o calculation_atomic_wfn.o validation_scf_atom.o calculation_scf_atom.o validation_phase_shift.o calculation_phase_shift.o validation_pad.o calculation_pad.o HDF5_tools.o physical_tools.o
 
-all: SPADExp.o
+target_FPFS = FPFS_analysis_main.o HDF5_tools.o physical_tools.o log.o
+
+all: SPADExp.o FPFS_analysis.o
 
 SPADExp.o: $(target)
 	$(CXX) $(target) $(option) -o SPADExp.o
 
+FPFS_analysis.o: $(target_FPFS)
+								 $(CXX) $(target_FPFS) $(option) -o FPFS_analysis.o
+
 .cpp.o:
 	$(CXX) -fopenmp $(compileOption) -c $<
+
 
 
 SPADExp_main.o: variables.hpp setup.hpp load_input.hpp validation_Thomas_Fermi.hpp calculation_Thomas_Fermi.hpp validation_atomic_wfn.hpp log.hpp calculation_atomic_wfn.hpp validation_scf_atom.hpp calculation_scf_atom.hpp validation_phase_shift.hpp calculation_phase_shift.hpp validation_pad.hpp calculation_pad.hpp HDF5_tools.hpp
