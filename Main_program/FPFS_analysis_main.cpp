@@ -193,6 +193,9 @@ int main(int argc, char** argv){
 			double k_test[3];
 			for(int n1=-FPFS_range; n1<=FPFS_range; n1++){
 					for(int n2=-FPFS_range; n2<=FPFS_range; n2++){
+						if(n1==0 && n2==0){
+							continue;
+						}
 						// (n1, n2)=(0, 0) is skipped because it is the first element
 						k_test[0]=0.0;
 						for(int p=1; p<=2; p++){
@@ -202,15 +205,13 @@ int main(int argc, char** argv){
 						if(kz_square>0){
 							// printf("%d %d\n", n1, n2);
 							k_test[0]=sqrt(kz_square);
-							for(int p=0; p<3; p++){
-								k_list[t_count][p]=k_test[p];
+							for(double tau=1.1; tau>=-1.1; tau-=0.1){
+								for(int p=1; p<3; p++){	
+									k_list[t_count][p]=k_test[p];
+								}	
+								k_list[t_count][0]=tau*k_test[p];
+								t_count++;
 							}
-							t_count++;
-							k_test[0]*=-1;
-							for(int p=0; p<3; p++){
-								k_list[t_count][p]=k_test[p];
-							}
-							t_count++;
 						}
 					}
 				}
