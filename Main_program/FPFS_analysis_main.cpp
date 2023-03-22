@@ -209,7 +209,7 @@ int main(int argc, char** argv){
 								for(int p=1; p<3; p++){	
 									k_list[t_count][p]=k_test[p];
 								}	
-								k_list[t_count][0]=tau*k_test[p];
+								k_list[t_count][0]=tau*k_test[0];
 								t_count++;
 							}
 						}
