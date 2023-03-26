@@ -484,7 +484,9 @@ void calculate_PAD(){
 				}
 			}
 			wfn_phi_rdr[is][io][wfn_length[is]-1]=0;
-			wfn_phi[is][io][wfn_length[is]-1]=0;
+			if(PA_FPFS){
+				wfn_phi[is][io][wfn_length[is]-1]=0;
+			}
 			/*for(j=0; j<wfn_length[is]; j++){
 				printf("%f %f\n", wfn_r[is][j], wfn_phi_rdr[is][io][j]);
 				}*/
@@ -1454,30 +1456,33 @@ void calculate_PAD(){
 				// find appropriate FPIndex
 				int FPIndex_1=-1; // for all types of spin_i
 				int FPIndex_2=-1; // for spin_i==2
-				int FPIndex_size=final_states_FP_size[ik];
-				for(j=0; j<FPIndex_size; j++){
-					if(final_states_EScale[ik][j]==eigen_scale){
-						if(spin_i==0){
-							FPIndex_1=j;
-							break;
-						}else if(spin_i==1){
-							if(final_states_spin[ik][j]==sp){
+				int FPIndex_size;
+				if(PA_FPFS){
+					FPIndex_size=final_states_FP_size[ik];
+					for(j=0; j<FPIndex_size; j++){
+						if(final_states_EScale[ik][j]==eigen_scale){
+							if(spin_i==0){
 								FPIndex_1=j;
 								break;
-							}
-						}else if(spin_i==2){
-							if(final_states_spin[ik][j]==0){
-								FPIndex_1=j;
-							}else{
-								FPIndex_2=j;
-							}
-							if(FPIndex_1>=0 && FPIndex_2>=0){
-								break;
+							}else if(spin_i==1){
+								if(final_states_spin[ik][j]==sp){
+									FPIndex_1=j;
+									break;
+								}
+							}else if(spin_i==2){
+								if(final_states_spin[ik][j]==0){
+									FPIndex_1=j;
+								}else{
+									FPIndex_2=j;
+								}
+								if(FPIndex_1>=0 && FPIndex_2>=0){
+									break;
+								}
 							}
 						}
 					}
+					// printf("FPIndex = %d, %d\n", FPIndex_1, FPIndex_2);
 				}
-				// printf("FPIndex = %d, %d\n", FPIndex_1, FPIndex_2);
 				complex<double> PAD_1(0, 0);
 				complex<double> PAD_2(0, 0);
 				if(strcmp(PA_output_data, "Band")==0){
