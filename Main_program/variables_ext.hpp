@@ -191,6 +191,10 @@ extern int PA_FPFS_range;
 extern bool PA_FPFS;
 extern char* PA_FPFS_file;
 extern bool PA_FPFS_file_set;
+extern char* PA_VPS_file;
+extern bool PA_VPS_file_set;
+extern int PA_Lebedev_order_ave;
+extern int PA_Lebedev_order_int;
 /// files
 extern FILE* Log_file_obj;
 extern FILE* Output_file_obj;

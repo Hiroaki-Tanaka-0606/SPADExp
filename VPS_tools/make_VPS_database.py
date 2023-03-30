@@ -139,9 +139,11 @@ with h5py.File("../Pseudopotentials.hdf5", "w") as h5f:
                         break
         VPSG.attrs.create("num_vps", num_vps)
         VPSG.attrs.create("num_vps_proj", num_vps_proj)
+        VPSG.attrs.create("num_grid", num_grid)
+        VPSG.attrs.create("j_dependent", j_depend)
         VPSG.attrs.create("r", r)
-        VPSG.create_dataset("project_energies", data=E_list)
         VPSG.create_dataset("orbital_angular_momenta", data=l_list)
+        VPSG.create_dataset("project_energies", data=E_list)
         VPSG.create_dataset("local_potential", data=V_loc)
         VPSG.create_dataset("nonlocal_potentials", data=V_nonloc)
         

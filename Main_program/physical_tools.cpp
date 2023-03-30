@@ -295,3 +295,53 @@ double sp_bessel(int l, double x){
 		return 0;
 	}
 }
+
+double cubeValue(int n1, int n2, int n3, int* count, double* cube){
+	n1=n1%count[0];
+	n2=n2%count[1];
+	n3=n3%count[2];
+	return cube[n1*count[1]*count[2]+n2*count[2]+n3];
+}
+// since the unit cell vectors a_i and reciprocal vectors b_j satisfy (a_i, b_j)=2pi d_{ij},
+// r=p_1 a_1 + p_2 a_2 + p_3 a_3 --> p_i=(b_i, r)/2pi
+double interpolate_potential(double* r, int* count, double* cube, double* rec_cell){
+	double p[3]; // fractional
+	double q[3]; // non-integer index
+	int qf[3]; // integer index (floored)
+	double** rc=new double*[3];
+	for(int i=0; i<3; i++){
+		rc[i]=&rec_cell[i*3];
+	}
+	for(int i=0; i<3; i++){
+		p[i]=inner_product(r, rc[i])/(2*M_PI);
+		q[i]=p[i]*count[i];
+		qf[i]=floor(q[i]);
+	}
+	double v000=cubeValue(qf[0],   qf[1],   qf[2],   count, cube);
+	double v100=cubeValue(qf[0]+1, qf[1],   qf[2],   count, cube);
+	double v010=cubeValue(qf[0],   qf[1]+1, qf[2],   count, cube);
+	double v001=cubeValue(qf[0],   qf[1],   qf[2]+1, count, cube);
+	double v011=cubeValue(qf[0],   qf[1]+1, qf[2]+1, count, cube);
+	double v101=cubeValue(qf[0]+1, qf[1],   qf[2]+1, count, cube);
+	double v110=cubeValue(qf[0]+1, qf[1]+1, qf[2],   count, cube);
+	double v111=cubeValue(qf[0]+1, qf[1]+1, qf[2]+1, count, cube);
+
+	double w000=(qf[0]+1-q[0])*(qf[1]+1-q[1])*(qf[2]+1-q[2]);
+	double w100=(q[0]-qf[0])  *(qf[1]+1-q[1])*(qf[2]+1-q[2]);
+	double w010=(qf[0]+1-q[0])*(q[1]-qf[1])  *(qf[2]+1-q[2]);
+	double w001=(qf[0]+1-q[0])*(qf[1]+1-q[1])*(q[2]-qf[2])  ;
+	double w011=(qf[0]+1-q[0])*(q[1]-qf[1])  *(q[2]-qf[2])  ;
+	double w101=(q[0]-qf[0])  *(qf[1]+1-q[1])*(q[2]-qf[2])  ;
+	double w110=(q[0]-qf[0])  *(q[1]-qf[1])  *(qf[2]+1-q[2]);
+	double w111=(q[0]-qf[0])  *(q[1]-qf[1])  *(q[2]-qf[2]);
+	
+	return
+		v000*w000
+		+v100*w100
+		+v010*w010
+		+v001*w001
+		+v011*w011
+		+v101*w101
+		+v110*w110
+		+v111*w111;
+}

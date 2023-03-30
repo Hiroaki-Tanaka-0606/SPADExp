@@ -190,8 +190,12 @@ double PA_FPFS_energy_step;    // energy step to calculate FPFSs
 bool PA_FPFS_energy_step_set;
 int PA_FPFS_range;             // index range used to determine the in-plane search area
 bool PA_FPFS;                  // whether final_state is (FP_PAO or FP_AO)
-char* PA_FPFS_file;             // export destinaion
+char* PA_FPFS_file;            // export destinaion
 bool PA_FPFS_file_set;
+char* PA_VPS_file;             // VPS database file for FPFS
+bool PA_VPS_file_set;
+int PA_Lebedev_order_ave;  // Lebedev order for averaging
+int PA_Lebedev_order_int;  // Lebedev order for integration
 
 /// files
 FILE* Log_file_obj;            // log file object

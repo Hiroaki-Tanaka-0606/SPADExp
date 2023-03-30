@@ -110,6 +110,20 @@ void s_data_1d(Group g, const char* key, int* size){
 	*size=dims[0];
 }
 
+void s_data_1i(Group g, const char* key, int* size){
+	DataSet dse=g.openDataSet(key);
+	DataSpace dsp=dse.getSpace();
+
+	int rank=dsp.getSimpleExtentNdims();
+	if(rank!=1){
+		write_log((char*)"s_data_1i error: different rank");
+		return;
+	}
+	hsize_t dims[1];
+	dsp.getSimpleExtentDims(dims, NULL);
+	*size=dims[0];
+}
+
 void r_data_1d(Group g, const char* key, int size, double* value){
 	DataSet dse=g.openDataSet(key);
 	DataSpace dsp=dse.getSpace();
@@ -128,6 +142,24 @@ void r_data_1d(Group g, const char* key, int size, double* value){
 	dse.read(value, PredType::NATIVE_DOUBLE);
 }
 
+void r_data_1i(Group g, const char* key, int size, int* value){
+	DataSet dse=g.openDataSet(key);
+	DataSpace dsp=dse.getSpace();
+
+	int rank=dsp.getSimpleExtentNdims();
+	if(rank!=1){
+		write_log((char*)"r_data_1i error: different rank");
+		return;
+	}
+	hsize_t dims[1];
+	dsp.getSimpleExtentDims(dims, NULL);
+	if(dims[0]!=size){
+		write_log((char*)"r_data_1i error: size mismatch");
+		return;
+	}
+	dse.read(value, PredType::NATIVE_INT);
+}
+
 void s_data_2d(Group g, const char* key, int* size1, int* size2){
 	DataSet dse=g.openDataSet(key);
 	DataSpace dsp=dse.getSpace();
@@ -143,6 +175,22 @@ void s_data_2d(Group g, const char* key, int* size1, int* size2){
 	*size2=dims[1];
 }
 
+void s_data_3d(Group g, const char* key, int* size1, int* size2, int* size3){
+	DataSet dse=g.openDataSet(key);
+	DataSpace dsp=dse.getSpace();
+
+	int rank=dsp.getSimpleExtentNdims();
+	if(rank!=3){
+		write_log((char*)"s_data_3d error: different rank");
+		return;
+	}
+	hsize_t dims[3];
+	dsp.getSimpleExtentDims(dims, NULL);
+	*size1=dims[0];
+	*size2=dims[1];
+	*size3=dims[2];
+}
+
 void r_data_2d(Group g, const char* key, int size1, int size2, double** value){
 	DataSet dse=g.openDataSet(key);
 	DataSpace dsp=dse.getSpace();
@@ -156,6 +204,24 @@ void r_data_2d(Group g, const char* key, int size1, int size2, double** value){
 	dsp.getSimpleExtentDims(dims, NULL);
 	if(dims[0]!=size1 || dims[1]!=size2){
 		write_log((char*)"r_data_2d error: size mismatch");
+		return;
+	}
+	dse.read(value, PredType::NATIVE_DOUBLE);
+}
+
+void r_data_3d(Group g, const char* key, int size1, int size2, int size3, double*** value){
+	DataSet dse=g.openDataSet(key);
+	DataSpace dsp=dse.getSpace();
+
+	int rank=dsp.getSimpleExtentNdims();
+	if(rank!=3){
+		write_log((char*)"r_data_3d error: different rank");
+		return;
+	}
+	hsize_t dims[3];
+	dsp.getSimpleExtentDims(dims, NULL);
+	if(dims[0]!=size1 || dims[1]!=size2 || dims[2]!=size3){
+		write_log((char*)"r_data_3d error: size mismatch");
 		return;
 	}
 	dse.read(value, PredType::NATIVE_DOUBLE);

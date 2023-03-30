@@ -13,3 +13,5 @@ void spherical_harmonics(double* r, complex<double>* Ylm);
 double Gaunt(int lp, int mp, int l, int m);
 
 double sp_bessel(int l, double x);
+
+double interpolate_potential(double* r, int* count, double* cube, double* rec_cell);

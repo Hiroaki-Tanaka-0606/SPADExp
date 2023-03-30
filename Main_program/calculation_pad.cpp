@@ -1,4 +1,4 @@
-// calcPSF photoemission angular distribution calculation
+// SPADExp photoemission angular distribution calculation
 
 #include <iostream>
 #include <complex>
@@ -19,6 +19,7 @@
 #include "calculation_phase_shift.hpp"
 #include "calculation_atomic_wfn.hpp"
 #include "setup.hpp"
+#include "sphere_lebedev_rule.hpp"
 
 using namespace std;
 using namespace H5;
@@ -315,7 +316,7 @@ void calculate_PAD(){
 	char group_name[item_size];
 	char ds_name[item_size];
 
-	complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_length][num_orbits2][[[[data]]]]
+complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_length][num_orbits2][[[[data]]]]
 	int atom_spec_index[atom_length];
 	for(ia=0; ia<atom_length; ia++){
 		for(is_search=0; is_search<atom_spec_length; is_search++){
@@ -803,9 +804,24 @@ void calculate_PAD(){
 	complex<double>****** final_states_LCAO; // [total_count_ext][FPIndex][ia][io][m+l][digit]
 	int** final_states_EScale;    // [total_count_ext][FPIndex]=round(E/FPFS_energy_step)
 	int** final_states_spin;      // [total_count_ext][FPIndex]=up(0) or down(1), always zero for spin_i==0 (off)
-	double** final_states_EWidth; // [total_count_ext][FPIndex]=energy difference between final state bases
-	double*** final_states_k;      // [total_count_ext][FPIndex]=k vector (au^-1)
+	double** final_states_EWidth; // (to be removed) [total_count_ext][FPIndex]=energy difference between final state bases
+	double*** final_states_k;     // [total_count_ext][FPIndex]=k vector (au^-1)
 	int* final_states_FP_size;    // [total_count_ext]=FPIndex_size
+	int VPS_l_length[atom_spec_length]; // [is]=il value
+	int VPS_r_length[atom_spec_length]; // [is]=ir value
+	int VPS_j_length[atom_spec_length]; // [is]=2 if j_dependent else 1
+	int* VPS_l[atom_spec_length];  // [is][il]
+	double* VPS_r[atom_spec_length]; // [is][ir]
+	double** VPS_E[atom_spec_length]; // [is][il][ij]
+	double* VPS_loc[atom_spec_length]; // [is][ir]
+	double*** VPS_nonloc[atom_spec_length]; // [is][il][ij][ir]
+	double*** VKS0; // [ix][iy][iz]
+	double*** VKS1; // [ix][iy][iz]
+	double* VKS0_r[atom_length]; // [ia][ir] (average)
+	double* dVKS0_r[atom_length]; // [ia][ir] (stdev)
+	double* VKS1_r[atom_length];
+	double* dVKS1_r[atom_length];
+	int VKS_count[3];
 	if(strcmp(PA_final_state, "Calc")==0){
 		write_log((char*)"----Calculate final states----");
 		for(i=0; i<total_count_ext; i++){
@@ -909,12 +925,127 @@ void calculate_PAD(){
 		// return;
 	}else if(PA_FPFS){
 		write_log((char*)"----Calculate First-principles final states----");
+		// load pseudopotentials
+		write_log((char*)"----Load Pseudopotentials----");
+		H5File VPS_db(PA_VPS_file, H5F_ACC_RDONLY);
+		for(int is=0; is<atom_spec_length; is++){
+			Group VPSG(VPS_db.openGroup(atom_spec_PS[is]));
+			sprintf(sprintf_buffer, "Group: %s", atom_spec_PS[is]);
+			write_log(sprintf_buffer);
+			VPS_l_length[is]=r_att_int(VPSG, "num_vps_proj");
+			VPS_r_length[is]=r_att_int(VPSG, "num_grid");
+			VPS_j_length[is]=(r_att_bool(VPSG, "j_dependent")) ? 2:1;
+			VPS_l[is]=new int[VPS_l_length[is]];
+			VPS_r[is]=new double[VPS_r_length[is]];
+			VPS_loc[is]=new double[VPS_r_length[is]];
+			double* buffer=new double[VPS_l_length[is]*VPS_j_length[is]]; // for VPS_E
+			VPS_E[is]=new double*[VPS_l_length[is]];
+			double* buffer2=new double[VPS_l_length[is]*VPS_j_length[is]*VPS_r_length[is]]; // for VPS_nonloc
+			VPS_nonloc[is]=new double**[VPS_l_length[is]];
+			for(int il=0; il<VPS_l_length[is]; il++){
+				VPS_E[is][il]=&(buffer[il*VPS_j_length[is]]);
+				VPS_nonloc[is][il]=new double*[VPS_j_length[is]];
+				for(int ij=0; ij<VPS_j_length[is]; ij++){
+					VPS_nonloc[is][il][ij]=&(buffer2[il*VPS_j_length[is]*VPS_r_length[is]+ij*VPS_r_length[is]]);
+				}
+			}
+			r_att_1d(VPSG, "r", VPS_r_length[is], &VPS_r[is][0]);
+			r_data_1i(VPSG, "orbital_angular_momenta", VPS_l_length[is], &VPS_l[is][0]);
+			r_data_2d(VPSG, "project_energies", VPS_l_length[is], VPS_j_length[is], (double**)&VPS_E[is][0][0]);
+			r_data_1d(VPSG, "local_potential", VPS_r_length[is], &VPS_loc[is][0]);
+			/*for(int ir=0; ir<VPS_r_length[is]; ir++){
+				printf("%7.4f %8.4f\n", VPS_r[is][ir], VPS_loc[is][ir]);
+				}*/
+		}
+		write_log((char*)"----Load Kohn-Sham potentials----");
+		// load
+		Group PotentialG(OutputG.openGroup("Potential"));
+		r_att_1i(PotentialG, "Count", 3, &VKS_count[0]);
+		double* buffer=new double[VKS_count[0]*VKS_count[1]*VKS_count[2]];
+		VKS0=new double**[VKS_count[0]];
+		for(int ix=0; ix<VKS_count[0]; ix++){
+			VKS0[ix]=new double*[VKS_count[1]];
+			for(int iy=0; iy<VKS_count[1]; iy++){
+				VKS0[ix][iy]=&buffer[ix*VKS_count[1]*VKS_count[2]+iy*VKS_count[2]];
+			}
+		}
+		r_data_3d(PotentialG, "V0", VKS_count[0], VKS_count[1], VKS_count[2], (double***)&VKS0[0][0][0]);
+		if(spin_i==1 || spin_i==2){
+			double* buffer=new double[VKS_count[0]*VKS_count[1]*VKS_count[2]];
+			VKS1=new double**[VKS_count[0]];
+			for(int ix=0; ix<VKS_count[0]; ix++){
+				VKS1[ix]=new double*[VKS_count[1]];
+				for(int iy=0; iy<VKS_count[1]; iy++){
+					VKS1[ix][iy]=&buffer[ix*VKS_count[1]*VKS_count[2]+iy*VKS_count[2]];
+				}
+			}
+			r_data_3d(PotentialG, "V1", VKS_count[0], VKS_count[1], VKS_count[2], (double***)&VKS1[0][0][0]);
+		}
+		// caculate average for the nonlocal areas
+		double Lebedev_r[3][PA_Lebedev_order_ave];
+		double Lebedev_w[PA_Lebedev_order_ave];
+		ld_by_order(PA_Lebedev_order_ave, Lebedev_r[0], Lebedev_r[1], Lebedev_r[2], Lebedev_w);/*
+		for(int i=0; i<PA_Lebedev_order_ave; i++){
+			printf("(%7.4f, %7.4f, %7.4f) w=%7.4f, r=%7.4f\n", Lebedev_r[0][i], Lebedev_r[1][i], Lebedev_r[2][i], Lebedev_w[i], sqrt(Lebedev_r[0][i]*Lebedev_r[0][i]+Lebedev_r[1][i]*Lebedev_r[1][i]+Lebedev_r[2][i]*Lebedev_r[2][i]));
+			}*/
+		double r_ref[3];
+		for(int ia=0; ia<atom_length; ia++){
+			int is=atom_spec_index[ia];
+			VKS0_r[ia]=new double[VPS_r_length[is]];
+			dVKS0_r[ia]=new double[VPS_r_length[is]];
+			if(spin_i>0){
+				VKS1_r[ia]=new double[VPS_r_length[is]];
+				dVKS1_r[ia]=new double[VPS_r_length[is]];
+			}
+			for(int ir=0; ir<VPS_r_length[is]; ir++){
+				VKS0_r[ia][ir]=0.0;
+				dVKS0_r[ia][ir]=0.0;
+				if(spin_i>0){
+					VKS1_r[ia][ir]=0.0;
+					dVKS1_r[ia][ir]=0.0;
+				}
+				double ri=VPS_r[is][ir];
+				for(int iL=0; iL<PA_Lebedev_order_ave; iL++){
+					// set the coordinate
+					for(int ix=0; ix<3; ix++){
+						r_ref[ix]=atom_coordinates[ia][ix]+Lebedev_r[ix][iL]*ri;
+					}
+					double VKS_ref=interpolate_potential(r_ref, VKS_count, &VKS0[0][0][0], &rec_cell[0][0]);
+					VKS0_r[ia][ir]+=VKS_ref;
+					dVKS0_r[ia][ir]+=VKS_ref*VKS_ref;
+					if(spin_i>0){
+						VKS_ref=interpolate_potential(r_ref, VKS_count, &VKS1[0][0][0], &rec_cell[0][0]);
+						VKS1_r[ia][ir]+=VKS_ref;
+						dVKS1_r[ia][ir]+=VKS_ref*VKS_ref;
+					}
+				}
+				VKS0_r[ia][ir]/=PA_Lebedev_order_ave;
+				dVKS0_r[ia][ir]/=PA_Lebedev_order_ave;
+				dVKS0_r[ia][ir]-=VKS0_r[ia][ir]*VKS0_r[ia][ir];
+				if(spin_i>0){
+					VKS1_r[ia][ir]/=PA_Lebedev_order_ave;
+					dVKS1_r[ia][ir]/=PA_Lebedev_order_ave;
+					dVKS1_r[ia][ir]-=VKS1_r[ia][ir]*VKS1_r[ia][ir];
+				}
+				/*
+				if(is==0){
+					printf("%10.6f %10.6f %10.6f\n", VPS_r[is][ir], VKS_r[ia][ir], dVKS_r[ia][ir]);
+					}*/
+			}
+			/*
+			if(is==0){
+				printf("\n");
+				}*/
+		}
+		
+		write_log((char*)"----Energy scale calculations----");
 		sprintf(sprintf_buffer, "Fermi level = %.2f Eh = %.3f eV", EF_Eh, EF_Eh*Eh);
 		write_log(sprintf_buffer);
-		double E_min_tail=PA_E_min-PA_dE*PA_sigma_max;
-		double E_max_tail=PA_E_max+PA_dE*PA_sigma_max;
+		double E_min_tail=PA_E_min-PA_E_pixel*(tail_index+0.5);
+		double E_max_tail=PA_E_max+PA_E_pixel*(tail_index+0.5);
 		int E_min_scale=round(E_min_tail/PA_FPFS_energy_step);
 		int E_max_scale=round(E_max_tail/PA_FPFS_energy_step);
+		// printf("Scale: [%d, %d]\n", E_min_scale, E_max_scale);
 		int scale_width=E_max_scale-E_min_scale+1;
 		final_states_FP=new complex<double>******[total_count_ext];
 		final_states_LCAO=new complex<double>*****[total_count_ext];
@@ -929,6 +1060,7 @@ void calculate_PAD(){
 #pragma omp for
 		
 		for(i=0; i<total_count_ext; i++){
+			// cout << i << endl;
 			int count, count_up, count_dn;
 			bool band_exists[scale_width];
 			bool band_exists_up[scale_width];
@@ -964,6 +1096,7 @@ void calculate_PAD(){
 						eigen=(band_dn[k_index][j]-EF_Eh)*Eh;
 					}
 					int eigen_scale=round(eigen/PA_FPFS_energy_step);
+					// printf("Eigen scale: %d\n", eigen_scale);
 					int eigen_scale_offset=eigen_scale-E_min_scale;
 					if(E_min_scale<= eigen_scale && eigen_scale<=E_max_scale){
 						if(spin_i==0 || spin_i==2){
@@ -1453,6 +1586,7 @@ void calculate_PAD(){
 					continue;
 				}
 				int eigen_scale=round(eigen/PA_FPFS_energy_step);
+				// printf("Eigen scale: %d\n", eigen_scale);
 				// find appropriate FPIndex
 				int FPIndex_1=-1; // for all types of spin_i
 				int FPIndex_2=-1; // for spin_i==2
@@ -1460,6 +1594,7 @@ void calculate_PAD(){
 				if(PA_FPFS){
 					FPIndex_size=final_states_FP_size[ik];
 					for(j=0; j<FPIndex_size; j++){
+						// cout << final_states_EScale[ik][j] << endl;
 						if(final_states_EScale[ik][j]==eigen_scale){
 							if(spin_i==0){
 								FPIndex_1=j;
@@ -1963,6 +2098,24 @@ void calculate_PAD(){
 			}
 		}
 
+		// potentials
+		Group PotG(FPFSG.createGroup("Potential"));
+		w_data_3d(PotG, "V0_Kohn_Sham", VKS_count[0], VKS_count[1], VKS_count[2], (double***)&VKS0[0][0][0]);
+		if(spin_i>0){
+			w_data_3d(PotG, "V1_Kohn_Sham", VKS_count[0], VKS_count[1], VKS_count[2], (double***)&VKS1[0][0][0]);
+		}
+		for(ia=0; ia<atom_length; ia++){
+			is=atom_spec_index[ia];
+			sprintf(group_name, "%d_%s", ia+1, atom_spec_label[is]);
+			Group PotG_ia(PotG.createGroup(group_name));
+			w_data_1d(PotG_ia, "r", VPS_r_length[is], &VPS_r[is][0]);
+			w_data_1d(PotG_ia, "V0", VPS_r_length[is], &VKS0_r[ia][0]);
+			w_data_1d(PotG_ia, "V0_stdev", VPS_r_length[is], &dVKS0_r[ia][0]);
+			if(spin_i>0){
+				w_data_1d(PotG_ia, "V1", VPS_r_length[is], &VKS1_r[ia][0]);
+				w_data_1d(PotG_ia, "V1_stdev", VPS_r_length[is], &dVKS1_r[ia][0]);
+			}
+		}
 		
 		for(i=0; i<total_count_ext; i++){
 			if(dimension==2){

@@ -30,8 +30,14 @@ void w_data_4d(Group g, const char* key,
 void s_data_1d(Group g, const char* key, int* size);
 void r_data_1d(Group g, const char* key, int size, double* value);
 
+void s_data_1i(Group g, const char* key, int* size);
+void r_data_1i(Group g, const char* key, int size, int* value);
+
 void s_data_2d(Group g, const char* key, int* size1, int* size2);
 void r_data_2d(Group g, const char* key, int size1, int size2, double** value);
+
+void s_data_3d(Group g, const char* key, int* size1, int* size2, int* size3);
+void r_data_3d(Group g, const char* key, int size1, int size2, int size3, double*** value);
 
 void s_data_4d(Group g, const char* key, int* size1, int* size2, int* size3, int* size4);
 void r_data_4d(Group g, const char* key, int size1, int size2, int size3, int size4,  double**** value);

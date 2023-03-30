@@ -22,6 +22,8 @@ using namespace H5;
 
 bool readLine(ifstream* fp, char* line_c, int bufSize);
 
+bool loadPotential(char* path, double**** outV, int* count);
+
 int main(int argc, const char** argv){
 	cout << "Starting postproc tool for OpenMX..." << endl;
 	// argv[1] should be an input file name
@@ -97,6 +99,7 @@ int main(int argc, const char** argv){
 
 	int line_species_start=find_str("<Definition.of.Atomic.Species");
 	int line_species_end=find_str("Definition.of.Atomic.Species>");
+	// Atom label, PAO file name, orbital label, VPS file name
 	char species[specNum][4][valSize];
 	int numOrbits[specNum];
 	if(line_species_start>=0 && line_species_end>=0 &&
@@ -173,8 +176,6 @@ int main(int argc, const char** argv){
 				printf("Error: cannot find atom %s\n", atoms[i]);
 				return 0;
 			}
-
-				
 		}
 	}else{
 		printf("Error in Atoms.SpeciesAndCoordinates\n");
@@ -891,6 +892,62 @@ int main(int argc, const char** argv){
 	// atts @/Output
 	w_att_double(OutputG, "EF_Eh", EF_Eh);
 	w_att_str(OutputG, "Spin", spinPol);
+	cout << endl;
+	
+	// potential cube
+	cout << "Loading the Kohn-Sham potential" << endl;
+
+	cout << "Lattice check" << endl;
+	/*
+		The unit cell should be
+		X 0 0
+		0 Y Z
+		0 Y z
+	 */
+	double cell_threshold=1e-5;
+	if(abs(cell[0][1])>cell_threshold || abs(cell[0][2])>cell_threshold || abs(cell[1][0])>cell_threshold || abs(cell[2][0])>cell_threshold){
+		cout << "!! Lattice configuration is different from expected." << endl;
+		cout << "!! This analysis may generate unexpected results." << endl;
+	}else{
+		cout << "Lattice check ok" << endl;
+	}
+
+	double*** outV0;
+	double*** outV1;
+	int potential_count0[3];
+	int potential_count1[3];
+	int spin_count=spinPol_i==0 ? 1 : 2;
+	for(int s=0; s<spin_count; s++){
+		sprintf(outFilePath, "%s%s.v%1d.cube", currentDir, sysName, s);
+		printf("Load %s\n", outFilePath);
+		if(s==0){
+			if(loadPotential(outFilePath, &outV0, potential_count0)){
+				//ok
+			}else{
+				return 0;
+			}
+		}else{
+			if(loadPotential(outFilePath, &outV1, potential_count1)){
+				//ok
+			}else{
+				return 0;
+			}
+		}	 
+	}
+	if(spin_count==2){
+		for(int i=0; i<3; i++){
+			if(potential_count0[i]!=potential_count1[i]){
+				cout << "Error: potential grids are different" << endl;
+				return 0;
+			}
+		}
+	}
+	Group PotentialG(OutputG.createGroup("Potential"));
+	w_att_1i(PotentialG, "Count", 3, &potential_count0[0]);
+	w_data_3d(PotentialG, "V0", potential_count0[0], potential_count0[1], potential_count0[2], (double***)&outV0[0][0][0]);
+	if(spin_count==2){
+		w_data_3d(PotentialG, "V1", potential_count0[0], potential_count0[1], potential_count0[2], (double***)&outV1[0][0][0]);
+	}
 	
 	outOpenMX.close();
 	output.close();
@@ -913,4 +970,97 @@ bool readLine(ifstream* fp, char* line_c, int bufSize){
 	}else{
 		return false;
 	}
+}
+
+
+bool loadPotential(char* path, double**** outV, int* count){
+	ifstream file(path);
+	// skip the beginning three rows
+	string line;
+	int bufSize=4096;
+	char line_c[bufSize];
+	getline(file, line);
+	getline(file, line);
+	// number of atoms
+	int numAtoms=0;
+	if(readLine(&file, line_c, bufSize)){
+		if(sscanf(line_c, "%d", &numAtoms)!=1){
+			printf("Error in parsing the atom row of the potential cube\n");
+			return false;
+		}
+	}else{
+		return false;
+	}
+	printf("The number of atoms is %d\n", numAtoms);
+	// load count
+	int i,j,k;
+	int total=1;
+	for(i=0; i<3; i++){
+		if(readLine(&file, line_c, bufSize)){
+			if(sscanf(line_c, "%d", &count[i])!=1){
+				printf("Error in parsing the lattice rows of the potential cube\n");
+				return false;
+			}else{
+				printf("The number of data along the axis %d is %d\n", i+1, count[i]);
+				total*=count[i];
+			}
+		}else{
+			return false;
+		}
+	}
+	printf("The total number of data points is %d\n", total);
+	double* buffer=new double[total];
+  *outV=new double**[count[0]];
+	for(i=0; i<count[0]; i++){
+		(*outV)[i]=new double*[count[1]];
+		for(j=0; j<count[1]; j++){
+			(*outV)[i][j]=&buffer[i*count[1]*count[2]+j*count[2]];
+			for(k=0; k<count[2]; k++){
+				(*outV)[i][j][k]=0.0;
+			}
+		}
+	}
+	// skip atom rows
+	for(i=0; i<numAtoms; i++){
+		getline(file, line);
+	}
+	// load data
+	for(i=0; i<count[0]; i++){
+		for(j=0; j<count[1]; j++){
+			int remaining=count[2];
+			double vBuffer[6];
+			int kCount=0;
+			while(true){
+				if(readLine(&file, line_c, bufSize)){
+					int sscanf_result=sscanf(line_c, "%lf %lf %lf %lf %lf %lf", &vBuffer[0], &vBuffer[1], &vBuffer[2], &vBuffer[3], &vBuffer[4], &vBuffer[5]);
+					if(sscanf_result==6 || sscanf_result==remaining){
+						for(k=0; k<sscanf_result; k++){
+							(*outV)[i][j][kCount]=vBuffer[k];
+							kCount++;
+						}
+						remaining-=sscanf_result;
+						if(remaining==0){
+							break;
+						}
+					}else{
+						printf("Error: number of data mismatch");
+						return false;
+					}
+				}else{
+					return false;
+				}
+			}
+		}
+	}
+	/*
+	for(i=0; i<count[0]; i++){
+		for(j=0; j<count[1]; j++){
+			for(k=0; k<count[2]; k++){
+				printf("%5.2f ", (*outV)[i][j][k]);
+			}
+			printf("\n");
+		}
+		}*/
+	file.close();
+	return true;
 }

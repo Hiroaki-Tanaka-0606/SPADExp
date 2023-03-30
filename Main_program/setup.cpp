@@ -156,6 +156,10 @@ void initialize(){
 	PA_FPFS=false;
 	PA_FPFS_file=new char[HDF5_file_length+1];
 	PA_FPFS_file_set=false;
+	PA_VPS_file=new char[HDF5_file_length+1];
+	PA_VPS_file_set=false;
+	PA_Lebedev_order_ave=86;
+	PA_Lebedev_order_int=5810;
 }
 
 void finalize(){

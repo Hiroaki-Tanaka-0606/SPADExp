@@ -123,9 +123,21 @@ int validation_PAD(){
 			}
 			sprintf(sprintf_buffer, "%32s = %.2f eV", "Excitation_energy", PA_excitation_energy);
 			write_log(sprintf_buffer);
+			/// VPS_file
+			if(PA_VPS_file_set==false){
+				write_log((char*)"Error: VPS_file is necessary");
+				status=0; goto FINALIZATION;
+			}
+			sprintf(sprintf_buffer, "%32s = %s", "VPS_file", PA_VPS_file);
+			write_log(sprintf_buffer);
 			/// FPFS_energy_step
 			sprintf(sprintf_buffer, "%32s = %.3f eV", "FPFS_energy_step", PA_FPFS_energy_step);
 			write_log(sprintf_buffer);
+			/// FPFS_file
+			if(PA_FPFS_file_set){
+				sprintf(sprintf_buffer, "%32s = %s", "FPFA_file", PA_FPFS_file);
+				write_log(sprintf_buffer);
+			}
 		}else{
 			write_log((char*)"Error: Final_state should be 'PW', 'Calc', 'FP_PAO', or 'FP_AO'");
 			status=0; goto FINALIZATION;
