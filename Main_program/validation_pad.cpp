@@ -133,9 +133,12 @@ int validation_PAD(){
 			/// FPFS_energy_step
 			sprintf(sprintf_buffer, "%32s = %.3f eV", "FPFS_energy_step", PA_FPFS_energy_step);
 			write_log(sprintf_buffer);
+			/// FPFS_kRange
+			sprintf(sprintf_buffer, "%32s = %d %s", "FPFS_kRange factor", PA_FPFS_kRange, PA_FPFS_kRange_set?"":"(default)");
+			write_log(sprintf_buffer);
 			/// FPFS_file
 			if(PA_FPFS_file_set){
-				sprintf(sprintf_buffer, "%32s = %s", "FPFA_file", PA_FPFS_file);
+				sprintf(sprintf_buffer, "%32s = %s", "FPFS_file", PA_FPFS_file);
 				write_log(sprintf_buffer);
 			}
 		}else{

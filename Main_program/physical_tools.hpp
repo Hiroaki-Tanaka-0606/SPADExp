@@ -15,3 +15,5 @@ double Gaunt(int lp, int mp, int l, int m);
 double sp_bessel(int l, double x);
 
 double interpolate_potential(double* r, int* count, double* cube, double* rec_cell);
+
+double Fourier_expansion_z(double* V_buffer, int* V_count, double* g, double* atom_cell_buffer, complex<double>* Vg);

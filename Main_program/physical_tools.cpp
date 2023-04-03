@@ -345,3 +345,44 @@ double interpolate_potential(double* r, int* count, double* cube, double* rec_ce
 		+v110*w110
 		+v111*w111;
 }
+
+
+double Fourier_expansion_z(double* V_buffer, int* V_count, double* g, double* atom_cell_buffer, complex<double>* Vg){
+	int iz, ix, iy;
+	int i,j;
+	// buffer preparation
+	double*** V=new double**[V_count[0]];
+	for(iz=0; iz<V_count[0]; iz++){
+		V[iz]=new double*[V_count[1]];
+		for(ix=0; ix<V_count[1]; ix++){
+			V[iz][ix]=&V_buffer[iz*V_count[1]*V_count[2]+ix*V_count[2]];
+		}
+	}
+	double atom_cell[3][3];
+	for(i=0; i<3; i++){
+		for(j=0; j<3; j++){
+			atom_cell[i][j]=atom_cell_buffer[i*3+j];
+		}
+	}
+
+	int n1n2=V_count[1]*V_count[2];
+	double r12[3];
+	double norm_sum=0.0;
+	for(iz=0; iz<V_count[0]; iz++){
+		Vg[iz]=0;
+		for(ix=0; ix<V_count[1]; ix++){
+			double ix_frac=ix*1.0/V_count[1];
+			for(iy=0; iy<V_count[2]; iy++){
+				double iy_frac=iy*1.0/V_count[2];
+				for(i=0; i<3; i++){
+					r12[i]=atom_cell[1][i]*ix_frac+atom_cell[2][i]*iy_frac;
+				}
+				double gr=inner_product(g, r12);
+				Vg[iz]+=complex<double>(cos(gr), -sin(gr))*V[iz][ix][iy];
+			}
+		}
+		Vg[iz]/=n1n2;
+		norm_sum+=abs(Vg[iz]);
+	}
+	return norm_sum/V_count[0];
+}

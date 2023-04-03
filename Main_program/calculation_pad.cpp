@@ -810,18 +810,31 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 	int VPS_l_length[atom_spec_length]; // [is]=il value
 	int VPS_r_length[atom_spec_length]; // [is]=ir value
 	int VPS_j_length[atom_spec_length]; // [is]=2 if j_dependent else 1
-	int* VPS_l[atom_spec_length];  // [is][il]
-	double* VPS_r[atom_spec_length]; // [is][ir]
-	double** VPS_E[atom_spec_length]; // [is][il][ij]
-	double* VPS_loc[atom_spec_length]; // [is][ir]
-	double*** VPS_nonloc[atom_spec_length]; // [is][il][ij][ir]
-	double*** VKS0; // [ix][iy][iz]
-	double*** VKS1; // [ix][iy][iz]
-	double* VKS0_r[atom_length]; // [ia][ir] (average)
+	int* VPS_l[atom_spec_length];  // [is][il] = orbital angular momenta
+	double* VPS_r[atom_spec_length]; // [is][ir] = r value
+	double** VPS_E[atom_spec_length]; // [is][il][ij] = projector energies
+	double* VPS_loc[atom_spec_length]; // [is][ir] = local potentials (-> not used in calculations)
+	double*** VPS_nonloc[atom_spec_length]; // [is][il][ij][ir] = nonlocal potentials
+	double*** VKS0; // [ix][iy][iz] = Kohn-Sham potential for up spin (wo/ nonlocal)
+	double*** VKS1; // [ix][iy][iz] = Kohn-Sham potential for dn spin (wo/ nonlocal)
+	double* VKS0_r[atom_length]; // [ia][ir] (average) = radial Kohn-Sham potential for up spin
 	double* dVKS0_r[atom_length]; // [ia][ir] (stdev)
-	double* VKS1_r[atom_length];
+	double* VKS1_r[atom_length]; // = radial Kohn-Sham potential for dn spin
 	double* dVKS1_r[atom_length];
-	int VKS_count[3];
+	int VKS_count[3]; // = Size of VKS0 and VKS1
+	// Fourier components
+	complex<double>** Vgg0; // [ig][iz] = Fourier-expanded potential for up spin
+	complex<double>** Vgg1; // [ig][iz] = Fourier-expanded potential for dn spin
+	double* Vgg0_ave; // [ig] = average of |Vgg0[ig][iz]|
+	double* Vgg1_ave;
+	int** Vgg_list; // [ig][2] = linear combination coefficients for g vector
+	double** Vgg_vector; // [ig][3] = g
+	int g_count=0;
+	// Determing the g range
+	// k=sqrt(2*hn)
+	// g_max=2*k*FPFS_kRange, 2 is necessary because g=g1-g2
+	// the search area is (n1, n2) \in k/min(b1, b2)*FPFS_kRange*FPFS_range
+	
 	if(strcmp(PA_final_state, "Calc")==0){
 		write_log((char*)"----Calculate final states----");
 		for(i=0; i<total_count_ext; i++){
@@ -1037,6 +1050,89 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 				printf("\n");
 				}*/
 		}
+
+		// Fourier expansion of VKS
+		write_log((char*)"----Fourier expansion of the Kohn-Sham potential----");
+		double khn_approx=sqrt(2*PA_excitation_energy/Eh);
+		double b1_length=sqrt(inner_product(rec_cell[1], rec_cell[1]));
+		double b2_length=sqrt(inner_product(rec_cell[2], rec_cell[2]));
+		double b_length=min(b1_length, b2_length);
+		double gMax=2*khn_approx*PA_FPFS_kRange;
+		int n_range=ceil(khn_approx/b_length*PA_FPFS_kRange*PA_FPFS_range);
+		printf("khn = %.3f\n", khn_approx);
+		printf("b   = %.3f\n", b_length);
+		printf("gMax= %.3f\n", gMax);
+		printf("n   = %d\n", n_range);
+		bool g_included[n_range*2+1][n_range*2+1];
+		double g12[3];
+		double g12_length;
+		for(int n1=-n_range; n1<=n_range; n1++){
+			int n1p=n1+n_range;
+			for(int n2=-n_range; n2<=n_range; n2++){
+				int n2p=n2+n_range;
+				for(int ix=0; ix<3; ix++){
+					g12[ix]=n1*rec_cell[1][ix]+n2*rec_cell[2][ix];
+				}
+				g12_length=sqrt(inner_product(g12, g12));
+				if(g12_length<gMax){
+					g_included[n1p][n2p]=true;
+					g_count++;
+				}else{
+					g_included[n1p][n2p]=false;
+				}
+			}
+		}
+		printf("Vgg size = %d\n", g_count);
+		complex<double>* Vgg0_buffer=new complex<double>[g_count*VKS_count[0]];
+		Vgg0=new complex<double>*[g_count];
+		for(int ig=0; ig<g_count; ig++){
+			Vgg0[ig]=&Vgg0_buffer[ig*VKS_count[0]];
+		}
+		Vgg0_ave=new double[g_count];
+		if(spin_i==1 || spin_i==2){
+			complex<double>* Vgg1_buffer=new complex<double>[g_count*VKS_count[0]];
+			Vgg1=new complex<double>*[g_count];
+			for(int ig=0; ig<g_count; ig++){
+				Vgg1[ig]=&Vgg1_buffer[ig*VKS_count[0]];
+			}
+			Vgg1_ave=new double[g_count];
+		}
+		int* Vgg_list_buffer=new int[2*g_count];
+		Vgg_list=new int*[g_count];
+		for(int ig=0; ig<g_count; ig++){
+			Vgg_list[ig]=&Vgg_list_buffer[2*ig];
+		}
+		double* Vgg_vector_buffer=new double[3*g_count];
+		Vgg_vector=new double*[g_count];
+		for(int ig=0; ig<g_count; ig++){
+			Vgg_vector[ig]=&Vgg_vector_buffer[3*ig];
+		}
+		
+		int ig_count=0;
+		for(int n1=-n_range; n1<=n_range; n1++){
+			int n1p=n1+n_range;
+			for(int n2=-n_range; n2<=n_range; n2++){
+				int n2p=n2+n_range;
+				if(g_included[n1p][n2p]==true){
+					Vgg_list[ig_count][0]=n1;
+					Vgg_list[ig_count][1]=n2;
+					for(int ix=0; ix<3; ix++){
+						Vgg_vector[ig_count][ix]=n1*rec_cell[1][ix]+n2*rec_cell[2][ix];
+					}
+					ig_count++;
+				}
+			}
+		}
+#pragma omp parallel firstprivate(atom_cell)
+#pragma omp for
+		for(int ig=0; ig<g_count; ig++){
+			Vgg0_ave[ig]=Fourier_expansion_z(&VKS0[0][0][0], VKS_count, Vgg_vector[ig], &atom_cell[0][0], Vgg0[ig]);
+			if(spin_i==1 || spin_i==2){
+				Vgg1_ave[ig]=Fourier_expansion_z(&VKS1[0][0][0], VKS_count, Vgg_vector[ig], &atom_cell[0][0], Vgg1[ig]);
+			}
+			printf("(n1, n2) = (%3d, %3d), V_norm_average = %.5f\n", Vgg_list[ig][0], Vgg_list[ig][1], Vgg0_ave[ig]);
+		}
+		
 		
 		write_log((char*)"----Energy scale calculations----");
 		sprintf(sprintf_buffer, "Fermi level = %.2f Eh = %.3f eV", EF_Eh, EF_Eh*Eh);
@@ -2103,6 +2199,11 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 		w_data_3d(PotG, "V0_Kohn_Sham", VKS_count[0], VKS_count[1], VKS_count[2], (double***)&VKS0[0][0][0]);
 		if(spin_i>0){
 			w_data_3d(PotG, "V1_Kohn_Sham", VKS_count[0], VKS_count[1], VKS_count[2], (double***)&VKS1[0][0][0]);
+		}
+		w_data_2d(PotG, "Vgg_vector", g_count, 3, (double**)&Vgg_vector[0][0]);
+		w_data_1d(PotG, "Vgg0_ave", g_count, &Vgg0_ave[0]);
+		if(spin_i>0){
+			w_data_1d(PotG, "Vgg1_ave", g_count, &Vgg1_ave[0]);
 		}
 		for(ia=0; ia<atom_length; ia++){
 			is=atom_spec_index[ia];

@@ -942,6 +942,17 @@ int load_input(){
 				}
 			  PA_FPFS_file_set=true; continue;
 			}
+			/// FPFS_kRange: int
+			if(strcmp(keyword_buffer, "FPFS_kRange")==0){
+				if(PA_FPFS_kRange_set){
+					output_error(line_number, (char*)"keyword FPFS_kRange already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_int(input_line_c, &PA_FPFS_kRange);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of FPFS_kRange"); status=0; goto FINALIZATION;
+				}
+				PA_FPFS_kRange_set=true; continue;
+			}
 			/// VPS_file: char
 			if(strcmp(keyword_buffer, "VPS_file")==0){
 				if(PA_VPS_file_set){
