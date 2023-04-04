@@ -154,8 +154,6 @@ void initialize(){
 	PA_FPFS_energy_step_set=false;
 	PA_FPFS_range=5;
 	PA_FPFS=false;
-	PA_FPFS_kRange=3;
-	PA_FPFS_kRange_set=false;
 	PA_FPFS_file=new char[HDF5_file_length+1];
 	PA_FPFS_file_set=false;
 	PA_VPS_file=new char[HDF5_file_length+1];

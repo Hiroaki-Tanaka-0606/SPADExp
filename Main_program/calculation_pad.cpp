@@ -795,16 +795,19 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 
 
 	// 3-4. final states
+	/// for Calc
 	int k_index_min=-1;
 	int k_index_max=-1;
 	int final_states_count;
 	double**** final_states_calc; // [k_index][atom_spec][l][r] for Calc
 	double*** final_states_phase; // [k_index][atom_spec][l] for Calc
-	complex<double>******* final_states_FP;  // [total_count_ext][FPIndex][ia][l][m+l][r][digit] for FP_PAO and FP_AO
-	complex<double>****** final_states_LCAO; // [total_count_ext][FPIndex][ia][io][m+l][digit]
+	/// for FPFS
+	complex<double>**** final_states_FP_loc;  // [total_count_ext][FPIndex][ig][iz] for FP_PAO and FP_AO
+	int** final_states_FP_g_size; // [total_count_ext][FPIndex]=ig size
+	int**** final_states_FP_g;      // [total_count_ext][FPIndex][ig][2]=[n1,n2]
+	double**** final_states_FP_g_vec; // [total_count_ext]][FPIndex][ig][3]=g vector
 	int** final_states_EScale;    // [total_count_ext][FPIndex]=round(E/FPFS_energy_step)
 	int** final_states_spin;      // [total_count_ext][FPIndex]=up(0) or down(1), always zero for spin_i==0 (off)
-	double** final_states_EWidth; // (to be removed) [total_count_ext][FPIndex]=energy difference between final state bases
 	double*** final_states_k;     // [total_count_ext][FPIndex]=k vector (au^-1)
 	int* final_states_FP_size;    // [total_count_ext]=FPIndex_size
 	int VPS_l_length[atom_spec_length]; // [is]=il value
@@ -822,17 +825,22 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 	double* VKS1_r[atom_length]; // = radial Kohn-Sham potential for dn spin
 	double* dVKS1_r[atom_length];
 	int VKS_count[3]; // = Size of VKS0 and VKS1
+	double final_states_dz; // = atom_cell[0] length / VKS_count[0]
 	// Fourier components
 	complex<double>** Vgg0; // [ig][iz] = Fourier-expanded potential for up spin
 	complex<double>** Vgg1; // [ig][iz] = Fourier-expanded potential for dn spin
-	double* Vgg0_ave; // [ig] = average of |Vgg0[ig][iz]|
-	double* Vgg1_ave;
+	double** Vgg0_abs; // [ig][iz] = |Vgg0[ig][iz]|
+	double** Vgg1_abs;
 	int** Vgg_list; // [ig][2] = linear combination coefficients for g vector
 	double** Vgg_vector; // [ig][3] = g
-	int g_count=0;
-	// Determing the g range
+	int Vgg_count=0; // ig size
+	// Determing the g range for VPS
 	// k=sqrt(2*hn)
 	// g_max=2*k*FPFS_kRange, 2 is necessary because g=g1-g2
+	// the search area is (n1, n2) \in k/min(b1, b2)*FPFS_kRange*FPFS_range
+	
+	// Determing the g range for wave function
+	// |k+G|/2 < |(k//, kz)|
 	// the search area is (n1, n2) \in k/min(b1, b2)*FPFS_kRange*FPFS_range
 	
 	if(strcmp(PA_final_state, "Calc")==0){
@@ -994,6 +1002,8 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 			}
 			r_data_3d(PotentialG, "V1", VKS_count[0], VKS_count[1], VKS_count[2], (double***)&VKS1[0][0][0]);
 		}
+		final_states_dz=sqrt(inner_product(atom_cell[0], atom_cell[0]))/VKS_count[0];
+		printf("dz = %.3f\n", final_states_dz);
 		// caculate average for the nonlocal areas
 		double Lebedev_r[3][PA_Lebedev_order_ave];
 		double Lebedev_w[PA_Lebedev_order_ave];
@@ -1057,8 +1067,8 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 		double b1_length=sqrt(inner_product(rec_cell[1], rec_cell[1]));
 		double b2_length=sqrt(inner_product(rec_cell[2], rec_cell[2]));
 		double b_length=min(b1_length, b2_length);
-		double gMax=2*khn_approx*PA_FPFS_kRange;
-		int n_range=ceil(khn_approx/b_length*PA_FPFS_kRange*PA_FPFS_range);
+		double gMax=2*khn_approx*PA_FPFS_range;
+		int n_range=ceil(khn_approx/b_length*PA_FPFS_range);
 		printf("khn = %.3f\n", khn_approx);
 		printf("b   = %.3f\n", b_length);
 		printf("gMax= %.3f\n", gMax);
@@ -1076,35 +1086,43 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 				g12_length=sqrt(inner_product(g12, g12));
 				if(g12_length<gMax){
 					g_included[n1p][n2p]=true;
-					g_count++;
+					Vgg_count++;
 				}else{
 					g_included[n1p][n2p]=false;
 				}
 			}
 		}
-		printf("Vgg size = %d\n", g_count);
-		complex<double>* Vgg0_buffer=new complex<double>[g_count*VKS_count[0]];
-		Vgg0=new complex<double>*[g_count];
-		for(int ig=0; ig<g_count; ig++){
+		printf("Vgg size = %d\n", Vgg_count);
+		complex<double>* Vgg0_buffer=new complex<double>[Vgg_count*VKS_count[0]];
+		Vgg0=new complex<double>*[Vgg_count];
+		for(int ig=0; ig<Vgg_count; ig++){
 			Vgg0[ig]=&Vgg0_buffer[ig*VKS_count[0]];
 		}
-		Vgg0_ave=new double[g_count];
+		double* Vgg0_abs_buffer=new double[Vgg_count*VKS_count[0]];
+		Vgg0_abs=new double*[Vgg_count];
+		for(int ig=0; ig<Vgg_count; ig++){
+			Vgg0_abs[ig]=&Vgg0_abs_buffer[ig*VKS_count[0]];
+		}
 		if(spin_i==1 || spin_i==2){
-			complex<double>* Vgg1_buffer=new complex<double>[g_count*VKS_count[0]];
-			Vgg1=new complex<double>*[g_count];
-			for(int ig=0; ig<g_count; ig++){
+			complex<double>* Vgg1_buffer=new complex<double>[Vgg_count*VKS_count[0]];
+			Vgg1=new complex<double>*[Vgg_count];
+			for(int ig=0; ig<Vgg_count; ig++){
 				Vgg1[ig]=&Vgg1_buffer[ig*VKS_count[0]];
 			}
-			Vgg1_ave=new double[g_count];
+			double* Vgg1_abs_buffer=new double[Vgg_count*VKS_count[0]];
+			Vgg1_abs=new double*[Vgg_count];
+			for(int ig=0; ig<Vgg_count; ig++){
+				Vgg1_abs[ig]=&Vgg1_abs_buffer[ig*VKS_count[0]];
+			}
 		}
-		int* Vgg_list_buffer=new int[2*g_count];
-		Vgg_list=new int*[g_count];
-		for(int ig=0; ig<g_count; ig++){
+		int* Vgg_list_buffer=new int[2*Vgg_count];
+		Vgg_list=new int*[Vgg_count];
+		for(int ig=0; ig<Vgg_count; ig++){
 			Vgg_list[ig]=&Vgg_list_buffer[2*ig];
 		}
-		double* Vgg_vector_buffer=new double[3*g_count];
-		Vgg_vector=new double*[g_count];
-		for(int ig=0; ig<g_count; ig++){
+		double* Vgg_vector_buffer=new double[3*Vgg_count];
+		Vgg_vector=new double*[Vgg_count];
+		for(int ig=0; ig<Vgg_count; ig++){
 			Vgg_vector[ig]=&Vgg_vector_buffer[3*ig];
 		}
 		
@@ -1125,14 +1143,19 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 		}
 #pragma omp parallel firstprivate(atom_cell)
 #pragma omp for
-		for(int ig=0; ig<g_count; ig++){
-			Vgg0_ave[ig]=Fourier_expansion_z(&VKS0[0][0][0], VKS_count, Vgg_vector[ig], &atom_cell[0][0], Vgg0[ig]);
+		for(int ig=0; ig<Vgg_count; ig++){
+		  Fourier_expansion_z(&VKS0[0][0][0], VKS_count, Vgg_vector[ig], &atom_cell[0][0], Vgg0[ig], Vgg0_abs[ig]);
 			if(spin_i==1 || spin_i==2){
-				Vgg1_ave[ig]=Fourier_expansion_z(&VKS1[0][0][0], VKS_count, Vgg_vector[ig], &atom_cell[0][0], Vgg1[ig]);
+				Fourier_expansion_z(&VKS1[0][0][0], VKS_count, Vgg_vector[ig], &atom_cell[0][0], Vgg1[ig], Vgg1_abs[ig]);
 			}
-			printf("(n1, n2) = (%3d, %3d), V_norm_average = %.5f\n", Vgg_list[ig][0], Vgg_list[ig][1], Vgg0_ave[ig]);
 		}
-		
+		/*
+		for(int ig=0; ig<Vgg_count; ig++){
+			printf("(n1, n2)=(%d, %d)\n", Vgg_list[ig][0], Vgg_list[ig][1]);
+			for(int iz=0; iz<VKS_count[0]; iz++){
+				printf("Vg = (%f, %f)\n", Vgg0[ig][iz].real(), Vgg0[ig][iz].imag());
+			}
+			}*/
 		
 		write_log((char*)"----Energy scale calculations----");
 		sprintf(sprintf_buffer, "Fermi level = %.2f Eh = %.3f eV", EF_Eh, EF_Eh*Eh);
@@ -1143,18 +1166,19 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 		int E_max_scale=round(E_max_tail/PA_FPFS_energy_step);
 		// printf("Scale: [%d, %d]\n", E_min_scale, E_max_scale);
 		int scale_width=E_max_scale-E_min_scale+1;
-		final_states_FP=new complex<double>******[total_count_ext];
-		final_states_LCAO=new complex<double>*****[total_count_ext];
+		final_states_FP_loc=new complex<double>***[total_count_ext];
 		final_states_EScale=new int*[total_count_ext];
 		final_states_spin=new int*[total_count_ext];
-		final_states_EWidth=new double*[total_count_ext];
 		final_states_FP_size=new int[total_count_ext];
+		final_states_FP_g_size=new int*[total_count_ext];
+		final_states_FP_g=new int***[total_count_ext];
+		final_states_FP_g_vec=new double***[total_count_ext];
 		final_states_k=new double**[total_count_ext];
 		int digit=(spin_i==2)?2:1;
-		
-#pragma omp parallel firstprivate(scale_width, PA_ext_set, spin_i, num_bands, EF_Eh, Eh, PA_FPFS_energy_step, E_min_scale, E_max_scale, PA_excitation_energy, atom_above_surface, atom_length) private(j)
+
+		// Note: n_range are determined in the Fourier expansion of VKS
+#pragma omp parallel firstprivate(scale_width, PA_ext_set, spin_i, num_bands, EF_Eh, Eh, PA_FPFS_energy_step, E_min_scale, E_max_scale, PA_excitation_energy, atom_above_surface, atom_length, n_range, digit) private(j)
 #pragma omp for
-		
 		for(i=0; i<total_count_ext; i++){
 			// cout << i << endl;
 			int count, count_up, count_dn;
@@ -1224,50 +1248,13 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 				FPIndex_size=count*2;
 			}
 			final_states_FP_size[i]=FPIndex_size;
-			final_states_FP[i]=new complex<double>*****[FPIndex_size];
-			for(j=0; j<FPIndex_size; j++){
-				final_states_FP[i][j]=new complex<double>****[atom_length];
-				for(int ia=0; ia<atom_length; ia++){
-					int is=atom_spec_index[ia];
-					final_states_FP[i][j][ia]=new complex<double>***[num_orbits[is]];
-					for(int l=0; l<5; l++){
-						final_states_FP[i][j][ia][l]=new complex<double>**[2*l+1];
-						for(int m=0; m<2*l+1; m++){
-							final_states_FP[i][j][ia][l][m]=new complex<double>*[wfn_length[is]];
-							for(int ir=0; ir<wfn_length[is]; ir++){
-								final_states_FP[i][j][ia][l][m][ir]=new complex<double>[digit];
-								final_states_FP[i][j][ia][l][m][ir][0]=complex<double>(0, 0);
-								if(digit==2){
-									final_states_FP[i][j][ia][l][m][ir][1]=complex<double>(0, 0);
-								}
-							}
-						}
-					}
-				}
-			}
-			final_states_LCAO[i]=new complex<double>****[FPIndex_size];
-			for(j=0; j<FPIndex_size; j++){
-				final_states_LCAO[i][j]=new complex<double>***[atom_length];
-				for(int ia=0; ia<atom_length; ia++){
-					int is=atom_spec_index[ia];
-					final_states_LCAO[i][j][ia]=new complex<double>**[num_orbits[is]];
-					for(int io=0; io<num_orbits[is]; io++){
-						int l=l_list[is][io];
-						final_states_LCAO[i][j][ia][io]=new complex<double>*[2*l+1];
-						for(int m=0; m<2*l+1; m++){
-							final_states_LCAO[i][j][ia][io][m]=new complex<double>[digit];
-							final_states_LCAO[i][j][ia][io][m][0]=complex<double>(0, 0);
-							if(digit==2){
-								final_states_LCAO[i][j][ia][io][m][1]=complex<double>(0, 0);
-							}
-						}
-					}
-				}
-			}
+			final_states_FP_loc[i]=new complex<double>**[FPIndex_size];
 			final_states_EScale[i]=new int[FPIndex_size];
 			final_states_spin[i]=new int[FPIndex_size];
-			final_states_EWidth[i]=new double[FPIndex_size];
 			final_states_k[i]=new double*[FPIndex_size];
+			final_states_FP_g[i]=new int**[FPIndex_size];
+			final_states_FP_g_vec[i]=new double**[FPIndex_size];
+			final_states_FP_g_size[i]=new int[FPIndex_size];
 			for(j=0; j<FPIndex_size; j++){
 				final_states_k[i][j]=new double[3];
 			}
@@ -1321,106 +1308,141 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 				printf("Scale=%4d, Energy=%7.3f eV, spin=%d\n",
 							 final_states_EScale[i][j], final_states_EScale[i][j]*PA_FPFS_energy_step, final_states_spin[i][j]);
 			}
-			// obtain plane wave by linear combination
+			// calculate the final states from the KS potential
 			for(j=0; j<FPIndex_size; j++){
 				int eigen_scale=final_states_EScale[i][j];
 				double kinetic_energy_Eh=(eigen_scale*PA_FPFS_energy_step+PA_excitation_energy)/Eh+EF_Eh;
 				int eigen_spin=final_states_spin[i][j];
 				// printf("Scale=%d, Ekin=%.2f, Spin=%d\n", eigen_scale, kinetic_energy_Eh, eigen_spin);
 				double k_length_au=sqrt(2*kinetic_energy_Eh);
-				double k_au[3]={0, k_point[1], k_point[2]};
+				double k_au[3]={0, k_point[1], k_point[2]}; // contains only in-plane components
 				double kz_square=k_length_au*k_length_au-inner_product(k_au, k_au);
 				if(kz_square<0){
 					write_log((char*)"Error: negative kz^2");
 					continue;
 				}
-				k_au[0]=sqrt(kz_square);
-				for(int j1=0; j1<3; j1++){
+				double kz=sqrt(kz_square);
+				final_states_k[i][j][0]=kz;
+				for(int j1=1; j1<3; j1++){
 					final_states_k[i][j][j1]=k_au[j1];
 				}
-				// printf("k=(%.2f, %.2f, %.2f)\n", k_au[0], k_au[1], k_au[2]);
-				double k_test_au[2*PA_FPFS_range+1][2*PA_FPFS_range+1][3];
-				int k_count=0;
-				for(int n1=-PA_FPFS_range; n1<=PA_FPFS_range; n1++){
-					int n1p=n1+PA_FPFS_range;
-					for(int n2=-PA_FPFS_range; n2<=PA_FPFS_range; n2++){
-						int n2p=n2+PA_FPFS_range;
-						k_test_au[n1p][n2p][0]=0.0;
+				
+				// printf("k=(%.2f, %.2f, %.2f)\n", final_states_k[i][j][0], final_states_k[i][j][1], final_states_k[i][j][2]);
+				
+				double g_test_au[2*n_range+1][2*n_range+1][3];
+				int FP_g_count=0;
+				for(int n1=-n_range; n1<=n_range; n1++){
+					int n1p=n1+n_range;
+					for(int n2=-n_range; n2<=n_range; n2++){
+						int n2p=n2+n_range;
+						g_test_au[n1p][n2p][0]=0.0;
+						double kpg_test[3];
+						kpg_test[0]=0.0;
 						for(int p=1; p<=2; p++){
-							k_test_au[n1p][n2p][p]=k_au[p]+rec_cell[1][p]*n1+rec_cell[2][p]*n2;
+							g_test_au[n1p][n2p][p]=rec_cell[1][p]*n1+rec_cell[2][p]*n2;
+							kpg_test[p]=g_test_au[n1p][n2p][p]+k_au[p];
 						}
-						double kz_square=k_length_au*k_length_au-inner_product(k_test_au[n1p][n2p], k_test_au[n1p][n2p]);
-						if(kz_square>0){
-							k_test_au[n1p][n2p][0]=sqrt(kz_square);
-							k_count++;
+						double kpg_length=sqrt(inner_product(kpg_test, kpg_test));
+						if(kpg_length<k_length_au){
+							FP_g_count++;
+							g_test_au[n1p][n2p][0]=1.0;
 						}else{
-							k_test_au[n1p][n2p][0]=-1;
+							g_test_au[n1p][n2p][0]=-1.0;
 						}
-						/*
-							if(k_test_au[n1p][n2p][0]>0){
-							printf("k[%d][%d]=(%.2f, %.2f, %.2f)\n", n1, n2, k_test_au[n1p][n2p][0], k_test_au[n1p][n2p][1], k_test_au[n1p][n2p][2]);
-							}*/
 					}
-				}
-				// +- pm
-				k_count*=2;
-				// spin
-				if(spin_i==2){
-					k_count*=2;
 				}
 				// composite list
-				// (0, 0, +, s), (0, 0, -, s), ..., (n1, n2, +, s), (n1, n2, -, s), {(n1, n2, +-, -s)}
-				int n_list[k_count][2];
-				double k_list[k_count][3];
-				int spin_list[k_count];
-				int list_index=0;
-				int main_spin=final_states_spin[i][j];
-				int sub_spin=main_spin==0 ? 1 : 0;
-				n_list[list_index][0]=0; n_list[list_index][1]=0;
-				k_list[list_index][0]=k_au[0], k_list[list_index][1]=k_au[1], k_list[list_index][2]=k_au[2];
-				spin_list[list_index]=main_spin;
-				list_index++;
-				n_list[list_index][0]=0; n_list[list_index][1]=0;
-				k_list[list_index][0]=-k_au[0], k_list[list_index][1]=k_au[1], k_list[list_index][2]=k_au[2];
-				spin_list[list_index]=main_spin;
-				list_index++;
-				for(int n1=-PA_FPFS_range; n1<=PA_FPFS_range; n1++){
-					int n1p=n1+PA_FPFS_range;
-					for(int n2=-PA_FPFS_range; n2<=PA_FPFS_range; n2++){
-						int n2p=n2+PA_FPFS_range;
-						// (n1, n2)=(0, 0) is skipped because it is the first element
-						if(k_test_au[n1p][n2p][0]>0 && (n1!=0 || n2!=0)){
-							n_list[list_index][0]=n1; n_list[list_index][1]=n2;
-							k_list[list_index][0]=k_test_au[n1p][n2p][0];
-							k_list[list_index][1]=k_test_au[n1p][n2p][1];
-							k_list[list_index][2]=k_test_au[n1p][n2p][2];
-							spin_list[list_index]=main_spin;
-							list_index++;
-							n_list[list_index][0]=n1; n_list[list_index][1]=n2;
-							k_list[list_index][0]=-k_test_au[n1p][n2p][0];
-							k_list[list_index][1]=k_test_au[n1p][n2p][1];
-							k_list[list_index][2]=k_test_au[n1p][n2p][2];
-							spin_list[list_index]=main_spin;
-							list_index++;
+				final_states_FP_g_size[i][j]=FP_g_count;
+				int* g_buffer=new int[FP_g_count*2];
+				final_states_FP_g[i][j]=new int*[FP_g_count];
+				for(int ig=0; ig<FP_g_count; ig++){
+					final_states_FP_g[i][j][ig]=&g_buffer[2*ig];
+				}
+				double* gv_buffer=new double[FP_g_count*3];
+				final_states_FP_g_vec[i][j]=new double*[FP_g_count];
+				for(int ig=0; ig<FP_g_count; ig++){
+					final_states_FP_g_vec[i][j][ig]=&gv_buffer[3*ig];
+				}
+				int ig_count=0;
+				for(int n1=-n_range; n1<=n_range; n1++){
+					int n1p=n1+n_range;
+					for(int n2=-n_range; n2<=n_range; n2++){
+						int n2p=n2+n_range;
+						if(g_test_au[n1p][n2p][0]>0){
+							final_states_FP_g[i][j][ig_count][0]=n1;
+							final_states_FP_g[i][j][ig_count][1]=n2;
+							for(int p=1; p<3; p++){
+								final_states_FP_g_vec[i][j][ig_count][p]=g_test_au[n1p][n2p][p];
+							}
+							final_states_FP_g_vec[i][j][ig_count][0]=0.0;
+							ig_count++;
 						}
 					}
 				}
-				if(spin_i==2){
-					for(int kp=0; kp<k_count/2; kp++){
-						n_list[k_count/2+kp][0]=n_list[kp][0];
-						n_list[k_count/2+kp][1]=n_list[kp][1];
-						k_list[k_count/2+kp][0]=k_list[kp][0];
-						k_list[k_count/2+kp][1]=k_list[kp][1];
-						k_list[k_count/2+kp][2]=k_list[kp][2];
-						spin_list[k_count/2+kp]=sub_spin;
+				
+				for(int ig=0; ig<final_states_FP_g_size[i][j]; ig++){
+					printf("(n1, n2) = (%d, %d), k = (%.3f, %.3f, %.3f)\n",
+								 final_states_FP_g[i][j][ig][0],
+								 final_states_FP_g[i][j][ig][1],
+								 final_states_FP_g_vec[i][j][ig][0],
+								 final_states_FP_g_vec[i][j][ig][1],
+								 final_states_FP_g_vec[i][j][ig][2]);
+								 }
+
+				// prapare the Vgg matrix
+				complex<double>* Vgg_matrix[FP_g_count][FP_g_count];
+				int V00_index=-1;
+				bool Vgg_error=false;
+				for(int ig1=0; ig1<FP_g_count; ig1++){
+					if(final_states_FP_g[i][j][ig1][0]==0 && final_states_FP_g[i][j][ig1][1]==0){
+						V00_index=ig1;
 					}
-				}/*
+					for(int ig2=0; ig2<FP_g_count; ig2++){
+						int n1_12=final_states_FP_g[i][j][ig1][0]-final_states_FP_g[i][j][ig2][0];
+						int n2_12=final_states_FP_g[i][j][ig1][1]-final_states_FP_g[i][j][ig2][1];
+						bool Vgg_found=false;
+						for(int ig=0; ig<Vgg_count; ig++){
+							if(n1_12==Vgg_list[ig][0] && n2_12==Vgg_list[ig][1]){
+								if(final_states_spin[i][j]==0){
+									Vgg_matrix[ig1][ig2]=&Vgg0[ig][0];
+								}else{
+									Vgg_matrix[ig1][ig2]=&Vgg1[ig][0];
+								}
+								Vgg_found=true;
+								/*
+								for(int iz=0; iz<VKS_count[0]; iz++){
+									printf("%f %f\n", Vgg_matrix[ig1][ig2][iz].real(), Vgg_matrix[ig1][ig2][iz].imag());
+									}*/
+								break;
+							}
+						}
+						if(Vgg_found==false){
+							write_log((char*)"Error: Vgg not found");
+							Vgg_error=true;
+						}
+					}
+				}
+				if(Vgg_error==true){
+					continue;
+				}
+
+				// prepare the solution buffer
+				complex<double>* FP_loc_buffer=new complex<double>[FP_g_count*VKS_count[0]];
+				final_states_FP_loc[i][j]=new complex<double>*[FP_g_count];
+				for(int ig=0; ig<FP_g_count; ig++){
+					final_states_FP_loc[i][j][ig]=&FP_loc_buffer[ig*VKS_count[0]];
+				}
+
+				// solve the differential equation by the Numerov method
+					solve_final_state(kinetic_energy_Eh, k_au, kz, FP_g_count,  VKS_count[0], final_states_dz, V00_index, &Vgg_matrix[0][0], &final_states_FP_g_vec[i][j][0][0], FP_loc_buffer);
+				
+				/*
 					 for(int list_index=0; list_index<k_count; list_index++){
 					 printf("n=(%2d, %2d), k=(%5.2f, %5.2f, %5.2f), s=%d\n",
 					 n_list[list_index][0], n_list[list_index][1],
 					 k_list[list_index][0], k_list[list_index][1], k_list[list_index][2],
 					 spin_list[list_index]);
-					 }*/
+					 }
 				// composite matrix
 				complex<double> final_state_matrix[k_count][k_count];
 				for(int im=0; im<k_count; im++){
@@ -1540,7 +1562,7 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 				 printf("(%6.3f, %6.3f) ", final_state_matrix[im][ibi].real(), final_state_matrix[im][ibi].imag());
 				 }
 				 printf("\n");
-				 }*/
+				 }
 				// index order is inverted due to the lapack implementation
 				complex<double> fsm_inv[k_count][k_count];
 				for(int im=0; im<k_count; im++){
@@ -1560,7 +1582,7 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 						MV+=final_state_matrix[im][ibi]*LCVector[ibi];
 						}
 						printf("MV[%2d]=(%6.3f, %6.3f)\n", im, MV.real(), MV.imag());
-						}*/
+						}
 				}else{
 					write_log((char*)"zgesv failed");
 					continue;
@@ -1592,8 +1614,8 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 							}
 						}
 					}
-				}
-			} // for(j=0; j<FPIndex_size; j++)
+					}*/
+} // for(j=0; j<FPIndex_size; j++)
 		} // omp for(i=0; i<total_count_ext; i++)
 	} // if(FPFS)
 	/// 3-5. calculation for each k point
@@ -1824,7 +1846,8 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 								}
 							}
 						}else{
-							// FPFS==true 
+							// FPFS==true
+							/*
 							is=atom_spec_index[ia];
 							int num_orbits2=num_orbits[is];
 							if(spin_i==1){
@@ -1942,8 +1965,8 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 										}
 									}
 								}
-							}
-						} // end of if(FPFS==false)
+								}*/
+							} // end of if(FPFS==false)
 					} // end of for(ia)
 				} // end of if(output_data=="Band")
 				// cout << PAD_1 << endl;
@@ -2200,10 +2223,10 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 		if(spin_i>0){
 			w_data_3d(PotG, "V1_Kohn_Sham", VKS_count[0], VKS_count[1], VKS_count[2], (double***)&VKS1[0][0][0]);
 		}
-		w_data_2d(PotG, "Vgg_vector", g_count, 3, (double**)&Vgg_vector[0][0]);
-		w_data_1d(PotG, "Vgg0_ave", g_count, &Vgg0_ave[0]);
+		w_data_2d(PotG, "Vgg_vector", Vgg_count, 3, (double**)&Vgg_vector[0][0]);
+		w_data_2d(PotG, "Vgg0_abs", Vgg_count, VKS_count[0], (double**)&Vgg0_abs[0][0]);
 		if(spin_i>0){
-			w_data_1d(PotG, "Vgg1_ave", g_count, &Vgg1_ave[0]);
+			w_data_2d(PotG, "Vgg1_abs", Vgg_count, VKS_count[0], (double**)&Vgg1_abs[0][0]);
 		}
 		for(ia=0; ia<atom_length; ia++){
 			is=atom_spec_index[ia];
@@ -2230,11 +2253,23 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 			w_att_int(FPFSG_k, "Count", final_states_FP_size[i]);
 			w_att_1i(FPFSG_k, "Spin", final_states_FP_size[i], &final_states_spin[i][0]);
 			w_att_1i(FPFSG_k, "Energy_scale", final_states_FP_size[i], &final_states_EScale[i][0]);
-			w_att_1d(FPFSG_k, "Energy_width", final_states_FP_size[i], &final_states_EWidth[i][0]);
 			for(j=0; j<final_states_FP_size[i]; j++){
 				sprintf(group_name, "%d", j);
 				Group FPFSG_ke(FPFSG_k.createGroup(group_name));
 				w_att_1d(FPFSG_ke, "k", 3, &final_states_k[i][j][0]);
+				int g_size=final_states_FP_g_size[i][j];
+				w_att_int(FPFSG_ke, "g_size", g_size);
+				w_data_2d(FPFSG_ke, "g_vector", g_size, 3, (double**)&final_states_FP_g_vec[i][j][0][0]);
+				int z_size=VKS_count[0];
+				double final_states_FP_loc_export[g_size][z_size][2];
+				for(int ig=0; ig<g_size; ig++){
+					for(int iz=0; iz<z_size; iz++){
+						final_states_FP_loc_export[ig][iz][0]=final_states_FP_loc[i][j][ig][iz].real();
+						final_states_FP_loc_export[ig][iz][1]=final_states_FP_loc[i][j][ig][iz].imag();
+					}
+				}
+				w_data_3d(FPFSG_ke, "FP_local", g_size, z_size, 2, (double***)&final_states_FP_loc_export[0][0][0]);
+				/*
 				for(ia=0; ia<atom_length; ia++){
 					int is=atom_spec_index[ia];
 					sprintf(group_name, "%d_%s", (ia+1), atom_labels[ia]);
@@ -2255,7 +2290,7 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 						}
 						w_data_2d(FPFSG_kea, group_name, 2*l+1, digit*2, (double**)&LCAO_component[0][0]);
 					}
-				}
+					}*/
 			}
 		}
 	}
