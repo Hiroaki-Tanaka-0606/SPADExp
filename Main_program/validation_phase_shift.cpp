@@ -90,7 +90,7 @@ int validation_phase_shift(){
 		
 	goto FINALIZATION;
  FINALIZATION:
-	delete sprintf_buffer;
+	delete[] sprintf_buffer;
 	return status;
 	return 1;
 }

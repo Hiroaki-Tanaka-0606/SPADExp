@@ -243,7 +243,7 @@ int load_input(){
 				}
 			}
 			Oc_orbital_index++;
-			delete sscanf_template;
+			delete[] sscanf_template;
 			continue;
 		}
 		if(*block_name==string("Excitation-energy")){
@@ -989,7 +989,7 @@ int load_input(){
 	}
 
  FINALIZATION:
-	delete input_line_c;
-	delete keyword_buffer;
+	delete[] input_line_c;
+	delete[] keyword_buffer;
 	return status;
 }

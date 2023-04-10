@@ -47,8 +47,8 @@ void test_Thomas_Fermi(){
 	for(i=0; i<=Initial_diff_size; i++){
 		delete TF_phis[i];
 	}
-	delete TF_phis;
-	delete sprintf_buffer;
+	delete[] TF_phis;
+	delete[] sprintf_buffer;
 }
 
 double trial_Thomas_Fermi(double Initial_diff){
@@ -74,7 +74,7 @@ void calc_Thomas_Fermi(){
 
 	if(phi_edge_min*phi_edge_max>0){
 		write_log((char*)"Error: cannot start the bisection method");
-		delete sprintf_buffer;
+		delete[] sprintf_buffer;
 		return;
 	}
 	double Initial_diff_center=(Initial_diff_min+Initial_diff_max)/2.0;
@@ -107,7 +107,7 @@ void calc_Thomas_Fermi(){
 	for(i=0; i<x_count; i++){
 		fprintf(Output_file_obj, "%11.5f %8.5e\n", x_coordinates[i], TF_phi[i]);
 	}
-	delete sprintf_buffer;
+	delete[] sprintf_buffer;
 }
 
 // Thomas-Fermi diffrential equation

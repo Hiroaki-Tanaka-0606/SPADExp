@@ -350,7 +350,7 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 				double* LCAO_raw=new double[size1*size2*size3*size4];
 				r_data_4d(atomG, ds_name, size1, size2, size3, size4, (double****) LCAO_raw);
 				LCAO[ia][io]=convert_LCAO(size1, size2, size3, size4, LCAO_raw);
-				delete LCAO_raw;
+				delete[] LCAO_raw;
 				/*
 					if(ia==0){
 					for(int iii=0; iii<size3; iii++){
@@ -379,7 +379,7 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 					cout << endl;
 					}
 					}*/
-				delete LCAO_rawUp;
+				delete[] LCAO_rawUp;
 					
 				sprintf(ds_name, "%sDn", orbital_list[is][io]);
 				s_data_4d(atomG, ds_name, &size1, &size2, &size3, &size4);
@@ -390,7 +390,7 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 				double* LCAO_rawDn=new double[size1*size2*size3*size4];
 				r_data_4d(atomG, ds_name, size1, size2, size3, size4, (double****) LCAO_rawDn);
 				LCAO[ia][io*2+1]=convert_LCAO(size1, size2, size3, size4, LCAO_rawDn);
-				delete LCAO_rawDn;							
+				delete[] LCAO_rawDn;							
 			}
 		}
 	}
@@ -1555,7 +1555,7 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 							}
 						}
 					}
-				}/*
+				}
 				 // matrix print for debug
 				 for(int im=0; im<k_count; im++){
 				 for(int ibi=0; ibi<k_count; ibi++){
@@ -1573,7 +1573,7 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 				// solve
 				complex<double> LCVector[k_count];
 				if(zgesv_1_0(&k_count, &fsm_inv[0][0], LCVector)){
-					/*
+					
 						write_log((char*)"zgesv succeeded");
 						// check
 						for(int im=0; im<k_count; im++){

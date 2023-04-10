@@ -121,7 +121,7 @@ void scf_calc_atom(){
 	}
 	w_data_1c(atomG, "Orbitals", SC_orbital_count, 3, (char**) &orbital_list[0][0]);
 	
-	delete sprintf_buffer;
+	delete[] sprintf_buffer;
 }
 
 void calc_atom(double mu, double* v_x, bool first_calculation, bool use_guess){

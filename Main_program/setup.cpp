@@ -244,7 +244,7 @@ void setup_radial_grid(){
 		write_log(sprintf_buffer);
 		last_index+=Radial_grid_points[i];
 	}
-	delete sprintf_buffer;
+	delete[] sprintf_buffer;
 }
 
 int setup_potential(int Z, double mu){
@@ -312,7 +312,7 @@ int setup_potential(int Z, double mu){
 	goto FINALIZATION;
 	
  FINALIZATION:
-	delete input_line_c;
+	delete[] input_line_c;
 	return status;
 }
 
