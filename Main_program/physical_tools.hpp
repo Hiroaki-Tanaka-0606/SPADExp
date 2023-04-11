@@ -19,3 +19,7 @@ double interpolate_potential(double* r, int* count, double* cube, double* rec_ce
 void Fourier_expansion_z(double* V_buffer, int* V_count, double* g, double* atom_cell_buffer, complex<double>* Vg, double* Vg_abs);
 
 void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int z_count, double dz, int V00_index, complex<double>** Vgg_buffer, double* g_vec_buffer, complex<double>* FP_loc_buffer);
+
+complex<double> interpolate_fgz(double z, complex<double>* fgz, double dz, int z_count);
+
+double spherical_harmonic_theta(int l, int m, double theta);

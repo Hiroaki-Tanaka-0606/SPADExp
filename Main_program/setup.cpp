@@ -160,6 +160,9 @@ void initialize(){
 	PA_VPS_file_set=false;
 	PA_Lebedev_order_ave=86;
 	PA_Lebedev_order_int=5810;
+	PA_lp_max=4;
+	PA_zero_threshold=1e-8;
+	PA_theta_points=128;
 }
 
 void finalize(){

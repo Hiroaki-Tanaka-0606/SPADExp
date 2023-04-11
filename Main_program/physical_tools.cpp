@@ -5,6 +5,7 @@
 #include <cstring>
 #include <iostream>
 #include "log.hpp"
+#include "variables_ext.hpp"
 using namespace std;
 
 
@@ -176,13 +177,13 @@ void spherical_harmonics(double* r, complex<double>* Ylm2){
 	double r_length=sqrt(inner_product(r, r));
 	double cosT=1;
 	double sinT=0;
-	if(r_length>1e-5){
+	if(r_length>PA_zero_threshold){
 		cosT=r[2]/r_length;
 		sinT=sqrt(r[0]*r[0]+r[1]*r[1])/r_length;	
 	}
 	double cosP=1;
 	double sinP=0;
-	if(abs(sinT)>1e-5){
+	if(abs(sinT)>PA_zero_threshold){
 		cosP=r[0]/(r_length*sinT);
 		sinP=r[1]/(r_length*sinT);
 	}
@@ -289,6 +290,9 @@ double Gaunt(int lp, int mp, int l, int m){
 
 double sp_bessel(int l, double x){
 	// spherical Bessel function j_l(x)
+	if(x<PA_zero_threshold){
+		return l==0 ? 1.0 : 0.0;
+	}
 	// j_l(x)=(-1)^l x^l (1/x d/dx)^l sin(x)/x
 	if(l==0){
 		// sin(x)/x
@@ -503,4 +507,123 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 		}
 	}
 	
+}
+
+complex<double> interpolate_fgz(double z, complex<double>* fgz, double dz, int z_count){
+	double index_d=z/dz;
+	int index_floor=floor(z/dz);
+	if(index_floor<0){
+		return fgz[0];
+	}
+	if(index_floor>=z_count-1){
+		return fgz[z_count-1];
+	}
+	return fgz[index_floor]*(index_floor+1.0-index_d)+fgz[index_floor+1]*(index_d-index_floor);
+}
+
+double spherical_harmonic_theta(int l, int m, double theta){
+	double sinT=sin(theta);
+	double cosT=cos(theta);
+	
+	// s(0): 1/sqrt(2)
+	if(l==0){
+		if(m==0){
+			return 1.0/(sqrt(2.0));
+		}else{
+			return 0.0;
+		}
+	}
+	if(l==1){
+		if(m==-1){
+			// p(-1): 1/2 sqrt(3) sin(T)
+			return (1.0/2.0)*sqrt(3.0)*sinT;
+		}else if(m==0){
+			// p(0): sqrt(3/2) cos(T)
+			return sqrt(3.0/2.0)*cosT;
+		}else if(m==1){
+			// p(1): -1/2 sqrt(3/2pi) sin(T)
+			return -(1.0/2.0)*sqrt(3.0)*sinT;
+		}else{
+			return 0.0;
+		}
+	}
+	if(l==2){
+		if(m==-2){
+			// d(-2): 1/4 sqrt(15) sin^2(T)
+		  return (1.0/4.0)*sqrt(15.0)*sinT*sinT;
+		}else if(m==-1){
+			// d(-1): 1/2 sqrt(15) sin(T)cos(T)
+			return (1.0/2.0)*sqrt(15.0)*sinT*cosT;
+		}else if(m==0){
+			// d(0): 1/2 sqrt(5/2) (3cos^2(T)-1)
+			return (1.0/2.0)*sqrt(5.0/2.0)*(3*cosT*cosT-1.0);
+		}else if(m==1){
+			// d(1): -1/2 sqrt(15) sin(T)cos(T)
+			return -(1.0/2.0)*sqrt(15.0)*sinT*cosT;
+		}else if(m==2){
+			// d(2): 1/4 sqrt(15) sin^2(T)
+			return (1.0/4.0)*sqrt(15.0)*sinT*sinT;
+		}else{
+			return 0.0;
+		}
+	}
+	if(l==3){
+		if(m==-3){
+			// f(-3): 1/8 sqrt(70) sin^3(T)
+			return (1.0/8.0)*sqrt(70.0)*sinT*sinT*sinT;
+		}else if(m==-2){
+			// f(-2): 1/4 sqrt(105) sin^2(T)cos(T)
+			return (1.0/4.0)*sqrt(105.0)*sinT*sinT*cosT;
+		}else if(m==-1){
+			// f(-1): 1/8 sqrt(42) (5cos^2(T)-1)sin(T)
+			return (1.0/8.0)*sqrt(42.0)*(5.0*cosT*cosT-1.0)*sinT;
+		}else if(m==0){
+			// f(0): 1/2 sqrt(7/2) (5cos^2(T)-3)cos(T)
+			return (1.0/2.0)*sqrt(7.0/2.0)*(5.0*cosT*cosT-3.0)*cosT;
+		}else if(m==1){
+			// f(1): -1/8 sqrt(42) (5cos^2(T)-1)sin(T)
+			return -(1.0/8.0)*sqrt(42.0)*(5.0*cosT*cosT-1.0)*sinT;
+		}else if(m==2){
+			// f(2): 1/4 sqrt(105) sin^2(T)cos(T)
+			return (1.0/4.0)*sqrt(105.0)*sinT*sinT*cosT;
+		}else if(m==3){
+			// f(3): -1/8 sqrt(70) sin^3(T)
+			return -(1.0/8.0)*sqrt(70.0)*sinT*sinT*sinT;
+		}else{
+			return 0.0;
+		}
+	}
+	if(l==4){
+		if(m==-4){
+			// g(-4): 3/16 sqrt(35) sin^4(T)
+			return (3.0/16.0)*sqrt(35.0)*sinT*sinT*sinT*sinT;
+		}else if(m==-3){
+			// g(-3): 3/8 sqrt(35/pi) sin^3(T)cos(T)
+			return (3.0/8.0)*sqrt(70.0)*sinT*sinT*sinT*cosT;
+		}else if(m==-2){
+			// g(-2): 3/8 sqrt(5) (7cos^2(T)-1)sin^2(T)
+			return (3.0/8.0)*sqrt(5.0)*(7.0*cosT*cosT-1.0);
+		}else if(m==-1){			
+			// g(-1): 3/8 sqrt(10) (7cos^2(T)-3)sin(T)cos(T)
+			return (3.0/8.0)*sqrt(10.0)*(7.0*cosT*cosT-3.0)*sinT*cosT;
+		}else if(m==0){
+			// g(0): 3/16 sqrt(2) (35cos^4(T)-30cos^2(T)+3)
+			return (3.0/16.0)*sqrt(2.0)*(35.0*cosT*cosT*cosT*cosT-30.0*cosT*cosT+3.0);
+		}else if(m==1){
+			// g(1): -3/8 sqrt(10) (7cos^2(T)-3)sin(T)cos(T)
+			return -(3.0/8.0)*sqrt(10.0)*(7.0*cosT*cosT-3.0)*sinT*cosT;
+		}else if(m==2){
+			// g(2): 3/8 sqrt(5) (7cos^2(T)-1)sin^2(T)
+			return (3.0/8.0)*sqrt(5.0)*(7.0*cosT*cosT-1.0);
+		}else if(m==3){
+			// g(3): -3/8 sqrt(70) sin^3(T)cos(T)
+			return -(3.0/8.0)*sqrt(70.0)*sinT*sinT*sinT*cosT;
+		}else if(m==4){
+			// g(4): 3/16 sqrt(35) sin^4(T)
+			return (3.0/16.0)*sqrt(35.0)*sinT*sinT*sinT*sinT;
+		}else{
+			return 0.0;
+		}
+	}
+	return 0.0;
 }
