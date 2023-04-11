@@ -33,7 +33,7 @@ void sequence_atomic_wfn(){
 	fprintf(Output_file_obj, "# Sequential calculation of atomic wavefunctions\n");
 	fprintf(Output_file_obj, "# Z ");
 	for(n_current=n_min; n_current<=n_max; n_current++){
-		for(l_current=l_min; l_current<=l_max, l_current<=n_current-1; l_current++){
+	  for(l_current=l_min; (l_current<=l_max && l_current<=n_current-1); l_current++){
 			fprintf(Output_file_obj, "(%d,%d) ", n_current, l_current);
 		}
 	}
@@ -77,7 +77,7 @@ void sequence_atomic_wfn(){
 		}
 		fprintf(Output_file_obj, "\n");
 	}
-	delete sprintf_buffer;
+	delete[] sprintf_buffer;
 }
 
 double calc_atomic_wfn(double mu, int l, int nodes){
@@ -276,7 +276,7 @@ double calc_atomic_wfn2(double mu, int l, int nodes, double eigen_guess){
 	
 
   
-	delete sprintf_buffer;
+	delete[] sprintf_buffer;
 	return E_center;
 }
 

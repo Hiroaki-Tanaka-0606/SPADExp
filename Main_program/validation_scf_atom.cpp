@@ -136,6 +136,6 @@ int validation_scf_atom(){
 	
 	goto FINALIZATION;
  FINALIZATION:
-	delete sprintf_buffer;
+	delete[] sprintf_buffer;
 	return status;
 }

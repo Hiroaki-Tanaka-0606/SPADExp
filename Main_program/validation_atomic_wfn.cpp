@@ -176,6 +176,6 @@ int validation_atomic_wfn(){
 		
 	goto FINALIZATION;
  FINALIZATION:
-	delete sprintf_buffer;
+	delete[] sprintf_buffer;
 	return status;
 }
