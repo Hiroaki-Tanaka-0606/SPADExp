@@ -1311,10 +1311,11 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 			}
 			// for debug
 			printf("k=%d, count=%d\n", i, FPIndex_size);
+			/*
 			for(j=0; j<FPIndex_size; j++){
 				printf("Scale=%4d, Energy=%7.3f eV, spin=%d\n",
 							 final_states_EScale[i][j], final_states_EScale[i][j]*PA_FPFS_energy_step, final_states_spin[i][j]);
-			}
+							 }*/
 			// calculate the final states from the KS potential
 			for(j=0; j<FPIndex_size; j++){
 				int eigen_scale=final_states_EScale[i][j];
