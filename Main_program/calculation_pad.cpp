@@ -1517,12 +1517,15 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 
 		// FPFS radial integration preparation
 		// (FPFS_re, FPFS_im)=fgz(r*cos(theta)+tau_z)
-		complex<double>**** FPFS_rt[final_states_FP_size[ik]]; //[FPIndex][ig][ia][it][ir]
+		complex<double>***** FPFS_rt=new complex<double>****[final_states_FP_size[ik]]; //[FPIndex][ig][ia][it][ir]
 		for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
 			FPFS_rt[ifp]=new complex<double>***[final_states_FP_g_size[ik][ifp]];
 			for(int ig=0; ig<final_states_FP_g_size[ik][ifp]; ig++){
 				FPFS_rt[ifp][ig]=new complex<double>**[atom_length];
 				for(int ia=0; ia<atom_length; ia++){
+					if(atom_weighting_flag[ia]==false){
+						continue;
+					}
 					int is=atom_spec_index[ia];
 					double tau_z=atom_coordinates[ia][0];
 					FPFS_rt[ifp][ig][ia]=new complex<double>*[PA_theta_points];
@@ -1701,6 +1704,10 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 							// FPFS==true
 							double g_vec[3];
 							double kpg_vec[3]; // the z component is zero
+							is=atom_spec_index[ia];
+							double* final_states_re=new double[wfn_length[is]];
+							double* final_states_im=new double[wfn_length[is]];
+							double* sp_bessel_lp=new double[wfn_length[is]];
 							for(int ig=0; ig<final_states_FP_g_size[ik][FPIndex_1]; ig++){
 								// printf("ik %3d ib %3d ia %3d ig %3d\n", ik, ib, ia, ig);
 								for(int ix=0; ix<3; ix++){
@@ -1713,14 +1720,10 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 								atom_phase/=sqrt(2*M_PI);
 								double kpg_length=sqrt(inner_product(kpg_vec, kpg_vec));
 								
-								is=atom_spec_index[ia];
 								int num_orbits2=num_orbits[is];
 								if(spin_i==1){
 									num_orbits2*=2;
 								}
-								double final_states_re[wfn_length[is]];
-								double final_states_im[wfn_length[is]];
-								double sp_bessel_lp[wfn_length[is]];
 								for(io=0; io<num_orbits2; io++){
 									int io2=io; // for initial state, l_list
 									if(spin_i==1){
@@ -1800,10 +1803,13 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 												PAD_1+=LCAO_use[mpl][0]*coeff11+LCAO_use[mpl][1]*coeff21;
 												PAD_2+=LCAO_use[mpl][0]*coeff21+LCAO_use[mpl][1]*coeff22;
 											}
-										}
-									}
-								}
-							}
+										}// end of for(mpl)
+									}// end of for(lp)
+								}// end of for(io)
+							}// end of for(ig)
+							delete[] final_states_re;
+							delete[] final_states_im;
+							delete[] sp_bessel_lp;
 						} // end of if(FPFS==false)
 					} // end of for(ia)
 				} // end of if(output_data=="Band")
@@ -1828,6 +1834,9 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 			for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
 				for(int ig=0; ig<final_states_FP_g_size[ik][ifp]; ig++){
 					for(int ia=0; ia<atom_length; ia++){
+						if(atom_weighting_flag[ia]==false){
+							continue;
+						}
 						for(int it=0; it<PA_theta_points; it++){
 							delete[] FPFS_rt[ifp][ig][ia][it];
 						}
@@ -1837,6 +1846,7 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 				}
 				delete[] FPFS_rt[ifp];
 			}
+			delete[] FPFS_rt;
 		}
 		sprintf(sprintf_buffer, "k = %4d finished", ik);
 		write_log(sprintf_buffer);

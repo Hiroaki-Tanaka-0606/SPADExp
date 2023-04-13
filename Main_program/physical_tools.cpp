@@ -252,6 +252,7 @@ void spherical_harmonics(double* r, complex<double>* Ylm2){
 	// g(4): 3/16 sqrt(35/2pi) sin^4(T)(cos(4P)+i*sin(4P))
 	Ylm[4][8]=(3.0/16.0)*sqrt(35.0/(2.0*M_PI))*sinT*sinT*sinT*sinT*complex<double>(cos4P, sin4P);
 
+	delete[] Ylm;
 }
 
 double Gaunt(int lp, int mp, int l, int m){
@@ -352,6 +353,8 @@ double interpolate_potential(double* r, int* count, double* cube, double* rec_ce
 	double w101=(q[0]-qf[0])  *(qf[1]+1-q[1])*(q[2]-qf[2])  ;
 	double w110=(q[0]-qf[0])  *(q[1]-qf[1])  *(qf[2]+1-q[2]);
 	double w111=(q[0]-qf[0])  *(q[1]-qf[1])  *(q[2]-qf[2]);
+
+	delete[] rc;
 	
 	return
 		v000*w000
@@ -402,6 +405,10 @@ void Fourier_expansion_z(double* V_buffer, int* V_count, double* g, double* atom
 		Vg[iz]/=n1n2;
 		Vg_abs[iz]=abs(Vg[iz]);
 	}
+	for(iz=0; iz<V_count[0]; iz++){
+		delete[] V[iz];
+	}
+	delete[] V;
 }
 
 // the solving direction is downward
