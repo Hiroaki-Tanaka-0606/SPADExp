@@ -510,17 +510,17 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 	outer_product(band_cell[1], band_cell[2], op);
 	det=inner_product(band_cell[0], op);
 	for(i=0; i<3; i++){
-		rec_cell[0][i]=2*M_PI*op[i]/det;
+		rec_cell[0][i]=2.0*M_PI*op[i]/det;
 	}
 
 	outer_product(band_cell[2], band_cell[0], op);
 	for(i=0; i<3; i++){
-		rec_cell[1][i]=2*M_PI*op[i]/det;
+		rec_cell[1][i]=2.0*M_PI*op[i]/det;
 	}
 
 	outer_product(band_cell[0], band_cell[1], op);
 	for(i=0; i<3; i++){
-		rec_cell[2][i]=2*M_PI*op[i]/det;
+		rec_cell[2][i]=2.0*M_PI*op[i]/det;
 	}
 	/// resclale to au or au^-1
 	//// unit is already transformed to lowercase
@@ -790,7 +790,7 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 	int tail_index=floor(PA_dE*PA_sigma_max/PA_E_pixel);
 	double tail[tail_index+1];
 	for(i=0; i<=tail_index; i++){
-		tail[i]=1.0/(PA_dE*sqrt(2*M_PI))*exp(-1.0/2.0*(i*PA_E_pixel/PA_dE)*(i*PA_E_pixel/PA_dE));
+		tail[i]=1.0/(PA_dE*sqrt(2.0*M_PI))*exp(-1.0/2.0*(i*PA_E_pixel/PA_dE)*(i*PA_E_pixel/PA_dE));
 		// printf("%d %f\n", i, tail[i]);
 	}
 
@@ -987,9 +987,17 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 		}
 		write_log((char*)"----Load Kohn-Sham potentials----");
 		// load
+		// the ignore_VKS flag is for debug
+		bool ignore_VKS=true;
+		
 		Group PotentialG(OutputG.openGroup("Potential"));
 		r_att_1i(PotentialG, "Count", 3, &VKS_count[0]);
 		double* buffer=new double[VKS_count[0]*VKS_count[1]*VKS_count[2]];
+		if(ignore_VKS){
+		  for(int i=0; i<VKS_count[0]*VKS_count[1]*VKS_count[2]; i++){
+		    buffer[i]=0.0;
+		  }
+		}
 		VKS0=new double**[VKS_count[0]];
 		for(int ix=0; ix<VKS_count[0]; ix++){
 			VKS0[ix]=new double*[VKS_count[1]];
@@ -997,9 +1005,16 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 				VKS0[ix][iy]=&buffer[ix*VKS_count[1]*VKS_count[2]+iy*VKS_count[2]];
 			}
 		}
-		r_data_3d(PotentialG, "V0", VKS_count[0], VKS_count[1], VKS_count[2], (double***)&VKS0[0][0][0]);
+		if(!ignore_VKS){
+		  r_data_3d(PotentialG, "V0", VKS_count[0], VKS_count[1], VKS_count[2], (double***)&VKS0[0][0][0]);
+		}
 		if(spin_i==1 || spin_i==2){
 			double* buffer=new double[VKS_count[0]*VKS_count[1]*VKS_count[2]];
+			if(ignore_VKS){
+			  for(int i=0; i<VKS_count[0]*VKS_count[1]*VKS_count[2]; i++){
+			    buffer[i]=0.0;
+			  }
+			}
 			VKS1=new double**[VKS_count[0]];
 			for(int ix=0; ix<VKS_count[0]; ix++){
 				VKS1[ix]=new double*[VKS_count[1]];
@@ -1007,7 +1022,9 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 					VKS1[ix][iy]=&buffer[ix*VKS_count[1]*VKS_count[2]+iy*VKS_count[2]];
 				}
 			}
-			r_data_3d(PotentialG, "V1", VKS_count[0], VKS_count[1], VKS_count[2], (double***)&VKS1[0][0][0]);
+			if(!ignore_VKS){
+			  r_data_3d(PotentialG, "V1", VKS_count[0], VKS_count[1], VKS_count[2], (double***)&VKS1[0][0][0]);
+			}
 		}
 		final_states_dz=sqrt(inner_product(atom_cell[0], atom_cell[0]))/VKS_count[0];
 		printf("dz = %.3f\n", final_states_dz);
@@ -1148,6 +1165,7 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 				}
 			}
 		}
+
 #pragma omp parallel firstprivate(atom_cell)
 #pragma omp for
 		for(int ig=0; ig<Vgg_count; ig++){
@@ -1310,7 +1328,7 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 				}
 			}
 			// for debug
-			printf("k=%d, count=%d\n", i, FPIndex_size);
+			printf("k=%4d, count=%3d\n", i, FPIndex_size);
 			/*
 			for(j=0; j<FPIndex_size; j++){
 				printf("Scale=%4d, Energy=%7.3f eV, spin=%d\n",
@@ -1517,28 +1535,31 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 
 		// FPFS radial integration preparation
 		// (FPFS_re, FPFS_im)=fgz(r*cos(theta)+tau_z)
-		complex<double>***** FPFS_rt=new complex<double>****[final_states_FP_size[ik]]; //[FPIndex][ig][ia][it][ir]
-		for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
-			FPFS_rt[ifp]=new complex<double>***[final_states_FP_g_size[ik][ifp]];
-			for(int ig=0; ig<final_states_FP_g_size[ik][ifp]; ig++){
-				FPFS_rt[ifp][ig]=new complex<double>**[atom_length];
-				for(int ia=0; ia<atom_length; ia++){
-					if(atom_weighting_flag[ia]==false){
-						continue;
-					}
-					int is=atom_spec_index[ia];
-					double tau_z=atom_coordinates[ia][0];
-					FPFS_rt[ifp][ig][ia]=new complex<double>*[PA_theta_points];
-					for(int it=0; it<PA_theta_points; it++){
-						double theta=(it+0.5)*1.0/PA_theta_points*M_PI;
-						FPFS_rt[ifp][ig][ia][it]=new complex<double>[wfn_length[is]];
-						for(int ir=0; ir<wfn_length[is]; ir++){
-							double z_value=wfn_r[is][ir]*cos(theta)+tau_z;
-						  FPFS_rt[ifp][ig][ia][it][ir]=interpolate_fgz(z_value, final_states_FP_loc[ik][ifp][ig], final_states_dz, VKS_count[0]);
-						}
-					}
-				}
+		complex<double>***** FPFS_rt;
+		if(PA_FPFS){
+		  FPFS_rt=new complex<double>****[final_states_FP_size[ik]]; //[FPIndex][ig][ia][it][ir]
+		  for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
+		    FPFS_rt[ifp]=new complex<double>***[final_states_FP_g_size[ik][ifp]];
+		    for(int ig=0; ig<final_states_FP_g_size[ik][ifp]; ig++){
+		      FPFS_rt[ifp][ig]=new complex<double>**[atom_length];
+		      for(int ia=0; ia<atom_length; ia++){
+			if(atom_weighting_flag[ia]==false){
+			  continue;
 			}
+			int is=atom_spec_index[ia];
+			double tau_z=atom_coordinates[ia][0];
+			FPFS_rt[ifp][ig][ia]=new complex<double>*[PA_theta_points];
+			for(int it=0; it<PA_theta_points; it++){
+			  double theta=(it*1.0+0.5)/PA_theta_points*M_PI;
+			  FPFS_rt[ifp][ig][ia][it]=new complex<double>[wfn_length[is]];
+			  for(int ir=0; ir<wfn_length[is]; ir++){
+			    double z_value=wfn_r[is][ir]*cos(theta)+tau_z;
+			    FPFS_rt[ifp][ig][ia][it][ir]=interpolate_fgz(z_value, final_states_FP_loc[ik][ifp][ig], final_states_dz, VKS_count[0]);
+			  }
+			}
+		      }
+		    }
+		  }
 		}
 		for(sp=0; sp<sp_max; sp++){
 			for(ib=0; ib<num_bands; ib++){
@@ -1714,10 +1735,11 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 									g_vec[ix]=final_states_FP_g_vec[ik][FPIndex_1][ig][ix];
 									kpg_vec[ix]=g_vec[ix]+k_point[ix];
 								}
+								// printf("kpg = %f %f %f\n", kpg_vec[0], kpg_vec[1], kpg_vec[2]);
 								spherical_harmonics(kpg_vec, &Ylm_k[0][0]);
 								double kpgt=inner_product(kpg_vec, atom_coordinates[ia]);
 								complex<double> atom_phase(cos(kpgt), -sin(kpgt));
-								atom_phase/=sqrt(2*M_PI);
+								atom_phase/=sqrt(2.0*M_PI);
 								double kpg_length=sqrt(inner_product(kpg_vec, kpg_vec));
 								
 								int num_orbits2=num_orbits[is];
@@ -1745,7 +1767,7 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 									// mp: of final state, mp=m+j
 									// mpplp: mp+lp=m+j+lp
 									int l=l_list[is][io2];
-									for(int lp=0; lp<PA_lp_max; lp++){
+									for(int lp=0; lp<=PA_lp_max; lp++){
 										// prepare the spherical Bessel function
 										for(int ir=0; ir<wfn_length[is]; ir++){
 											sp_bessel_lp[ir]=sp_bessel(lp, kpg_length*wfn_r[is][ir]);
@@ -1768,7 +1790,7 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 													// load final state
 													complex<double> integral_rt(0, 0);
 													for(int it=0; it<PA_theta_points; it++){
-														double theta=(it+0.5)*1.0/PA_theta_points*M_PI;
+														double theta=(it*1.0+0.5)/PA_theta_points*M_PI;
 														for(ir=0; ir<wfn_length[is]-1; ir++){
 															final_states_re[ir]=(wfn_r[is][ir+1]-wfn_r[is][ir])*wfn_r[is][ir]*wfn_r[is][ir]
 																*sp_bessel_lp[ir]*FPFS_rt[FPIndex_1][ig][ia][it][ir].real();
@@ -1785,7 +1807,7 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 															*spherical_harmonic_theta(1, jp1-1, theta)
 															*spherical_harmonic_theta(l, m, theta)*M_PI/(PA_theta_points*1.0);
 													}
-													coeff11+=atom_phase*m1jlp[lp]*Ylm_k[lp][mpplp]*integral_rt*Y_coeff[jp1];
+													coeff11+=Ylm_k[lp][mpplp]*integral_rt*Y_coeff[jp1];
 												}else{
 													// spin_i=2 (nc): not yet implemented
 												}
@@ -1796,6 +1818,7 @@ complex<double>****** LCAO=new complex<double>*****[atom_length]; // [atom_lengt
 												coeff21*=atom_weighting[ia];
 												coeff22*=atom_weighting[ia];
 											}
+											coeff11*=atom_phase*m1jlp[lp];
 											// cout << coeff1 << endl;
 											if(spin_i==0 || spin_i==1){
 												PAD_1+=LCAO_use[mpl][0]*coeff11;

@@ -303,15 +303,15 @@ double sp_bessel(int l, double x){
 		return (sin(x)-x*cos(x))/(x*x);
 	}else if(l==2){
 		// {(3-x^2)sin(x)-3x*cos(x)}/x^3
-		return ((3-x*x)*sin(x)-3*x*cos(x))/(x*x*x);
+		return ((3.0-x*x)*sin(x)-3.0*x*cos(x))/(x*x*x);
 	}else if(l==3){
 		// {(15-6x^2)sin(x)+(x^3-15x)cos(x)}/x^4
-		return ((15-6*x*x)*sin(x)+(x*x*x-15*x)*cos(x))/(x*x*x*x);
+		return ((15.0-6.0*x*x)*sin(x)+(x*x*x-15.0*x)*cos(x))/(x*x*x*x);
 	}else if(l==4){
 		// {(x^4-45x^2+105)sin(x)+(10x^3-105x)cos(x)}/x^5
-		return ((x*x*x*x-45*x*x+105)*sin(x)+(10*x*x*x-105*x)*cos(x))/(x*x*x*x*x);
+		return ((x*x*x*x-45.0*x*x+105.0)*sin(x)+(10.0*x*x*x-105.0*x)*cos(x))/(x*x*x*x*x);
 	}else{
-		return 0;
+		return 0.0;
 	}
 }
 
