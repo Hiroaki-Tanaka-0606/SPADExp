@@ -165,12 +165,12 @@ void spherical_harmonics(double* r, complex<double>* Ylm2){
 	
 	// Ylm2[5][9]
 
-	complex<double>** Ylm=new complex<double>*[5];
+	complex<double>** Ylm=new complex<double>*[6];
 	int i;
-	for(i=0; i<5; i++){
-		Ylm[i]=&Ylm2[9*i];
+	for(i=0; i<6; i++){
+		Ylm[i]=&Ylm2[11*i];
 	}
-	for(i=0; i<45; i++){
+	for(i=0; i<66; i++){
 		Ylm2[i]=complex<double>(0, 0);
 	}
     
@@ -196,6 +196,9 @@ void spherical_harmonics(double* r, complex<double>* Ylm2){
 
 	double cos4P=8*cosP*cosP*cosP*cosP-8*cosP*cosP+1;
 	double sin4P=4*sinP*cosP*(2*cosP*cosP-1);
+
+	double cos5P=16*cosP*cosP*cosP*cosP*cosP-20*cosP*cosP*cosP+5*cosP;
+	double sin5P=16*sinP*sinP*sinP*sinP*sinP-20*sinP*sinP*sinP+5*sinP;
 
 	// s(0): 1/2 1/sqrt(pi)
 	Ylm[0][0]=1.0/(2.0*sqrt(M_PI));
@@ -252,6 +255,29 @@ void spherical_harmonics(double* r, complex<double>* Ylm2){
 	// g(4): 3/16 sqrt(35/2pi) sin^4(T)(cos(4P)+i*sin(4P))
 	Ylm[4][8]=(3.0/16.0)*sqrt(35.0/(2.0*M_PI))*sinT*sinT*sinT*sinT*complex<double>(cos4P, sin4P);
 
+	// h(-5): 3/32 sqrt(77/pi) sin^5(T)(cos(5P)-i*sin(5P))
+	Ylm[5][0]=(3.0/32.0)*sqrt(77.0/M_PI)*sinT*sinT*sinT*sinT*sinT*complex<double>(cos5P, -sin5P);
+	// h(-4): 3/16 sqrt(385/2pi) sin^4(T)cos(T)(cos(4P)-i*sin(4P))
+	Ylm[5][1]=(3.0/16.0)*sqrt(385.0/(2.0*M_PI))*sinT*sinT*sinT*sinT*cosT*complex<double>(cos4P, -sin4P);
+	// h(-3): 1/32 sqrt(385/pi) sin^3(T)(9cos^2(T)-1)(cos(3P)-i*sin(3P))
+	Ylm[5][2]=(1.0/32.0)*sqrt(385.0/M_PI)*sinT*sinT*sinT*(9.0*cosT*cosT-1.0)*complex<double>(cos3P, -sin3P);
+	// h(-2): 1/8 sqrt(1155/2pi) sin^2(T)(3cos^3(T)-cos(T))(cos(2P)-i*sin(2P))
+	Ylm[5][3]=(1.0/8.0)*sqrt(1155.0/(2.0*M_PI))*sinT*sinT*(3.0*cosT*cosT*cosT-cosT)*complex<double>(cos2P, -sin2P);
+	// h(-1): 1/16 sqrt(165/2pi) sin(T)(21cos^4(T)-14cos^2(T)+1)(cos(P)-i*sin(P))
+	Ylm[5][4]=(1.0/16.0)*sqrt(165.0/(2.0*M_PI))*sinT*(21.0*cosT*cosT*cosT*cosT-14.0*cosT*cosT+1.0)*complex<double>(cosP, -sinP);
+	// h(0): 1/16 sqrt(11/pi) (63cos^5(T)-70cos^3(T)+15cos(T))
+	Ylm[5][5]=(1.0/16.0)*sqrt(11.0/M_PI)*(63.0*cosT*cosT*cosT*cosT*cosT-70.0*cosT*cosT*cosT+15.0*cosT);
+	// h(1): -1/16 sqrt(165/2pi) sin(T)(21cos^4(T)-14cos^2(T)+1)(cos(P)+i*sin(P))
+	Ylm[5][6]=-(1.0/16.0)*sqrt(165.0/(2.0*M_PI))*sinT*(21.0*cosT*cosT*cosT*cosT-14.0*cosT*cosT+1.0)*complex<double>(cosP, sinP);
+	// h(2): 1/8 sqrt(1155/2pi) sin^2(T)(3cos^3(T)-cos(T))(cos(2P)+i*sin(2P))
+	Ylm[5][7]=(1.0/8.0)*sqrt(1155.0/(2.0*M_PI))*sinT*sinT*(3.0*cosT*cosT*cosT-cosT)*complex<double>(cos2P, sin2P);
+	// h(3): -1/32 sqrt(385/pi) sin^3(T)(9cos^2(T)-1)(cos(3P)+i*sin(3P))
+	Ylm[5][8]=-(1.0/32.0)*sqrt(385.0/M_PI)*sinT*sinT*sinT*(9.0*cosT*cosT-1.0)*complex<double>(cos3P, sin3P);
+	// h(4): 3/16 sqrt(385/2pi) sin^4(T)cos(T)(cos(4P)+i*sin(4P))
+	Ylm[5][9]=(3.0/16.0)*sqrt(385.0/(2.0*M_PI))*sinT*sinT*sinT*sinT*cosT*complex<double>(cos4P, sin4P);
+	// h(5): -3/32 sqrt(77/pi) sin^5(T)(cos(5P)-i*sin(5P))
+	Ylm[5][10]=-(3.0/32.0)*sqrt(77.0/M_PI)*sinT*sinT*sinT*sinT*sinT*complex<double>(cos5P, sin5P);
+	
 	delete[] Ylm;
 }
 
@@ -294,6 +320,21 @@ double sp_bessel(int l, double x){
 	if(x<PA_zero_threshold){
 		return l==0 ? 1.0 : 0.0;
 	}
+	// use the asymptotic form if x is small
+	if(x<0.02){
+		double coef=1.0;
+		for(int il=0; il<l; il++){
+			coef*=2.0;
+		}
+		for(int il=l+1; il<=2*l+1; il++){
+			coef/=(il*1.0);
+		}
+		for(int il=0; il<l; il++){
+			coef*=x;
+		}
+		return coef;
+	}
+	
 	// j_l(x)=(-1)^l x^l (1/x d/dx)^l sin(x)/x
 	if(l==0){
 		// sin(x)/x
@@ -301,16 +342,24 @@ double sp_bessel(int l, double x){
 	}else if(l==1){
 		// {sin(x)-x*cos(x)}/x^2
 		return (sin(x)-x*cos(x))/(x*x);
+		//return -cos(x)/x+sin(x)/(x*x);
 	}else if(l==2){
 		// {(3-x^2)sin(x)-3x*cos(x)}/x^3
 		return ((3.0-x*x)*sin(x)-3.0*x*cos(x))/(x*x*x);
+		// return -sin(x)/x-3.0*cos(x)/(x*x)+3.0*sin(x)/(x*x*x);
 	}else if(l==3){
 		// {(15-6x^2)sin(x)+(x^3-15x)cos(x)}/x^4
 		return ((15.0-6.0*x*x)*sin(x)+(x*x*x-15.0*x)*cos(x))/(x*x*x*x);
+		// return cos(x)/x-6.0*sin(x)/(x*x)-15.0*cos(x)/(x*x*x)+15.0*sin(x)/(x*x*x*x);
 	}else if(l==4){
 		// {(x^4-45x^2+105)sin(x)+(10x^3-105x)cos(x)}/x^5
 		return ((x*x*x*x-45.0*x*x+105.0)*sin(x)+(10.0*x*x*x-105.0*x)*cos(x))/(x*x*x*x*x);
+		// return sin(x)/x+10.0*cos(x)/(x*x)-45.0*sin(x)/(x*x)-105.0*cos(x)/(x*x*x*x)+105.0*sin(x)/(x*x*x*x*x);
+	}else if(l==5){
+		// {(15x^4-420x^2+945)*sin(x)-(x^5-105x^3+945x)*cos(x)}/x^6
+		return ((15.0*x*x*x*x-420.0*x*x+945.0)*sin(x)-(x*x*x*x*x-105.0*x*x*x+945.0*x)*cos(x))/(x*x*x*x*x*x);
 	}else{
+		printf("Invalid l");
 		return 0.0;
 	}
 }
@@ -520,9 +569,11 @@ complex<double> interpolate_fgz(double z, complex<double>* fgz, double dz, int z
 	double index_d=z/dz;
 	int index_floor=floor(z/dz);
 	if(index_floor<0){
+		printf("Out of range");
 		return fgz[0];
 	}
 	if(index_floor>=z_count-1){
+		printf("Out of range");
 		return fgz[z_count-1];
 	}
 	return fgz[index_floor]*(index_floor+1.0-index_d)+fgz[index_floor+1]*(index_d-index_floor);
@@ -537,6 +588,7 @@ double spherical_harmonic_theta(int l, int m, double theta){
 		if(m==0){
 			return 1.0/(sqrt(2.0));
 		}else{
+			printf("Invalid m");
 			return 0.0;
 		}
 	}
@@ -551,6 +603,7 @@ double spherical_harmonic_theta(int l, int m, double theta){
 			// p(1): -1/2 sqrt(3/2pi) sin(T)
 			return -(1.0/2.0)*sqrt(3.0)*sinT;
 		}else{
+			printf("Invalid m");
 			return 0.0;
 		}
 	}
@@ -571,6 +624,7 @@ double spherical_harmonic_theta(int l, int m, double theta){
 			// d(2): 1/4 sqrt(15) sin^2(T)
 			return (1.0/4.0)*sqrt(15.0)*sinT*sinT;
 		}else{
+			printf("Invalid m");
 			return 0.0;
 		}
 	}
@@ -597,6 +651,7 @@ double spherical_harmonic_theta(int l, int m, double theta){
 			// f(3): -1/8 sqrt(70) sin^3(T)
 			return -(1.0/8.0)*sqrt(70.0)*sinT*sinT*sinT;
 		}else{
+			printf("Invalid m");
 			return 0.0;
 		}
 	}
@@ -629,8 +684,50 @@ double spherical_harmonic_theta(int l, int m, double theta){
 			// g(4): 3/16 sqrt(35) sin^4(T)
 			return (3.0/16.0)*sqrt(35.0)*sinT*sinT*sinT*sinT;
 		}else{
+			printf("Invalid m");
 			return 0.0;
 		}
 	}
+	if(l==5){
+		if(m==-5){
+			// h(-5): 3/32 sqrt(154) sin^5(T)
+			return (3.0/32.0)*sqrt(154.0)*sinT*sinT*sinT*sinT*sinT;
+		}else if(m==-4){
+			// h(-4): 3/16 sqrt(385) sin^4(T)cos(T)
+			return (3.0/16.0)*sqrt(385.0)*sinT*sinT*sinT*sinT*cosT;
+		}else if(m==-3){
+			// h(-3): 1/32 sqrt(770) sin^3(T)(9cos^2(T)-1)
+			return (1.0/32.0)*sqrt(770)*sinT*sinT*sinT*(9*cosT*cosT-1.0);
+		}else if(m==-2){
+			// h(-2): 1/8 sqrt(1155) sin^2(T)(3cos^3(T)-cos(T))
+			return (1.0/8.0)*sqrt(1155.0)*sinT*sinT*(3*cosT*cosT*cosT-cosT);
+		}else if(m==-1){
+			// h(-1): 1/16 sqrt(165) sin(T)(21cos^4(T)-14cos^2(T)+1)
+			return (1.0/16.0)*sqrt(165.0)*sinT*(21*cosT*cosT*cosT*cosT-14*cosT*cosT+1.0);
+		}else if(m==0){
+			// h(0): 1/16 sqrt(22) (63cos^5(T)-70cos^3(T)+15cos(T))
+			return (1.0/16.0)*sqrt(22.0)*(63.0*cosT*cosT*cosT*cosT*cosT-70*cosT*cosT*cosT+15.0*cosT);
+		}else if(m==1){
+			// h(1): -1/16 sqrt(165) sin(T)(21cos^4(T)-14cos^2(T)+1)
+			return -(1.0/16.0)*sqrt(165.0)*sinT*(21*cosT*cosT*cosT*cosT-14*cosT*cosT+1.0);
+		}else if(m==2){
+			// h(2): 1/8 sqrt(1155) sin^2(T)(3cos^3(T)-cos(T))
+			return (1.0/8.0)*sqrt(1155.0)*sinT*sinT*(3*cosT*cosT*cosT-cosT);
+		}else if(m==3){
+			// h(3): -1/32 sqrt(770) sin^3(T)(9cos^2(T)-1)
+			return -(1.0/32.0)*sqrt(770)*sinT*sinT*sinT*(9*cosT*cosT-1.0);
+		}else if(m==4){
+			// h(4): 3/16 sqrt(385) sin^4(T)cos(T)(cos(4P)+i*sin(4P))
+			return (3.0/16.0)*sqrt(385.0)*sinT*sinT*sinT*sinT*cosT;
+		}else if(m==5){
+			// h(5): -3/32 sqrt(154) sin^5(T)(cos(5P)-i*sin(5P))
+			return -(3.0/32.0)*sqrt(154)*sinT*sinT*sinT*sinT*sinT;
+		}else{
+			printf("Invalid m");
+			return 0.0;
+		}
+	}
+	
+	printf("Invalid l");
 	return 0.0;
 }

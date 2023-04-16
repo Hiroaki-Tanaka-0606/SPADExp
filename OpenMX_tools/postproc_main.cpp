@@ -900,12 +900,12 @@ int main(int argc, const char** argv){
 	cout << "Lattice check" << endl;
 	/*
 		The unit cell should be
-		X 0 0
-		0 Y Z
-		0 Y z
+    0 0 Z
+		X Y 0
+		X Y 0
 	 */
 	double cell_threshold=1e-5;
-	if(abs(cell[0][1])>cell_threshold || abs(cell[0][2])>cell_threshold || abs(cell[1][0])>cell_threshold || abs(cell[2][0])>cell_threshold){
+	if(abs(cell[0][0])>cell_threshold || abs(cell[0][1])>cell_threshold || abs(cell[1][2])>cell_threshold || abs(cell[2][2])>cell_threshold){
 		cout << "!! Lattice configuration is different from expected." << endl;
 		cout << "!! This analysis may generate unexpected results." << endl;
 	}else{
