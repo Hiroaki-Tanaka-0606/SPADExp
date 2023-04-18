@@ -67,9 +67,13 @@ complex<double>**** convert_LCAO(int size_k, int size_b, int size_m, int size_d,
 				  px=complex<double>(LCAO_raw[idx1+idx2+     2*id], LCAO_raw[idx1+idx2+     2*id+1]);
 				  py=complex<double>(LCAO_raw[idx1+idx2+  sd+2*id], LCAO_raw[idx1+idx2+  sd+2*id+1]);
 				  pz=complex<double>(LCAO_raw[idx1+idx2+2*sd+2*id], LCAO_raw[idx1+idx2+2*sd+2*id+1]);
+					/*
 				  pm1= (px-I*py)/sqrt(2);
 				  pp0=  pz;
-					pp1=-(px+I*py)/sqrt(2);
+					pp1=-(px+I*py)/sqrt(2);*/
+				  pm1= (px+I*py)/sqrt(2);
+				  pp0=  pz;
+					pp1=-(px-I*py)/sqrt(2);
 					LCAO[ik][ib][0][id]=pm1;
 					LCAO[ik][ib][1][id]=pp0;
 					LCAO[ik][ib][2][id]=pp1;
@@ -81,11 +85,17 @@ complex<double>**** convert_LCAO(int size_k, int size_b, int size_m, int size_d,
 				  dxy   =complex<double>(LCAO_raw[idx1+idx2+2*sd+2*id], LCAO_raw[idx1+idx2+2*sd+2*id+1]);
 				  dxz   =complex<double>(LCAO_raw[idx1+idx2+3*sd+2*id], LCAO_raw[idx1+idx2+3*sd+2*id+1]);
 				  dyz   =complex<double>(LCAO_raw[idx1+idx2+4*sd+2*id], LCAO_raw[idx1+idx2+4*sd+2*id+1]);
+					/*
 				  dm2= (dx2y2-I*dxy)/sqrt(2);
 				  dm1= (dxz-  I*dyz)/sqrt(2);
 				  dp0=  d3z2r2;
 				  dp1=-(dxz+  I*dyz)/sqrt(2);
-				  dp2= (dx2y2+I*dxy)/sqrt(2);
+				  dp2= (dx2y2+I*dxy)/sqrt(2);*/
+				  dm2= (dx2y2+I*dxy)/sqrt(2);
+				  dm1= (dxz+  I*dyz)/sqrt(2);
+				  dp0=  d3z2r2;
+				  dp1=-(dxz-  I*dyz)/sqrt(2);
+				  dp2= (dx2y2-I*dxy)/sqrt(2);
 					LCAO[ik][ib][0][id]=dm2;
 					LCAO[ik][ib][1][id]=dm1;
 					LCAO[ik][ib][2][id]=dp0;
@@ -101,13 +111,21 @@ complex<double>**** convert_LCAO(int size_k, int size_b, int size_m, int size_d,
 				  fxyz    =complex<double>(LCAO_raw[idx1+idx2+4*sd+2*id], LCAO_raw[idx1+idx2+4*sd+2*id+1]);
 					fx33xy2 =complex<double>(LCAO_raw[idx1+idx2+5*sd+2*id], LCAO_raw[idx1+idx2+5*sd+2*id+1]);
 					f3yx2y3 =complex<double>(LCAO_raw[idx1+idx2+6*sd+2*id], LCAO_raw[idx1+idx2+6*sd+2*id+1]);
+					/*
 					fm3= (fx33xy2- I*f3yx2y3)/sqrt(2);
 					fm2= (fzx2zy2- I*fxyz)/sqrt(2);
 					fm1= (f5xy2xr2-I*f5yz2yr2)/sqrt(2);
 					fp0=  f5z23r2;
 					fp1=-(f5xy2xr2+I*f5yz2yr2)/sqrt(2);
 					fp2= (fzx2zy2+ I*fxyz)/sqrt(2);
-					fp3=-(fx33xy2+ I*f3yx2y3)/sqrt(2);
+					fp3=-(fx33xy2+ I*f3yx2y3)/sqrt(2);*/
+					fm3= (fx33xy2+ I*f3yx2y3)/sqrt(2);
+					fm2= (fzx2zy2+ I*fxyz)/sqrt(2);
+					fm1= (f5xy2xr2+I*f5yz2yr2)/sqrt(2);
+					fp0=  f5z23r2;
+					fp1=-(f5xy2xr2-I*f5yz2yr2)/sqrt(2);
+					fp2= (fzx2zy2- I*fxyz)/sqrt(2);
+					fp3=-(fx33xy2- I*f3yx2y3)/sqrt(2);
 					LCAO[ik][ib][0][id]=fm3;
 					LCAO[ik][ib][1][id]=fm2;
 					LCAO[ik][ib][2][id]=fm1;

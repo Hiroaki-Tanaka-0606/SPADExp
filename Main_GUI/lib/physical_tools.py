@@ -39,10 +39,18 @@ def convertLCAO_p(px, py, pz, LCAO):
     # pm1  1/2 sqrt(3/2pi) sin(T)(cos(P)-i*sin(P)) = (px-i*py)/sqrt(2)
     # pp0  1/2 sqrt(3/pi)  cos(T)                  = pz
     # pp1 -1/2 sqrt(3/2pi) sin(T)(cos(P)+i*sin(P)) = -(px+i*py)/sqrt(2)
+
+    # therefore,
+    # phi = LCAO(px)*px+LCAO(py)*py
+    # phi = LCAO(pm1)*pm1+LCAO(pp1)*pp1
+    # LCAO(pm1)+LCAO(pp1)=sqrt(2)LCAO(px)
+    # iLCAO(pm1)-iLCAO(pp1)=sqrt(2)LCAO(py)
+    # LCAO(pm1)=sqrt(2)(LCAO(px)-iLCAO(py))
+    # LCAO(pp1)=sqrt(2)(LCAO(px)+iLCAO(py))
     
-    LCAO[0]=(px-1j*py)/math.sqrt(2)
+    LCAO[0]=(px+1j*py)/math.sqrt(2)
     LCAO[1]=pz
-    LCAO[2]=-(px+1j*py)/math.sqrt(2)
+    LCAO[2]=-(px-1j*py)/math.sqrt(2)
 
 def convertLCAO_d(d3z2r2, dx2y2, dxy, dxz, dyz, LCAO):
     # d3z2r2 1/4 sqrt(5/pi)   (3cos^2(T)-1)
@@ -56,11 +64,11 @@ def convertLCAO_d(d3z2r2, dx2y2, dxy, dxz, dyz, LCAO):
     # dp0    1/4 sqrt(5/pi)   (3cos^2(T)-1)                 = d3z2r2
     # dp1   -1/2 sqrt(15/2pi) sin(T)cos(T)(cos(P)+i*sin(P)) = -(xz+i*yz)/sqrt(2)
     # dp2    1/4 sqrt(15/2pi) sin^2(T)(cos(2P)+i*sin(2P))   = (dx2y2+i*xy)/sqrt(2)
-    LCAO[0]=(dx2y2-1j*dxy)/math.sqrt(2)
-    LCAO[1]=(dxz-1j*dyz)/math.sqrt(2)
+    LCAO[0]=(dx2y2+1j*dxy)/math.sqrt(2)
+    LCAO[1]=(dxz+1j*dyz)/math.sqrt(2)
     LCAO[2]=d3z2r2
-    LCAO[3]=-(dxz+1j*dyz)/math.sqrt(2)
-    LCAO[4]=(dx2y2+1j*dxy)/math.sqrt(2)
+    LCAO[3]=-(dxz-1j*dyz)/math.sqrt(2)
+    LCAO[4]=(dx2y2-1j*dxy)/math.sqrt(2)
 
 def convertLCAO_f(f5z23r2, f5xy2xr2, f5yz2yr2, fzx2zy2, fxyz, fx33xy2, f3yx2y3, LCAO):
     # f5z23r2  1/4 sqrt(7/pi)   (5cos^2(T)-3)cos(T)
@@ -78,13 +86,13 @@ def convertLCAO_f(f5z23r2, f5xy2xr2, f5yz2yr2, fzx2zy2, fxyz, fx33xy2, f3yx2y3, 
     # fp1 -1/8 sqrt(21/pi)   (5cos^2(T)-1)sin(T)(cos(P)+i*sin(P)) = -(f5xy2xr2+i*f5yz2yr2)/sqrt(2)
     # fp2  1/4 sqrt(105/2pi) sin^2(T)cos(T)(cos(2P)+i*sin(2P))    = (fzx2zy2+i*fxyz)/sqrt(2)
     # fm3 -1/8 sqrt(35/pi)   sin^3(T)(cos(3P)+i*sin(3P))          = -(fx33xy2+i*f3yx2y3)/sqrt(2)
-    LCAO[0]=(fx33xy2-1j*f3yx2y3)/math.sqrt(2)
-    LCAO[1]=(fzx2zy2-1j*fxyz)/math.sqrt(2)
-    LCAO[2]=(f5xy2xr2-1j*f5yz2yr2)/math.sqrt(2)
+    LCAO[0]=(fx33xy2+1j*f3yx2y3)/math.sqrt(2)
+    LCAO[1]=(fzx2zy2+1j*fxyz)/math.sqrt(2)
+    LCAO[2]=(f5xy2xr2+1j*f5yz2yr2)/math.sqrt(2)
     LCAO[3]=f5z23r2
-    LCAO[4]=-(f5xy2xr2+1j*f5yz2yr2)/math.sqrt(2)
-    LCAO[5]=(fzx2zy2+1j*fxyz)/math.sqrt(2)
-    LCAO[6]=-(fx33xy2+1j*f3yx2y3)/math.sqrt(2)
+    LCAO[4]=-(f5xy2xr2-1j*f5yz2yr2)/math.sqrt(2)
+    LCAO[5]=(fzx2zy2-1j*fxyz)/math.sqrt(2)
+    LCAO[6]=-(fx33xy2-1j*f3yx2y3)/math.sqrt(2)
 
 def spBessel(l, x):
     # spherical Bessel function j_l(x)
