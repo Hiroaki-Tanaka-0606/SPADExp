@@ -953,6 +953,17 @@ int load_input(){
 				}
 			  PA_VPS_file_set=true; continue;
 			}
+			/// Ignore_core: bool
+			if(strcmp(keyword_buffer, "Ignore_core")==0){
+				if(PA_ignore_core_set){
+					output_error(line_number, (char*)"keyword Ignore_core already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_bool(input_line_c, &PA_ignore_core, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Ignore_core"); status=0; goto FINALIZATION;
+				}
+			  PA_ignore_core_set=true; continue;
+			}
 		}else if(*block_name==string("Phase-shift")){
 			// Ph block
 			/// Skip_points (Ph_skip_points): int

@@ -163,6 +163,8 @@ void initialize(){
 	PA_lp_max=5;
 	PA_zero_threshold=1e-8;
 	PA_theta_points=128;
+	PA_ignore_core=false;
+	PA_ignore_core_set=false;
 }
 
 void finalize(){

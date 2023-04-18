@@ -198,6 +198,8 @@ extern int PA_Lebedev_order_int;
 extern int PA_lp_max;
 extern double PA_zero_threshold;
 extern int PA_theta_points;
+extern bool PA_ignore_core;
+extern bool PA_ignore_core_set;
 /// files
 extern FILE* Log_file_obj;
 extern FILE* Output_file_obj;

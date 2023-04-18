@@ -1031,10 +1031,11 @@ void calculate_PAD(){
 		// caculate average for the nonlocal areas
 		double Lebedev_r[3][PA_Lebedev_order_ave];
 		double Lebedev_w[PA_Lebedev_order_ave];
-		ld_by_order(PA_Lebedev_order_ave, Lebedev_r[0], Lebedev_r[1], Lebedev_r[2], Lebedev_w);/*
-																																														 for(int i=0; i<PA_Lebedev_order_ave; i++){
-																																														 printf("(%7.4f, %7.4f, %7.4f) w=%7.4f, r=%7.4f\n", Lebedev_r[0][i], Lebedev_r[1][i], Lebedev_r[2][i], Lebedev_w[i], sqrt(Lebedev_r[0][i]*Lebedev_r[0][i]+Lebedev_r[1][i]*Lebedev_r[1][i]+Lebedev_r[2][i]*Lebedev_r[2][i]));
-																																														 }*/
+		ld_by_order(PA_Lebedev_order_ave, Lebedev_r[0], Lebedev_r[1], Lebedev_r[2], Lebedev_w);
+		/*
+			for(int i=0; i<PA_Lebedev_order_ave; i++){
+			printf("(%7.4f, %7.4f, %7.4f) w=%7.4f, r=%7.4f\n", Lebedev_r[0][i], Lebedev_r[1][i], Lebedev_r[2][i], Lebedev_w[i], sqrt(Lebedev_r[0][i]*Lebedev_r[0][i]+Lebedev_r[1][i]*Lebedev_r[1][i]+Lebedev_r[2][i]*Lebedev_r[2][i]));
+			}*/
 		double r_ref[3];
 		for(int ia=0; ia<atom_length; ia++){
 			int is=atom_spec_index[ia];
@@ -1464,6 +1465,17 @@ void calculate_PAD(){
 			} // for(j=0; j<FPIndex_size; j++)
 		} // omp for(i=0; i<total_count_ext; i++)
 	} // if(FPFS)
+
+	/// Load VPS file for Ignore_core
+	if(PA_ignore_core && !PA_FPFS){
+		write_log((char*)"----Load the pseudopotential files to determine the core----");
+		H5File VPS_db(PA_VPS_file, H5F_ACC_RDONLY);
+		for(int is=0; is<atom_spec_length; is++){
+			Group VPSG(VPS_db.openGroup(atom_spec_PS[is]));
+			VPS_cutoff[is]=r_att_double(VPSG, "max_cutoff");
+			printf("%2s: %4.2f Bohr\n", atom_spec_label[is], VPS_cutoff[is]);
+		}
+	}
 	
 	/// 3-5. calculation for each k point
 	double dispersion2[total_count_ext][num_points_E];
@@ -1660,14 +1672,22 @@ void calculate_PAD(){
 							if(strcmp(PA_final_state, "PW")==0 && k_length>1e-5){
 								for(il=0; il<5; il++){
 									for(ir=0; ir<wfn_length[is]; ir++){
-										final_states[il][ir]=wfn_r[is][ir]*sp_bessel(il, wfn_r[is][ir]*k_length);
+										if(PA_ignore_core && wfn_r[is][ir]<VPS_cutoff[is]){
+											final_states[il][ir]=0.0;
+										}else{
+											final_states[il][ir]=wfn_r[is][ir]*sp_bessel(il, wfn_r[is][ir]*k_length);
+										}
 									}
 								}
 							}else if(strcmp(PA_final_state, "Calc")==0){
 								k_index=round(k_length/PA_final_state_step);
 								for(il=0; il<5; il++){
 									for(ir=0; ir<wfn_length[is]; ir++){
-										final_states[il][ir]=final_states_calc[k_index-k_index_min][is][il][ir];
+										if(PA_ignore_core && wfn_r[is][ir]<VPS_cutoff[is]){
+											final_states[il][ir]=0.0;
+										}else{
+											final_states[il][ir]=final_states_calc[k_index-k_index_min][is][il][ir];
+										}
 									}
 								}
 							}
@@ -1797,7 +1817,11 @@ void calculate_PAD(){
 									for(int lp=0; lp<=PA_lp_max; lp++){
 										// prepare the spherical Bessel function
 										for(int ir=0; ir<wfn_length[is]; ir++){
-											sp_bessel_lp[ir]=sp_bessel(lp, kpg_length*wfn_r[is][ir]);
+											if(PA_ignore_core && wfn_r[is][ir]<VPS_cutoff[is]){
+												sp_bessel_lp[ir]=0.0;
+											}else{
+												sp_bessel_lp[ir]=sp_bessel(lp, kpg_length*wfn_r[is][ir]);
+											}
 											//printf("%d %12.7f %12.7f %12.7f\n", lp, wfn_r[is][ir], sp_bessel_lp[ir], kpg_length*wfn_r[is][ir]);
 										}
 										int mpl;

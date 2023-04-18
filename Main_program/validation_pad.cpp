@@ -251,6 +251,13 @@ int validation_PAD(){
 			status=0; goto FINALIZATION;
 		}
 	}
+	/// Ignore_core
+	sprintf(sprintf_buffer, "%32s = %s", "Ignore_core", PA_ignore_core?"true":"false");
+	write_log(sprintf_buffer);
+	if(PA_ignore_core && !PA_VPS_file_set){
+		write_log((char*)"Error: Ignoreing core needs the VPS file");
+		status=0; goto FINALIZATION;
+	}
 	/// Output_data
 	sprintf(sprintf_buffer, "%32s = %s", "Output_data", PA_output_data);
 	write_log(sprintf_buffer);

@@ -199,6 +199,8 @@ int PA_Lebedev_order_int;  // Lebedev order for integration
 int PA_lp_max; // max value of l^\prime in FPFS calculations
 double PA_zero_threshold; // threshold to judge the value is approximately equal to zero
 int PA_theta_points;      // number of points in the theta integration
+bool PA_ignore_core;
+bool PA_ignore_core_set;
 /// files
 FILE* Log_file_obj;            // log file object
 FILE* Output_file_obj;         // data file object
