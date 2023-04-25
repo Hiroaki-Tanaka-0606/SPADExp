@@ -607,11 +607,11 @@ complex<double> interpolate_fgz(double z, complex<double>* fgz, double dz, int z
 	double index_d=z/dz;
 	int index_floor=floor(z/dz);
 	if(index_floor<0){
-		printf("Out of range");
+		printf("Out of range\n");
 		return fgz[0];
 	}
 	if(index_floor>=z_count-1){
-		printf("Out of range");
+		printf("Out of range\n");
 		return fgz[z_count-1];
 	}
 	return fgz[index_floor]*(index_floor+1.0-index_d)+fgz[index_floor+1]*(index_d-index_floor);
@@ -626,7 +626,7 @@ double spherical_harmonic_theta(int l, int m, double theta){
 		if(m==0){
 			return 1.0/(sqrt(2.0));
 		}else{
-			printf("Invalid m");
+			printf("Invalid m\n");
 			return 0.0;
 		}
 	}
@@ -641,7 +641,7 @@ double spherical_harmonic_theta(int l, int m, double theta){
 			// p(1): -1/2 sqrt(3/2pi) sin(T)
 			return -(1.0/2.0)*sqrt(3.0)*sinT;
 		}else{
-			printf("Invalid m");
+			printf("Invalid m\n");
 			return 0.0;
 		}
 	}
@@ -662,7 +662,7 @@ double spherical_harmonic_theta(int l, int m, double theta){
 			// d(2): 1/4 sqrt(15) sin^2(T)
 			return (1.0/4.0)*sqrt(15.0)*sinT*sinT;
 		}else{
-			printf("Invalid m");
+			printf("Invalid m\n");
 			return 0.0;
 		}
 	}
@@ -689,7 +689,7 @@ double spherical_harmonic_theta(int l, int m, double theta){
 			// f(3): -1/8 sqrt(70) sin^3(T)
 			return -(1.0/8.0)*sqrt(70.0)*sinT*sinT*sinT;
 		}else{
-			printf("Invalid m");
+			printf("Invalid m\n");
 			return 0.0;
 		}
 	}
@@ -722,7 +722,7 @@ double spherical_harmonic_theta(int l, int m, double theta){
 			// g(4): 3/16 sqrt(35) sin^4(T)
 			return (3.0/16.0)*sqrt(35.0)*sinT*sinT*sinT*sinT;
 		}else{
-			printf("Invalid m");
+			printf("Invalid m\n");
 			return 0.0;
 		}
 	}

@@ -1884,9 +1884,9 @@ void calculate_PAD(){
 											int jp1En=min(1, lp-m)+2; // not include
 											int jp1;
 											complex<double> coeff11(0, 0);
-											complex<double> coeff12(0, 0);
-											complex<double> coeff21(0, 0);
-											complex<double> coeff22(0, 0);
+											//complex<double> coeff12(0, 0);
+											//complex<double> coeff21(0, 0);
+											//complex<double> coeff22(0, 0);
 											for(jp1=jp1St; jp1<jp1En; jp1++){
 												int mpplp=jp1-1+m+lp;
 												// printf("l %2d, m %2d, lp %2d, mp %2d, j %2d\n", l, m, lp, mpplp-lp, jp1-1);
@@ -1918,8 +1918,8 @@ void calculate_PAD(){
 														//printf("lp %2d mp %2d l %2d m %2d real %7.4f imag %7.4f\n", lp, mpplp-lp, l, m, integral_rt.real(), integral_rt.imag());
 														//printf("lp %2d mp %2d l %2d m %2d added real %7.4f imag %7.4f\n", lp, mpplp-lp, l, m, (Ylm_k[lp][mpplp]*integral_rt*Y_coeff[jp1]).real(), (Ylm_k[lp][mpplp]*integral_rt*Y_coeff[jp1]).imag());
 														//printf("Ylm_k real %7.4f imag %7.4f\n", Ylm_k[lp][mpplp].real(), Ylm_k[lp][mpplp].imag());
-													coeff11+=Ylm_k[lp][mpplp]*integral_rt*Y_coeff[jp1];
 													}
+													coeff11+=Ylm_k[lp][mpplp]*integral_rt*Y_coeff[jp1];
 													// printf("\n");
 												}else{
 													// spin_i=2 (nc): not yet implemented
@@ -1927,18 +1927,61 @@ void calculate_PAD(){
 											}
 											if(PA_weighting==true){
 												coeff11*=atom_weighting[ia];
-												coeff12*=atom_weighting[ia];
-												coeff21*=atom_weighting[ia];
-												coeff22*=atom_weighting[ia];
+												//coeff12*=atom_weighting[ia];
+												//coeff21*=atom_weighting[ia];
+												//coeff22*=atom_weighting[ia];
 											}
 											coeff11*=atom_phase*m1jlp[lp];
 											// cout << coeff1 << endl;
 											if(spin_i==0 || spin_i==1){
 												PAD_1+=LCAO_use[mpl][0]*coeff11;
 											}else{
-												PAD_1+=LCAO_use[mpl][0]*coeff11+LCAO_use[mpl][1]*coeff21;
-												PAD_2+=LCAO_use[mpl][0]*coeff21+LCAO_use[mpl][1]*coeff22;
+												//PAD_1+=LCAO_use[mpl][0]*coeff11+LCAO_use[mpl][1]*coeff21;
+												//PAD_2+=LCAO_use[mpl][0]*coeff21+LCAO_use[mpl][1]*coeff22;
 											}
+											if(PA_add_nonorth_term){
+												if(lp<abs(m)){
+													continue;
+												}
+												double e_vec_re[3];
+												double e_vec_im[3];
+												for(int ix=0; ix<3; ix++){
+													e_vec_re[ix]=e_vec[ix].real();
+													e_vec_im[ix]=e_vec[ix].imag();
+												}
+												double et_real=inner_product(e_vec_re, atom_coordinates[ia]);
+												double et_imag=inner_product(e_vec_im, atom_coordinates[ia]);
+												complex<double> et(et_real, et_imag);
+												complex<double> coeff_no(0,0);
+												
+												complex<double> integral_rt(0, 0);
+												for(int it=0; it<PA_theta_points; it++){
+													double theta=(it*1.0+0.5)/(PA_theta_points*1.0)*M_PI;
+													// printf("%6.4f ", theta);
+													for(ir=0; ir<wfn_length[is]-1; ir++){
+														final_states_re[ir]=(wfn_r[is][ir+1]-wfn_r[is][ir])*wfn_r[is][ir]
+															*sp_bessel_lp[ir]*FPFS_rt[FPIndex_1][ig][ia][it][ir].real();
+														final_states_im[ir]=(wfn_r[is][ir+1]-wfn_r[is][ir])*wfn_r[is][ir]
+															*sp_bessel_lp[ir]*FPFS_rt[FPIndex_1][ig][ia][it][ir].imag();
+													}
+													final_states_re[wfn_length[is]-1]=0.0;
+													final_states_im[wfn_length[is]-1]=0.0;
+													double radial_part_re=ddot(&wfn_length[is], &final_states_re[0], &wfn_phi_PAO[is][io2][0]);
+													double radial_part_im=ddot(&wfn_length[is], &final_states_im[0], &wfn_phi_PAO[is][io2][0]);
+													complex<double> radial_part(radial_part_re, -radial_part_im);
+													integral_rt+=radial_part*sin(theta)
+														*spherical_harmonic_theta(lp, m, theta)
+														*spherical_harmonic_theta(l, m, theta)*M_PI/(PA_theta_points*1.0);
+												}
+												coeff_no+=Ylm_k[lp][mpl]*integral_rt;
+												if(PA_weighting==true){
+													coeff_no*=atom_weighting[ia];
+												}
+												coeff_no*=atom_phase*m1jlp[lp]*sqrt(2.0*M_PI);
+												if(spin_i==0 || spin_i==1){
+													PAD_1+=LCAO_use[mpl][0]*coeff_no;
+												}
+											}// end of Add_nonorth_term
 										}// end of for(mpl)
 									}// end of for(lp)
 								}// end of for(io)
