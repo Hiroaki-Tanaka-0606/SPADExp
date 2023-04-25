@@ -173,6 +173,26 @@ void operator_coefficient(char* polarization, double theta, double phi, complex<
 		Y_coeff[0]=-sqrt(2.0*M_PI/3.0)*( 1.0+cos(theta))*complex<double>(cos(phi), sin(phi));
 	}
 }
+// electric field vector
+/// theta, phi in degree
+void electric_field_vector(char* polarization, double theta, double phi, complex<double>* e_vec){
+	theta=M_PI*theta/180.0;
+	phi=M_PI*phi/180.0;
+
+	if(strcmp(polarization, "Linear")==0){
+		e_vec[0]=sin(theta)*cos(phi);
+		e_vec[1]=sin(theta)*sin(phi);
+		e_vec[2]=cos(theta);
+	}else if(strcmp(polarization, "RCircular")==0){
+		e_vec[0]=complex<double>(-cos(theta)*cos(phi), sin(phi));
+		e_vec[1]=complex<double>(-cos(theta)*sin(phi), -cos(phi));
+		e_vec[2]=sin(theta);
+	}else if(strcmp(polarization, "LCircular")==0){
+		e_vec[0]=complex<double>(-cos(theta)*cos(phi), -sin(phi));
+		e_vec[1]=complex<double>(-cos(theta)*sin(phi), cos(phi));
+		e_vec[2]=sin(theta);
+	}
+}
 
 void spherical_harmonics(double* r, complex<double>* Ylm2){
 	// r=[x, y, z]

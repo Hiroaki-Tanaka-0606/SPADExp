@@ -200,6 +200,8 @@ extern double PA_zero_threshold;
 extern int PA_theta_points;
 extern bool PA_ignore_core;
 extern bool PA_ignore_core_set;
+extern bool PA_add_nonorth_term;
+extern bool PA_add_nonorth_term_set;
 /// files
 extern FILE* Log_file_obj;
 extern FILE* Output_file_obj;

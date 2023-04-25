@@ -165,6 +165,8 @@ void initialize(){
 	PA_theta_points=128;
 	PA_ignore_core=false;
 	PA_ignore_core_set=false;
+	PA_add_nonorth_term=false;
+	PA_add_nonorth_term_set=false;
 }
 
 void finalize(){

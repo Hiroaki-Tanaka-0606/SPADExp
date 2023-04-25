@@ -964,6 +964,17 @@ int load_input(){
 				}
 			  PA_ignore_core_set=true; continue;
 			}
+			/// Add_nonorth_term: bool
+			if(strcmp(keyword_buffer, "Add_nonorth_term")==0){
+				if(PA_add_nonorth_term_set){
+					output_error(line_number, (char*)"keyword Add_nonorth_term already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_bool(input_line_c, &PA_add_nonorth_term, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Add_nonorth_term"); status=0; goto FINALIZATION;
+				}
+			  PA_add_nonorth_term_set=true; continue;
+			}
 		}else if(*block_name==string("Phase-shift")){
 			// Ph block
 			/// Skip_points (Ph_skip_points): int

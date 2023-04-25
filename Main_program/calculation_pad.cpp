@@ -414,6 +414,7 @@ void calculate_PAD(){
 	double*** wfn_phi_rdr=new double**[atom_spec_length]; // [is][io][r]
 	double*** wfn_phi_PAO=new double**[atom_spec_length]; //[is][io][r] for FPFS
 	double*** wfn_phi_AO=new double**[atom_spec_length]; //[is][io][r] for FPFS
+	double*** wfn_phi_dr=new double**[atom_spec_length]; // [is][io][r] for nonorth_term
 	double** wfn_r=new double*[atom_spec_length]; // [is][r]
 	char AO_group_name[item_size*2];
 	int wfn_length[atom_spec_length];
@@ -425,6 +426,7 @@ void calculate_PAD(){
 	
 	for(is=0; is<atom_spec_length; is++){
 		wfn_phi_rdr[is]=new double*[num_orbits[is]];
+		wfn_phi_dr[is]=new double*[num_orbits[is]];
 		if(PA_FPFS){
 			wfn_phi_PAO[is]=new double*[num_orbits[is]];
 			wfn_phi_AO[is]=new double*[num_orbits[is]];
@@ -469,6 +471,7 @@ void calculate_PAD(){
 			double wfn_both[2][wfn_length[is]];
 			r_data_2d(AOG, orbital_list[is][io], 2, wfn_length[is], (double**) wfn_both);
 			wfn_phi_rdr[is][io]=new double[wfn_length[is]];
+			wfn_phi_dr[is][io]=new double[wfn_length[is]];
 			if(PA_FPFS){
 				wfn_phi_PAO[is][io]=new double[wfn_length[is]];
 				wfn_phi_AO[is][io]=new double[wfn_length[is]];
@@ -476,8 +479,10 @@ void calculate_PAD(){
 			for(j=0; j<wfn_length[is]-1; j++){
 				if(empty_atom==true || strcmp(PA_initial_state, "PAO")==0){
 					wfn_phi_rdr[is][io][j]=wfn_both[0][j]*wfn_r[is][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
+					wfn_phi_dr[is][io][j]=wfn_both[0][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
 				}else{
 					wfn_phi_rdr[is][io][j]=wfn_both[1][j]*wfn_r[is][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
+					wfn_phi_dr[is][io][j]=wfn_both[1][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
 				}
 				if(PA_FPFS){
 					wfn_phi_PAO[is][io][j]=wfn_both[0][j];
@@ -485,6 +490,7 @@ void calculate_PAD(){
 				}
 			}
 			wfn_phi_rdr[is][io][wfn_length[is]-1]=0;
+			wfn_phi_dr[is][io][wfn_length[is]-1]=0;
 			if(PA_FPFS){
 				wfn_phi_PAO[is][io][wfn_length[is]-1]=0;
 				wfn_phi_AO[is][io][wfn_length[is]-1]=0;
@@ -784,8 +790,14 @@ void calculate_PAD(){
 		sprintf(sprintf_buffer, "%29s[%1d] = %8.3f + %8.3f*i", "Y_coeff", i, Y_coeff[i].real(), Y_coeff[i].imag());
 		write_log(sprintf_buffer);
 	}
+	complex<double> e_vec[3];
+	electric_field_vector(PA_polarization, PA_theta, PA_phi, e_vec);
+	write_log((char*)"----Electric field vector----");
+	for(i=0; i<3; i++){
+		sprintf(sprintf_buffer, "%29s[%1d] = %8.3f + %8.3f*i", "e_vec", i, e_vec[i].real(), e_vec[i].imag());
+		write_log(sprintf_buffer);
+	}
 	
-
 	/// 3-3. tail profile
 	int tail_index=floor(PA_dE*PA_sigma_max/PA_E_pixel);
 	double tail[tail_index+1];
@@ -1754,6 +1766,46 @@ void calculate_PAD(){
 									PAD_1+=m1jlp[lp]*radial_part*atom_phase2*coeff2_1;
 									if(spin_i==2){
 										PAD_2+=m1jlp[lp]*radial_part*atom_phase2*coeff2_2;
+									}
+								} // end of for(dl)
+								if(PA_add_nonorth_term){
+									double e_vec_re[3];
+									double e_vec_im[3];
+									for(int ix=0; ix<3; ix++){
+										e_vec_re[ix]=e_vec[ix].real();
+										e_vec_im[ix]=e_vec[ix].imag();
+									}
+									double et_real=inner_product(e_vec_re, atom_coordinates[ia]);
+									double et_imag=inner_product(e_vec_im, atom_coordinates[ia]);
+									complex<double> et(et_real, et_imag);
+									double radial_part=ddot(&wfn_length[is], &final_states[l][0], &wfn_phi_dr[is][io2][0]);
+									complex<double> coeff2_1(0, 0);
+									complex<double> coeff2_2(0, 0);
+									int mpl;
+									for(mpl=0; mpl<=2*l; mpl++){
+										int m=mpl-l;
+										complex<double> coeff1(0, 0);
+										if(PA_reflection==false){
+											coeff1+=Ylm_k[l][mpl];
+										}else{
+											coeff1+=(Ylm_k[l][mpl]+PA_reflection_coef*Ylm_k2[l][mpl]);
+										}
+										coeff2_1+=LCAO_use[mpl][0]*coeff1;
+										if(spin_i==2){
+											coeff2_2+=LCAO_use[mpl][1]*coeff1;
+										}
+									}
+									// cout << endl;
+									complex<double> atom_phase2;
+									if(strcmp(PA_final_state, "Calc")==0){
+										atom_phase2=atom_phase*complex<double>(cos(final_states_phase[k_index-k_index_min][is][l]), sin(final_states_phase[k_index-k_index_min][is][l]));
+									}else{
+										atom_phase2=atom_phase;
+									}
+									// cout << atom_phase2 << endl;
+									PAD_1+=m1jlp[l]*radial_part*atom_phase2*coeff2_1*et;
+									if(spin_i==2){
+										PAD_2+=m1jlp[l]*radial_part*atom_phase2*coeff2_2*et;
 									}
 								}
 							}

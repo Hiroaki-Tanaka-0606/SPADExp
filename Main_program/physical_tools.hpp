@@ -6,7 +6,9 @@ void outer_product(double* a, double* b, double* c);
 
 double inner_product(double* a, double* b);
 
-void operator_coefficient(char* polariation, double theta, double phi, complex<double>* Y_coeff);
+void operator_coefficient(char* polarization, double theta, double phi, complex<double>* Y_coeff);
+
+void electric_field_vector(char* polarization, double theta, double phi, complex<double>* e_vec);
 
 void spherical_harmonics(double* r, complex<double>* Ylm);
 
