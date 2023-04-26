@@ -159,7 +159,7 @@ void initialize(){
 	PA_VPS_file=new char[HDF5_file_length+1];
 	PA_VPS_file_set=false;
 	PA_Lebedev_order_ave=86;
-	PA_Lebedev_order_int=5810;
+	PA_Lebedev_order_int=266;
 	PA_lp_max=5;
 	PA_zero_threshold=1e-8;
 	PA_theta_points=128;

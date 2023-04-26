@@ -279,7 +279,7 @@ void spherical_harmonics(double* r, complex<double>* Ylm2){
 	// g(-3): 3/8 sqrt(35/pi) sin^3(T)cos(T)(cos(3P)-i*sin(3P))
 	Ylm[4][1]=(3.0/8.0)*sqrt(35.0/M_PI)*sinT*sinT*sinT*cosT*complex<double>(cos3P, -sin3P);
 	// g(-2): 3/8 sqrt(5/2pi) (7cos^2(T)-1)sin^2(T)(cos(2P)-i*sin(2P))
-	Ylm[4][2]=(3.0/8.0)*sqrt(5.0/(2.0*M_PI))*(7.0*cosT*cosT-1.0)*complex<double>(cos2P, -sin2P);
+	Ylm[4][2]=(3.0/8.0)*sqrt(5.0/(2.0*M_PI))*(7.0*cosT*cosT-1.0)*sinT*sinT*complex<double>(cos2P, -sin2P);
 	// g(-1): 3/8 sqrt(5/pi) (7cos^2(T)-3)sin(T)cos(T)(cos(P)-i*sin(P))
 	Ylm[4][3]=(3.0/8.0)*sqrt(5.0/M_PI)*(7.0*cosT*cosT-3.0)*sinT*cosT*complex<double>(cosP, -sinP);
 	// g(0): 3/16 sqrt(1/pi) (35cos^4(T)-30cos^2(T)+3)
@@ -287,7 +287,7 @@ void spherical_harmonics(double* r, complex<double>* Ylm2){
 	// g(1): -3/8 sqrt(5/pi) (7cos^2(T)-3)sin(T)cos(T)(cos(P)+i*sin(P))
 	Ylm[4][5]=-(3.0/8.0)*sqrt(5.0/M_PI)*(7.0*cosT*cosT-3.0)*sinT*cosT*complex<double>(cosP, sinP);
 	// g(2): 3/8 sqrt(5/2pi) (7cos^2(T)-1)sin^2(T)(cos(2P)+i*sin(2P))
-	Ylm[4][6]=(3.0/8.0)*sqrt(5.0/(2.0*M_PI))*(7.0*cosT*cosT-1.0)*complex<double>(cos2P, sin2P);
+	Ylm[4][6]=(3.0/8.0)*sqrt(5.0/(2.0*M_PI))*(7.0*cosT*cosT-1.0)*sinT*sinT*complex<double>(cos2P, sin2P);
 	// g(3): -3/8 sqrt(35/pi) sin^3(T)cos(T)(cos(3P)+i*sin(3P))
 	Ylm[4][7]=-(3.0/8.0)*sqrt(35.0/M_PI)*sinT*sinT*sinT*cosT*complex<double>(cos3P, sin3P);
 	// g(4): 3/16 sqrt(35/2pi) sin^4(T)(cos(4P)+i*sin(4P))
@@ -702,7 +702,7 @@ double spherical_harmonic_theta(int l, int m, double theta){
 			return (3.0/8.0)*sqrt(70.0)*sinT*sinT*sinT*cosT;
 		}else if(m==-2){
 			// g(-2): 3/8 sqrt(5) (7cos^2(T)-1)sin^2(T)
-			return (3.0/8.0)*sqrt(5.0)*(7.0*cosT*cosT-1.0);
+			return (3.0/8.0)*sqrt(5.0)*(7.0*cosT*cosT-1.0)*sinT*sinT;
 		}else if(m==-1){			
 			// g(-1): 3/8 sqrt(10) (7cos^2(T)-3)sin(T)cos(T)
 			return (3.0/8.0)*sqrt(10.0)*(7.0*cosT*cosT-3.0)*sinT*cosT;
@@ -714,7 +714,7 @@ double spherical_harmonic_theta(int l, int m, double theta){
 			return -(3.0/8.0)*sqrt(10.0)*(7.0*cosT*cosT-3.0)*sinT*cosT;
 		}else if(m==2){
 			// g(2): 3/8 sqrt(5) (7cos^2(T)-1)sin^2(T)
-			return (3.0/8.0)*sqrt(5.0)*(7.0*cosT*cosT-1.0);
+			return (3.0/8.0)*sqrt(5.0)*(7.0*cosT*cosT-1.0)*sinT*sinT;
 		}else if(m==3){
 			// g(3): -3/8 sqrt(70) sin^3(T)cos(T)
 			return -(3.0/8.0)*sqrt(70.0)*sinT*sinT*sinT*cosT;
