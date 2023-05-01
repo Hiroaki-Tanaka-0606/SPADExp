@@ -1151,6 +1151,8 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 		psi[ir]=psi_vector[ir]/psi_edge;
 		//printf("%10.6f %10.6f %10.6f\n", r_arr[ir], psi[ir], hpsi_vector[ir]/psi_edge);
 	}
+	delete[] VPS_E;
+	delete[] VPS_nonloc;
 }
 
 void psi_normalize(int count, double* dr, double* psi){
