@@ -824,7 +824,7 @@ void calculate_PAD(){
 	double*** final_states_k;                 // [total_count_ext][FPIndex]=k vector (au^-1)
 	int* final_states_FP_size;                // [total_count_ext]=FPIndex_size
 	complex<double>***** final_states_FP_nonloc; // [total_count_ext][FPIndex][ia][l][mpl] @rc
-	double***** final_states_FP_nonloc_r;     // [total_count_ext][FPIndex][ia][l][ir] based on wfn_r, satisfying the value at the end is 1.0
+	double***** final_states_FP_nonloc_r;     // [EScale][sp][ia][l][ir] based on wfn_r, satisfying the value at the end is 1.0
 	double*** final_states_FP_norm1;          // [total_count_ext][FPIndex][ia]
   double*** final_states_FP_norm2;          // [total_count_ext][FPIndex][ia]
 	int VPS_l_length[atom_spec_length];       // [is]=il value
@@ -848,6 +848,8 @@ void calculate_PAD(){
 	double* dVKS1_r[atom_length];             // [ia][ir] (stdev)
 	int VKS_count[3];                         // = Size of VKS0 and VKS1
 	double final_states_dz;                   // = atom_cell[0] length / VKS_count[0]
+	int E_min_scale;                          // round(E_min_tail/PA_FPFS_energy_step);
+	int E_max_scale;                          // round(E_max_tail/PA_FPFS_energy_step);
 	// Fourier components
 	complex<double>** Vgg0;                   // [ig][iz] = Fourier-expanded potential for up spin
 	complex<double>** Vgg1;                   // [ig][iz] = Fourier-expanded potential for dn spin
@@ -1257,8 +1259,8 @@ void calculate_PAD(){
 		write_log(sprintf_buffer);
 		double E_min_tail=PA_E_min-PA_E_pixel*(tail_index+0.5);
 		double E_max_tail=PA_E_max+PA_E_pixel*(tail_index+0.5);
-		int E_min_scale=round(E_min_tail/PA_FPFS_energy_step);
-		int E_max_scale=round(E_max_tail/PA_FPFS_energy_step);
+		E_min_scale=round(E_min_tail/PA_FPFS_energy_step);
+		E_max_scale=round(E_max_tail/PA_FPFS_energy_step);
 		// printf("Scale: [%d, %d]\n", E_min_scale, E_max_scale);
 		int scale_width=E_max_scale-E_min_scale+1;
 		final_states_FP_loc=new complex<double>***[total_count_ext];
@@ -1270,10 +1272,35 @@ void calculate_PAD(){
 		final_states_FP_g_vec=new double***[total_count_ext];
 		final_states_k=new double**[total_count_ext];
 		final_states_FP_nonloc=new complex<double>****[total_count_ext];
-		final_states_FP_nonloc_r=new double****[total_count_ext];
 		final_states_FP_norm1=new double**[total_count_ext];
 		final_states_FP_norm2=new double**[total_count_ext];
 		int digit=(spin_i==2)?2:1;
+		
+		final_states_FP_nonloc_r=new double****[scale_width];
+		int org_indices_spin_count=spin_i==0?1:2;
+		int org_indices[scale_width*atom_length*org_indices_spin_count][3];
+		int org_indices_count=0;
+		for(int ie=0; ie<scale_width; ie++){
+			final_states_FP_nonloc_r[ie]=new double***[org_indices_spin_count];
+			for(int sp=0; sp<org_indices_spin_count; sp++){
+				final_states_FP_nonloc_r[ie][sp]=new double**[atom_length];
+				for(int ia=0; ia<atom_length; ia++){
+					int is=atom_spec_index[ia];
+					if(empty_atoms[is]){
+						continue;
+					}
+					final_states_FP_nonloc_r[ie][sp][ia]=new double*[5];
+					double* buffer2=new double[5*wfn_cutoff_index[is]];
+					for(int il=0; il<5; il++){
+						final_states_FP_nonloc_r[ie][sp][ia][il]=&buffer2[wfn_cutoff_index[is]*il];
+					}
+					org_indices[org_indices_count][0]=ie;
+					org_indices[org_indices_count][1]=sp;
+					org_indices[org_indices_count][2]=ia;
+					org_indices_count++;
+				}
+			}
+		}
 
 		// Note: n_range are determined in the Fourier expansion of VKS
 #pragma omp parallel firstprivate(scale_width, PA_ext_set, spin_i, num_bands, EF_Eh, Eh, PA_FPFS_energy_step, E_min_scale, E_max_scale, PA_excitation_energy, atom_above_surface, atom_length, n_range, digit) private(j)
@@ -1355,13 +1382,11 @@ void calculate_PAD(){
 			final_states_FP_g_vec[i]=new double**[FPIndex_size];
 			final_states_FP_g_size[i]=new int[FPIndex_size];
 			final_states_FP_nonloc[i]=new complex<double>***[FPIndex_size];
-			final_states_FP_nonloc_r[i]=new double***[FPIndex_size];
 			final_states_FP_norm1[i]=new double*[FPIndex_size];
 			final_states_FP_norm2[i]=new double*[FPIndex_size];
 			for(j=0; j<FPIndex_size; j++){
 				final_states_k[i][j]=new double[3];
 				final_states_FP_nonloc[i][j]=new complex<double>**[atom_length];
-				final_states_FP_nonloc_r[i][j]=new double**[atom_length];
 				final_states_FP_norm1[i][j]=new double[atom_length];
 				final_states_FP_norm2[i][j]=new double[atom_length];
 				for(int ia=0; ia<atom_length; ia++){
@@ -1373,11 +1398,6 @@ void calculate_PAD(){
 					final_states_FP_nonloc[i][j][ia]=new complex<double>*[5];
 					for(int il=0; il<5; il++){
 						final_states_FP_nonloc[i][j][ia][il]=&buffer[9*il];
-					}
-					final_states_FP_nonloc_r[i][j][ia]=new double*[5];
-					double* buffer2=new double[5*wfn_cutoff_index[is]];
-					for(int il=0; il<5; il++){
-						final_states_FP_nonloc_r[i][j][ia][il]=&buffer2[wfn_cutoff_index[is]*il];
 					}
 				}
 			}
@@ -1434,7 +1454,7 @@ void calculate_PAD(){
 				}*/
 			// calculate the final states from the KS potential
 			for(j=0; j<FPIndex_size; j++){
-				printf("k=%4d, FPIndex=%3d, local part\n", i, j);
+				// printf("k=%4d, FPIndex=%3d, local part\n", i, j);
 				int eigen_scale=final_states_EScale[i][j];
 				double kinetic_energy_Eh=(eigen_scale*PA_FPFS_energy_step+PA_excitation_energy)/Eh+EF_Eh;
 				int eigen_spin=final_states_spin[i][j];
@@ -1561,7 +1581,7 @@ void calculate_PAD(){
 				// solve the differential equation by the Numerov method
 				solve_final_state(kinetic_energy_Eh, k_au, kz, FP_g_count,  VKS_count[0], final_states_dz, V00_index, &Vgg_matrix[0][0], &final_states_FP_g_vec[i][j][0][0], FP_loc_buffer);
 
-				printf("k=%4d, FPIndex=%3d, nonlocal part\n", i, j);
+				// printf("k=%4d, FPIndex=%3d, nonlocal part\n", i, j);
 				complex<double> Ylm_k[6][11];
 				complex<double> Ylm_kp[6][11];
 				for(int ia=0; ia<atom_length; ia++){
@@ -1655,7 +1675,7 @@ void calculate_PAD(){
 						} // for(m)
 					} // for(l)
 					// debug
-					printf("Norm1[%d][%d][%d]= %8.4f\n", i, j, ia, final_states_FP_norm1[i][j][ia]);
+					// printf("Norm1[%d][%d][%d]= %8.4f\n", i, j, ia, final_states_FP_norm1[i][j][ia]);
 					
 					//norm2
 					// by theta integral
@@ -1737,36 +1757,46 @@ void calculate_PAD(){
 					*/
 					
 					// debug
-					printf("Norm2[%d][%d][%d]= %8.4f\n", i, j, ia, final_states_FP_norm2[i][j][ia]);
-
-					// obtain the nonlocal radial function
-					double wfn_buffer[vps_cutoff_index[is]];
-					for(int l=0; l<5; l++){
-						if(final_states_spin[i][j]==0){
-							solve_nonlocal_wfn(kinetic_energy_Eh, l, vps_cutoff_index[is], VPS_r[is], VKS0_r[ia], VPS_l_length[is], VPS_l[is], VPS_E_ave[is], VPS_nonloc_ave[is], wfn_buffer);
-						}else{
-							solve_nonlocal_wfn(kinetic_energy_Eh, l, vps_cutoff_index[is], VPS_r[is], VKS1_r[ia], VPS_l_length[is], VPS_l[is], VPS_E_ave[is], VPS_nonloc_ave[is], wfn_buffer);
-						}
-						// conversion for wfn_r
-						for(int ir=0; ir<wfn_cutoff_index[is]; ir++){
-							if(wfn_r[is][ir]<VPS_r[is][0]){
-								final_states_FP_nonloc_r[i][j][ia][l][ir]=wfn_buffer[0];
-							}
-							if(wfn_r[is][ir]>VPS_r[is][vps_cutoff_index[is]-1]){
-								final_states_FP_nonloc_r[i][j][ia][l][ir]=wfn_buffer[vps_cutoff_index[is]-1];
-							}	 
-							for(int irp=0; irp<vps_cutoff_index[is]-1; irp++){
-								if(VPS_r[is][irp] < wfn_r[is][ir] && wfn_r[is][ir] < VPS_r[is][irp+1]){
-									final_states_FP_nonloc_r[i][j][ia][l][ir]=(wfn_buffer[irp]*(VPS_r[is][irp+1]-wfn_r[is][ir])+
-																														 wfn_buffer[irp+1]*(wfn_r[is][ir]-VPS_r[is][irp]))/(VPS_r[is][irp+1]-VPS_r[is][irp]);
-								}
-							}
-						}
-					}
-					
+					// printf("Norm2[%d][%d][%d]= %8.4f\n", i, j, ia, final_states_FP_norm2[i][j][ia]);
 				} //for (ia=0; ia<atom_length; ia++)
 			} // for(j=0; j<FPIndex_size; j++)
 		} // omp for(i=0; i<total_count_ext; i++)
+
+#pragma omp parallel firstprivate(E_min_scale, org_indices_count, EF_Eh, Eh, PA_excitation_energy)
+#pragma omp for
+		for(int iepa=0; iepa<org_indices_count; iepa++){
+			int ie=org_indices[iepa][0];
+			int sp=org_indices[iepa][1];
+			int ia=org_indices[iepa][2];
+			int is=atom_spec_index[ia];
+			int eigen_scale=ie+E_min_scale;
+			printf("Index %4d/%4d, EScale: %4d, Spin: %1d, Atom: %3d\n", iepa+1, org_indices_count, eigen_scale, sp, ia);
+			double kinetic_energy_Eh=(eigen_scale*PA_FPFS_energy_step+PA_excitation_energy)/Eh+EF_Eh;
+			// obtain the nonlocal radial function
+			double wfn_buffer[vps_cutoff_index[is]];
+			for(int l=0; l<5; l++){
+				if(sp==0){
+					solve_nonlocal_wfn(kinetic_energy_Eh, l, vps_cutoff_index[is], VPS_r[is], VKS0_r[ia], VPS_l_length[is], VPS_l[is], VPS_E_ave[is], VPS_nonloc_ave[is], wfn_buffer);
+				}else{
+					solve_nonlocal_wfn(kinetic_energy_Eh, l, vps_cutoff_index[is], VPS_r[is], VKS1_r[ia], VPS_l_length[is], VPS_l[is], VPS_E_ave[is], VPS_nonloc_ave[is], wfn_buffer);
+				}
+				// conversion for wfn_r
+				for(int ir=0; ir<wfn_cutoff_index[is]; ir++){
+					if(wfn_r[is][ir]<VPS_r[is][0]){
+						final_states_FP_nonloc_r[ie][sp][ia][l][ir]=wfn_buffer[0];
+					}
+					if(wfn_r[is][ir]>VPS_r[is][vps_cutoff_index[is]-1]){
+						final_states_FP_nonloc_r[ie][sp][ia][l][ir]=wfn_buffer[vps_cutoff_index[is]-1];
+					}	 
+					for(int irp=0; irp<vps_cutoff_index[is]-1; irp++){
+						if(VPS_r[is][irp] < wfn_r[is][ir] && wfn_r[is][ir] < VPS_r[is][irp+1]){
+							final_states_FP_nonloc_r[ie][sp][ia][l][ir]=(wfn_buffer[irp]*(VPS_r[is][irp+1]-wfn_r[is][ir])+
+																												 wfn_buffer[irp+1]*(wfn_r[is][ir]-VPS_r[is][irp]))/(VPS_r[is][irp+1]-VPS_r[is][irp]);
+						}
+					}
+				}
+			}
+		}
 	} // if(FPFS)
 
 	/// Load VPS file for Ignore_core
@@ -1817,7 +1847,7 @@ void calculate_PAD(){
   duration=chrono::duration_cast<chrono::milliseconds>(end-start).count();
 	sprintf(sprintf_buffer, "PAD preparation time: %.3f [ms]", duration);
 	write_log(sprintf_buffer);
-#pragma omp parallel firstprivate(Y_coeff, sp_max, num_bands, EF_Eh, Eh, PA_E_min, PA_E_pixel, num_points_E, tail_index,  m1jlp, Gaunt_arr, atom_length, atom_spec_index, num_orbits, spin_i,  atom_coordinates, PA_ext_set, PA_final_state_step, k_index_min, atom_weighting_flag, atom_weighting, PA_weighting, axis_au, PA_reflection, PA_reflection_coef, PA_FPFS, PA_FPFS_energy_step) private(ib, sp, Ylm_k, Ylm_k2, ia, is, io, il, ir, j)
+#pragma omp parallel firstprivate(Y_coeff, sp_max, num_bands, EF_Eh, Eh, PA_E_min, PA_E_pixel, num_points_E, tail_index,  m1jlp, Gaunt_arr, atom_length, atom_spec_index, num_orbits, spin_i,  atom_coordinates, PA_ext_set, PA_final_state_step, k_index_min, atom_weighting_flag, atom_weighting, PA_weighting, axis_au, PA_reflection, PA_reflection_coef, PA_FPFS, PA_FPFS_energy_step, E_min_scale) private(ib, sp, Ylm_k, Ylm_k2, ia, is, io, il, ir, j)
 #pragma omp for
 	for(ik=0; ik<total_count_ext; ik++){
 		// cout << ik << endl;
@@ -2285,6 +2315,7 @@ void calculate_PAD(){
 							// mp: of final state, mp=m+j
 							// mpplp: mp+lp=m+j+lp
 							if(!PA_ignore_core && !empty_atoms[is]){
+								int ie=eigen_scale-E_min_scale;
 								int num_orbits2=num_orbits[is];
 								if(spin_i==1){
 									num_orbits2*=2;
@@ -2313,7 +2344,7 @@ void calculate_PAD(){
 										if(lp<0){
 											continue;
 										}
-										double radial_part=ddot(&wfn_cutoff_index[is], &final_states_FP_nonloc_r[ik][FPIndex_1][ia][lp][0], &wfn_phi_rdr[is][io2][0]);
+										double radial_part=ddot(&wfn_cutoff_index[is], &final_states_FP_nonloc_r[ie][sp][ia][lp][0], &wfn_phi_rdr[is][io2][0]);
 										//printf("Radial: %f\n", radial_part);
 										int mpl;
 										complex<double> coeff2_1(0, 0);
@@ -2334,7 +2365,7 @@ void calculate_PAD(){
 											coeff2_1+=LCAO_use[mpl][0]*coeff1;
 										}
 										// cout << endl;
-										PAD_1+=radial_part*coeff2_1*atom_weight;
+										PAD_1+=radial_part*coeff2_1*atom_weight/(4.0*M_PI);
 									} // end of for(dl)
 									if(PA_add_nonorth_term){
 										double e_vec_re[3];
@@ -2346,7 +2377,7 @@ void calculate_PAD(){
 										double et_real=inner_product(e_vec_re, atom_coordinates[ia]);
 										double et_imag=inner_product(e_vec_im, atom_coordinates[ia]);
 										complex<double> et(et_real, et_imag);
-										double radial_part=ddot(&wfn_cutoff_index[is], &final_states_FP_nonloc_r[ik][FPIndex_1][ia][l][0], &wfn_phi_dr[is][io2][0]);
+										double radial_part=ddot(&wfn_cutoff_index[is], &final_states_FP_nonloc_r[ie][sp][ia][l][0], &wfn_phi_dr[is][io2][0]);
 										complex<double> coeff2_1(0, 0);
 										int mpl;
 										for(mpl=0; mpl<=2*l; mpl++){
@@ -2354,7 +2385,7 @@ void calculate_PAD(){
 											coeff2_1+=LCAO_use[mpl][0]*conj(final_states_FP_nonloc[ik][FPIndex_1][ia][l][mpl]);
 										}
 										// cout << endl;
-										PAD_1+=radial_part*coeff2_1*et*atom_weight;
+										PAD_1+=radial_part*coeff2_1*et*atom_weight/(4.0*M_PI);
 									} // end of add_nonorth_term
 								} // end of for(io)
 							} // end of PA_ignore_core

@@ -1067,7 +1067,7 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 			break;
 		}
 	}
-	printf("Power iteration trials: %3d, Expectation value: %f\n", trial, expect);
+	printf("Power iteration trials: %3d, Expectation value: %8.4f\n", trial, expect);
 
 	/*
 	double hpsi_norm=0.0;
@@ -1144,7 +1144,7 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 		}
 		cg_norm_prev=cg_norm;
 	}
-	printf("CG trials: %6d, CG norm: %e\n", trial, cg_norm);
+	printf("CG trials: %6d, CG norm: %10.4e\n", trial, cg_norm);
 
 	dgemv_(&no_trans, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &psi_vector[0], &inc, &beta, &hpsi_vector[0], &inc);
 	// copy & normalization so that the edge is 1.0
