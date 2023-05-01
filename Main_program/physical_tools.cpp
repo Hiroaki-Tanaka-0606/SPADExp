@@ -19,6 +19,79 @@ extern "C"{
 							complex<double>* B,
 							int* LDB,
 							int* INFO);
+	void dgesv_(
+							int* N,
+							int* NRHS,
+							double* A,
+							int* LDA,
+							int* IPIV,
+							double* B,
+							int* LDB,
+							int* INFO);
+	void dgetrf_(
+							 int* M,
+							 int* N,
+							 double* A,
+							 int* LDA,
+							 int* IPIV,
+							 int* INFO);
+	void dgetri_(
+							 int* N,
+							 double* A,
+							 int* LDA,
+							 int* IPIV,
+							 double* WORK,
+							 int* LWORK,
+							 int* INFO);
+	void dgemm_(
+							char* TRANSA,
+							char* TRANSB,
+							int* M,
+							int* N,
+							int* K,
+							double* ALPHA,
+							double* A,
+							int* LDA,
+							double* B,
+							int* LDB,
+							double* BETA,
+							double* C,
+							int* LDC);
+	void dgemv_(
+							char* TRANS,
+							int* M,
+							int* N,
+							double* ALPHA,
+							double* A,
+							int* LDA,
+							double* X,
+							int* INCX,
+							double* BETA,
+							double* Y,
+							int* INCY);
+	void dgeev_(
+							char* JOBVL,
+							char* JOBVR,
+							int* N,
+							double* A,
+							int* LDA,
+							double* WR,
+							double* WI,
+							double* VL,
+							int* LDVL,
+							double* VR,
+							int* LDVR,
+							double* WORK,
+							int* LWORK,
+							int* INFO);
+	
+	double ddot_(
+							 int* N,
+							 double* CX,
+							 int* INCX,
+							 double* CY,
+							 int* INCY);
+  
 }
 
 // see Main_GUI/lib/physical_tools for the detail of the conversion
@@ -769,3 +842,358 @@ double spherical_harmonic_theta(int l, int m, double theta){
 	printf("Invalid l");
 	return 0.0;
 }
+
+void psi_normalize(int count, double* dr, double* psi);
+double expectation_value(int count, double* matrix, double* psi, double* dr);
+double matrix_element(int count, double* left, double* center, double* right);
+
+void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* V_loc, int VPS_l_length, int* VPS_l, double* VPS_E_buffer, double** VPS_nonloc_buffer, double* psi){
+	int N=2;
+	printf("Ekin %f, l %d\n", Ekin, l);
+	double** VPS_nonloc=new double*[VPS_l_length];
+	double* VPS_E=new double[VPS_l_length];
+	int l_count=0;
+	for(int il=0; il<VPS_l_length; il++){
+		if(VPS_l[il]==l){
+			VPS_nonloc[l_count]=&VPS_nonloc_buffer[il][0];
+			VPS_E[l_count]=VPS_E_buffer[il];
+			//printf("VPS_E[%d] %f\n", count, VPS_E[count]);
+			l_count++;
+		}
+	}
+	/*
+	for(int ir=0; ir<r_count; ir++){
+		printf("%8.4f ", r_arr[ir]);
+		printf("%8.4f ", V_loc[ir]);
+		for(int il=0; il<l_count; il++){
+			printf("%13.4e ", VPS_nonloc[il][ir]);
+		}
+		printf("\n");
+		}*/
+
+	// delta r
+	double dr[r_count];
+	for(int ix=0; ix<r_count; ix++){
+		if(ix==0){
+			dr[ix]=r_arr[ix];
+		}else{
+			dr[ix]=r_arr[ix]-r_arr[ix-1];
+		}
+	}
+	// delta x
+	double dx=(log(r_arr[r_count-1])-log(r_arr[0]))/(r_count-1);
+	double sum_dx2=0.0;
+	for(int ir=0; ir<r_count-1; ir++){
+		double dxi=log(r_arr[ir+1])-log(r_arr[ir]);
+		sum_dx2+=dxi*dxi;
+	}
+	double ave_dx2=sum_dx2/(r_count-1);
+	double ddx=ave_dx2-dx*dx;
+	// printf("dx = %13.4e, V[dx] = %13.4e\n", dx, ddx);
+
+	// prepare the left matrix
+	double matrix[r_count][r_count];
+	for(int ix=0; ix<r_count; ix++){
+		for(int iy=0; iy<r_count; iy++){
+			matrix[iy][ix]=0.0;
+			// (-1) * second derivative
+			if(ix==0){
+				/*
+				if(iy==0 || iy==2){
+					matrix[iy][ix]-=1.0/dx/dx;
+				}else if(iy==1){
+					matrix[iy][ix]-=-2.0/dx/dx;
+					}*/
+				if(iy==-1 || iy==1){
+					matrix[iy][ix]-=1.0/dx/dx;
+				}else if(iy==0){
+					matrix[iy][ix]-=-2.0/dx/dx;
+				}
+			}else if(ix==r_count-1){
+				if(iy==r_count-3 || iy==r_count-1){
+					matrix[iy][ix]-=1.0/dx/dx;
+				}else if(iy==r_count-2){
+					matrix[iy][ix]-=-2.0/dx/dx;
+				}
+			}else{
+				if(iy==ix-1 || iy==ix+1){
+					matrix[iy][ix]-=1.0/dx/dx;
+				}else if(iy==ix){
+					matrix[iy][ix]-=-2.0/dx/dx;
+				}
+			}
+			// first derivative
+			if(ix==0){/*
+				if(iy==0){
+					matrix[iy][ix]+=-1.0/dx;
+				}else if(iy==1){
+				matrix[iy][ix]+=1.0/dx;
+				}*/
+				if(iy==-1){
+					matrix[iy][ix]+=-0.5/dx;
+				}else if(iy==1){
+					matrix[iy][ix]+=0.5/dx;
+				}
+			}else if(ix==r_count-1){
+				if(iy==r_count-2){
+					matrix[iy][ix]+=-1.0/dx;
+				}else if(iy==r_count-1){
+					matrix[iy][ix]+=1.0/dx;
+				}
+			}else{
+				if(iy==ix-1){
+					matrix[iy][ix]+=-0.5/dx;
+				}else if(iy==ix+1){
+					matrix[iy][ix]+=0.5/dx;
+				}
+			}
+			// l(l+1)+2r^2(V-E)
+			if(iy==ix){
+				matrix[iy][ix]+=l*(l+1)*1.0+2.0*r_arr[ix]*r_arr[ix]*(V_loc[ix]-Ekin);
+			}
+			// 2r^2 * projector
+			for(int il=0; il<l_count; il++){
+				matrix[iy][ix]+=2.0*r_arr[ix]*r_arr[ix]*VPS_E[il]*VPS_nonloc[il][ix]
+					*VPS_nonloc[il][iy]*dr[iy];
+			}
+		}
+	}
+
+	// debug
+	/*
+	for(int ix=0; ix<r_count; ix++){
+		for(int iy=0; iy<r_count; iy++){
+			printf("%8.1e ", matrix[iy][ix]);
+		}
+		printf("\n");
+		}*/
+
+	// test
+	/*
+	for(int ix=0; ix<r_count; ix++){
+		for(int iy=0; iy<r_count; iy++){
+			matrix[iy][ix]=(ix==iy)?((ix+0.1)/10000.0-0.1):0.0;
+		}
+		}*/
+
+	// copy
+	double inverse[r_count][r_count];
+	for(int ix=0; ix<r_count; ix++){
+		for(int iy=0; iy<r_count; iy++){
+			inverse[iy][ix]=matrix[iy][ix];
+		}
+	}
+
+	// LU decomposition
+	int info;
+	int ipiv[r_count];
+	dgetrf_(&r_count, &r_count, &inverse[0][0], &r_count, &ipiv[0], &info);
+	if(info!=0){
+		printf("LU decomposition failed\n");
+		return;
+	}
+
+	// work space calculation for inverse matrix
+	int lwork=-1;
+	double work_dummy;
+	dgetri_(&r_count, &inverse[0][0], &r_count, &ipiv[0], &work_dummy, &lwork, &info);
+	if(info!=0){
+		printf("Work space calculation failed\n");
+		return;
+	}
+	lwork=round(work_dummy);
+	// printf("Work space size: %d\n", lwork);
+	double work[lwork];
+	
+	dgetri_(&r_count, &inverse[0][0], &r_count, &ipiv[0], &work[0], &lwork, &info);
+	if(info!=0){
+		printf("Inverse matrix calculation failed\n");
+		return;
+	}
+
+	// check
+	/*
+	double mm[r_count][r_count];
+	double alpha=1.0;
+	double beta=0.0;
+	char trans='N';
+	dgemm_(&trans, &trans, &r_count, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &inverse[0][0], &r_count, &beta, &mm[0][0], &r_count);
+	for(int ix=0; ix<r_count; ix++){
+		for(int iy=0; iy<r_count; iy++){
+			printf("%4.1f ", mm[iy][ix]);
+		}
+		printf("\n");
+		}*/
+
+	
+	double dr_dummy[r_count];
+	for(int ir=0; ir<r_count; ir++){
+		dr_dummy[ir]=1.0;
+	}
+	
+	// initial vector
+	double psi_vector[r_count];
+	double hpsi_vector[r_count];
+	for(int ir=0; ir<r_count; ir++){
+		psi_vector[ir]=1.0;
+	}
+	psi_normalize(r_count, dr, psi_vector);
+	/*
+	for(int ir=0; ir<r_count; ir++){
+		printf("%10.6f %10.6f\n", r_arr[ir], psi_vector[ir]);
+		}*/
+
+	double expect=expectation_value(r_count, &matrix[0][0], psi_vector, dr);
+	// printf("Expect: %f\n", expect);
+
+
+	char no_trans='N';
+	double alpha=1.0;
+	int inc=1;
+	double beta=0.0;
+	int trial;
+	for(trial=0; trial<100; trial++){
+		// multiply H^-1
+		dgemv_(&no_trans, &r_count, &r_count, &alpha, &inverse[0][0], &r_count, &psi_vector[0], &inc, &beta, &hpsi_vector[0], &inc);
+		psi_normalize(r_count, dr, hpsi_vector);
+		expect=expectation_value(r_count, &matrix[0][0], hpsi_vector, dr);
+		// copy
+		for(int ir=0; ir<r_count; ir++){
+			psi_vector[ir]=hpsi_vector[ir];
+		}
+		if(abs(expect)<0.1 && trial>10){
+			break;
+		}
+	}
+	printf("Power iteration trials: %3d, Expectation value: %f\n", trial, expect);
+
+	/*
+	double hpsi_norm=0.0;
+	dgemv_(&trans, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &psi_vector[0], &inc, &beta, &hpsi_vector[0], &inc);
+	for(int ir=0; ir<r_count; ir++){
+		hpsi_norm+=hpsi_vector[ir]*hpsi_vector[ir]*dr[ir];
+	}
+	printf("Norm: %f\n", hpsi_norm);*/
+
+	// prepare H^t * diag(dr) * H
+	double dr_matrix[r_count][r_count];
+	double drH_matrix[r_count][r_count];
+	double A_matrix[r_count][r_count];
+
+	for(int ix=0; ix<r_count; ix++){
+		for(int iy=0; iy<r_count; iy++){
+			if(ix==iy){
+				dr_matrix[iy][ix]=dr[ix];
+			}else{
+				dr_matrix[iy][ix]=0.0;
+			}
+		}
+	}
+
+	// approx solution search by conjugate gradient method
+	char trans='T';
+	dgemm_(&no_trans, &no_trans, &r_count, &r_count, &r_count, &alpha, &dr_matrix[0][0], &r_count, &matrix[0][0], &r_count, &beta, &drH_matrix[0][0], &r_count);
+	dgemm_(&trans, &no_trans, &r_count, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &drH_matrix[0][0], &r_count, &beta, &A_matrix[0][0], &r_count);
+
+	// printf("Norm: %f\n", matrix_element(r_count, psi_vector, &A_matrix[0][0], psi_vector));
+
+	
+	double mv[r_count];
+	double cg_p[r_count];
+	double cg_r[r_count];
+	double cg_alpha;
+	double cg_beta;
+	double cg_norm;
+	double cg_norm_prev;
+	dgemv_(&no_trans, &r_count, &r_count, &alpha, &A_matrix[0][0], &r_count, &psi_vector[0], &inc, &beta, &mv[0], &inc);
+	for(int ir=0; ir<r_count; ir++){
+		cg_p[ir]=-mv[ir];
+		cg_r[ir]=-mv[ir];
+	}
+	cg_norm_prev=matrix_element(r_count, psi_vector, &A_matrix[0][0], psi_vector);
+	for(trial=0; trial<100000; trial++){
+		cg_alpha=-matrix_element(r_count, psi_vector, &A_matrix[0][0], &cg_p[0])/matrix_element(r_count, &cg_p[0], &A_matrix[0][0], &cg_p[0]);
+		//printf("Alpha: %e\n", sd_alpha);
+		for(int ir=0; ir<r_count; ir++){
+			psi_vector[ir]+=cg_alpha*cg_p[ir];
+		}
+		dgemv_(&no_trans, &r_count, &r_count, &alpha, &A_matrix[0][0], &r_count, &psi_vector[0], &inc, &beta, &mv[0], &inc);
+		for(int ir=0; ir<r_count; ir++){
+			cg_r[ir]=-mv[ir];
+		}
+		cg_beta=-matrix_element(r_count, &cg_p[0], &A_matrix[0][0], &cg_r[0])/matrix_element(r_count, &cg_p[0], &A_matrix[0][0], &cg_p[0]);
+		for(int ir=0; ir<r_count; ir++){
+			cg_p[ir]=cg_r[ir]+cg_beta*cg_p[ir];
+		}
+		//printf("Norm: %f\n", matrix_element(r_count, psi_vector, &A_matrix[0][0], psi_vector));
+		psi_normalize(r_count, dr, psi_vector);
+		cg_norm=matrix_element(r_count, psi_vector, &A_matrix[0][0], psi_vector);
+		if(cg_norm<0.01 && trial>10){
+			break;
+		}
+		if(cg_norm>cg_norm_prev){
+			// printf("!! norm increasing !!\n");
+			// printf("trial: %d, cg_norm: %e\n", trial, cg_norm);
+			dgemv_(&no_trans, &r_count, &r_count, &alpha, &A_matrix[0][0], &r_count, &psi_vector[0], &inc, &beta, &mv[0], &inc);
+			for(int ir=0; ir<r_count; ir++){
+				cg_p[ir]=-mv[ir];
+				cg_r[ir]=-mv[ir];
+			}
+		}
+		cg_norm_prev=cg_norm;
+	}
+	printf("CG trials: %6d, CG norm: %e\n", trial, cg_norm);
+
+	dgemv_(&no_trans, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &psi_vector[0], &inc, &beta, &hpsi_vector[0], &inc);
+	// copy & normalization so that the edge is 1.0
+	double psi_edge=psi_vector[r_count-1];
+	for(int ir=0; ir<r_count; ir++){
+		psi[ir]=psi_vector[ir]/psi_edge;
+		//printf("%10.6f %10.6f %10.6f\n", r_arr[ir], psi[ir], hpsi_vector[ir]/psi_edge);
+	}
+}
+
+void psi_normalize(int count, double* dr, double* psi){
+	double norm=0.0;
+	for(int i=0; i<count; i++){
+		norm+=psi[i]*psi[i]*dr[i];
+	}
+	double coef=sqrt(norm);
+	//printf("Coef: %e\n", coef);
+	for(int i=0; i<count; i++){
+		psi[i]/=coef;
+	}
+}
+
+double expectation_value(int count, double* matrix, double* psi, double* dr){
+	char trans='N';
+	double alpha=1.0;
+	int inc=1;
+	double beta=0.0;
+	double y[count];
+
+	dgemv_(&trans, &count, &count, &alpha, matrix, &count, &psi[0], &inc, &beta, &y[0], &inc);
+	double ret=0.0;
+	for(int i=0; i<count; i++){
+		ret+=psi[i]*y[i]*dr[i];
+	}
+	return ret;
+}
+
+ double matrix_element(int count, double* left, double* center, double* right){
+	 double cr[count];
+	 char trans='N';
+	 double alpha=1.0;
+	 double beta=0.0;
+	 int inc=1;
+
+	 /*
+	 for(int i=0; i<count; i++){
+		 printf("%f %f\n", left[i], right[i]);
+		 }*/
+	 
+	 dgemv_(&trans, &count, &count, &alpha, center, &count, right, &inc, &beta, &cr[0], &inc);
+	 return ddot_(&count, left, &inc, &cr[0], &inc);
+ }
+
+ 

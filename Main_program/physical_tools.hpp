@@ -25,3 +25,5 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 complex<double> interpolate_fgz(double z, complex<double>* fgz, double dz, int z_count);
 
 double spherical_harmonic_theta(int l, int m, double theta);
+
+void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* V_loc, int VPS_l_length, int* VPS_l, double* VPS_E_buffer, double** VPS_nonloc_buffer, double* psi);
