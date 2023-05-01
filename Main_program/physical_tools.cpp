@@ -851,7 +851,7 @@ void delete_dmatrix(double** mat);
 
 void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* V_loc, int VPS_l_length, int* VPS_l, double* VPS_E_buffer, double** VPS_nonloc_buffer, double* psi){
 	int N=2;
-	printf("Ekin %f, l %d\n", Ekin, l);
+	// printf("Ekin %f, l %d\n", Ekin, l);
 	double** VPS_nonloc=new double*[VPS_l_length];
 	double* VPS_E=new double[VPS_l_length];
 	int l_count=0;
@@ -1067,7 +1067,7 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 			break;
 		}
 	}
-	printf("Power iteration trials: %3d, Expectation value: %8.4f\n", trial, expect);
+	// printf("Power iteration trials: %3d, Expectation value: %8.4f\n", trial, expect);
 
 	/*
 	double hpsi_norm=0.0;
@@ -1144,7 +1144,7 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 		}
 		cg_norm_prev=cg_norm;
 	}
-	printf("CG trials: %6d, CG norm: %10.4e\n", trial, cg_norm);
+	// printf("CG trials: %6d, CG norm: %10.4e\n", trial, cg_norm);
 
 	dgemv_(&no_trans, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &psi_vector[0], &inc, &beta, &hpsi_vector[0], &inc);
 	// copy & normalization so that the edge is 1.0
