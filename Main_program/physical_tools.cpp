@@ -846,6 +846,8 @@ double spherical_harmonic_theta(int l, int m, double theta){
 void psi_normalize(int count, double* dr, double* psi);
 double expectation_value(int count, double* matrix, double* psi, double* dr);
 double matrix_element(int count, double* left, double* center, double* right);
+double** alloc_dmatrix(int n);
+void delete_dmatrix(double** mat);
 
 void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* V_loc, int VPS_l_length, int* VPS_l, double* VPS_E_buffer, double** VPS_nonloc_buffer, double* psi){
 	int N=2;
@@ -892,7 +894,7 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 	// printf("dx = %13.4e, V[dx] = %13.4e\n", dx, ddx);
 
 	// prepare the left matrix
-	double matrix[r_count][r_count];
+	double** matrix=alloc_dmatrix(r_count);
 	for(int ix=0; ix<r_count; ix++){
 		for(int iy=0; iy<r_count; iy++){
 			matrix[iy][ix]=0.0;
@@ -977,7 +979,7 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 		}*/
 
 	// copy
-	double inverse[r_count][r_count];
+	double** inverse=alloc_dmatrix(r_count);
 	for(int ix=0; ix<r_count; ix++){
 		for(int iy=0; iy<r_count; iy++){
 			inverse[iy][ix]=matrix[iy][ix];
@@ -1076,9 +1078,9 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 	printf("Norm: %f\n", hpsi_norm);*/
 
 	// prepare H^t * diag(dr) * H
-	double dr_matrix[r_count][r_count];
-	double drH_matrix[r_count][r_count];
-	double A_matrix[r_count][r_count];
+	double** dr_matrix=alloc_dmatrix(r_count);
+	double** drH_matrix=alloc_dmatrix(r_count);
+	double** A_matrix=alloc_dmatrix(r_count);
 
 	for(int ix=0; ix<r_count; ix++){
 		for(int iy=0; iy<r_count; iy++){
@@ -1153,6 +1155,11 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 	}
 	delete[] VPS_E;
 	delete[] VPS_nonloc;
+	delete_dmatrix(matrix);
+	delete_dmatrix(inverse);
+	delete_dmatrix(dr_matrix);
+	delete_dmatrix(drH_matrix);
+	delete_dmatrix(A_matrix);
 }
 
 void psi_normalize(int count, double* dr, double* psi){
@@ -1198,4 +1205,16 @@ double expectation_value(int count, double* matrix, double* psi, double* dr){
 	 return ddot_(&count, left, &inc, &cr[0], &inc);
  }
 
- 
+double** alloc_dmatrix(int n){
+	double* buffer=new double[n*n];
+	double** ret=new double*[n];
+	for(int i=0; i<n; i++){
+		ret[i]=&buffer[i*n];
+	}
+	return ret;
+}
+
+void delete_dmatrix(double** mat){
+	delete[] mat[0];
+	delete[] mat;
+}
