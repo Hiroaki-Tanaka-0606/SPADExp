@@ -1675,7 +1675,7 @@ void calculate_PAD(){
 						} // for(m)
 					} // for(l)
 					// debug
-					// printf("Norm1[%d][%d][%d]= %8.4f\n", i, j, ia, final_states_FP_norm1[i][j][ia]);
+					printf("Norm1[%d][%d][%d]= %8.4f\n", i, j, ia, final_states_FP_norm1[i][j][ia]);
 					
 					//norm2
 					// by theta integral
@@ -1757,7 +1757,7 @@ void calculate_PAD(){
 					*/
 					
 					// debug
-					// printf("Norm2[%d][%d][%d]= %8.4f\n", i, j, ia, final_states_FP_norm2[i][j][ia]);
+					printf("Norm2[%d][%d][%d]= %8.4f\n", i, j, ia, final_states_FP_norm2[i][j][ia]);
 				} //for (ia=0; ia<atom_length; ia++)
 			} // for(j=0; j<FPIndex_size; j++)
 		} // omp for(i=0; i<total_count_ext; i++)
@@ -1770,7 +1770,7 @@ void calculate_PAD(){
 			int ia=org_indices[iepa][2];
 			int is=atom_spec_index[ia];
 			int eigen_scale=ie+E_min_scale;
-			printf("Index %4d/%4d, EScale: %4d, Spin: %1d, Atom: %3d\n", iepa+1, org_indices_count, eigen_scale, sp, ia);
+			printf("Index %6d/%6d, EScale: %4d, Spin: %1d, Atom: %3d\n", iepa+1, org_indices_count, eigen_scale, sp, ia);
 			double kinetic_energy_Eh=(eigen_scale*PA_FPFS_energy_step+PA_excitation_energy)/Eh+EF_Eh;
 			// obtain the nonlocal radial function
 			double wfn_buffer[vps_cutoff_index[is]];
