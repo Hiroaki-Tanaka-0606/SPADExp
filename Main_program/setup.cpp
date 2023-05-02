@@ -167,6 +167,8 @@ void initialize(){
 	PA_ignore_core_set=false;
 	PA_add_nonorth_term=false;
 	PA_add_nonorth_term_set=false;
+	PA_calc_all_nonloc=false;
+	PA_calc_all_nonloc_set=false;
 }
 
 void finalize(){

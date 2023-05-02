@@ -258,10 +258,14 @@ int validation_PAD(){
 		write_log((char*)"Error: Ignoreing core needs the VPS file");
 		status=0; goto FINALIZATION;
 	}
-	/// Add_nonorth_term
-	sprintf(sprintf_buffer, "%32s = %s", "Add_nonorth_term", PA_add_nonorth_term?"true":"false");
-	write_log(sprintf_buffer);
-	
+	if(PA_FPFS){
+		/// Add_nonorth_term
+		sprintf(sprintf_buffer, "%32s = %s", "Add_nonorth_term", PA_add_nonorth_term?"true":"false");
+		write_log(sprintf_buffer);
+		/// Calc_all_nonloc
+		sprintf(sprintf_buffer, "%32s = %s", "Calc_all_nonloc", PA_calc_all_nonloc?"true":"false");
+		write_log(sprintf_buffer);
+	}
 	/// Output_data
 	sprintf(sprintf_buffer, "%32s = %s", "Output_data", PA_output_data);
 	write_log(sprintf_buffer);

@@ -203,6 +203,8 @@ bool PA_ignore_core;      // ignore the core (<rc) in the radial integration
 bool PA_ignore_core_set;
 bool PA_add_nonorth_term; // include the \tau_i \cdot e < psi_F | psi_I> term
 bool PA_add_nonorth_term_set;
+bool PA_calc_all_nonloc;  // calculate the nonlocal wave functions for all atoms which can have zero weights
+bool PA_calc_all_nonloc_set;
 /// files
 FILE* Log_file_obj;            // log file object
 FILE* Output_file_obj;         // data file object

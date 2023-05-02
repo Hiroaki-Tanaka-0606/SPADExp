@@ -1289,6 +1289,9 @@ void calculate_PAD(){
 					if(empty_atoms[is]){
 						continue;
 					}
+					if(!PA_calc_all_nonloc && !atom_weighting_flag[ia]){
+						continue;
+					}		
 					final_states_FP_nonloc_r[ie][sp][ia]=new double*[5];
 					double* buffer2=new double[5*wfn_cutoff_index[is]];
 					for(int il=0; il<5; il++){
