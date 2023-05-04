@@ -986,6 +986,17 @@ int load_input(){
 				}
 			  PA_calc_all_nonloc_set=true; continue;
 			}
+			/// Calc_all_nonloc: bool
+			if(strcmp(keyword_buffer, "Orth_correction")==0){
+				if(PA_orth_correction_set){
+					output_error(line_number, (char*)"keyword Orth_correction already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_bool(input_line_c, &PA_orth_correction, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Orth_correction"); status=0; goto FINALIZATION;
+				}
+			  PA_orth_correction_set=true; continue;
+			}
 		}else if(*block_name==string("Phase-shift")){
 			// Ph block
 			/// Skip_points (Ph_skip_points): int

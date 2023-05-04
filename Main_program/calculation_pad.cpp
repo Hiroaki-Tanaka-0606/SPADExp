@@ -1466,7 +1466,8 @@ void calculate_PAD(){
 				double k_au[3]={k_point[0], k_point[1], 0.0}; // contains only in-plane components
 				double kz_square=k_length_au*k_length_au-inner_product(k_au, k_au);
 				if(kz_square<0){
-					write_log((char*)"Error: negative kz^2");
+					write_log((char*)"Warning: negative kz^2");
+					final_states_FP_g_size[i][j]=0;
 					continue;
 				}
 				double kz=sqrt(kz_square);
@@ -1585,6 +1586,7 @@ void calculate_PAD(){
 				solve_final_state(kinetic_energy_Eh, k_au, kz, FP_g_count,  VKS_count[0], final_states_dz, V00_index, &Vgg_matrix[0][0], &final_states_FP_g_vec[i][j][0][0], FP_loc_buffer);
 
 				// printf("k=%4d, FPIndex=%3d, nonlocal part\n", i, j);
+				// obtain the connection condition at rc
 				complex<double> Ylm_k[6][11];
 				complex<double> Ylm_kp[6][11];
 				for(int ia=0; ia<atom_length; ia++){
@@ -1678,7 +1680,7 @@ void calculate_PAD(){
 						} // for(m)
 					} // for(l)
 					// debug
-					printf("Norm1[%d][%d][%d]= %8.4f\n", i, j, ia, final_states_FP_norm1[i][j][ia]);
+					// printf("Norm1[%d][%d][%d]= %8.4f\n", i, j, ia, final_states_FP_norm1[i][j][ia]);
 					
 					//norm2
 					// by theta integral
@@ -1760,41 +1762,44 @@ void calculate_PAD(){
 					*/
 					
 					// debug
-					printf("Norm2[%d][%d][%d]= %8.4f\n", i, j, ia, final_states_FP_norm2[i][j][ia]);
+					// printf("Norm2[%d][%d][%d]= %8.4f\n", i, j, ia, final_states_FP_norm2[i][j][ia]);
 				} //for (ia=0; ia<atom_length; ia++)
 			} // for(j=0; j<FPIndex_size; j++)
 		} // omp for(i=0; i<total_count_ext; i++)
 
+		// nonlocal core part
+		if(!PA_ignore_core){
 #pragma omp parallel firstprivate(E_min_scale, org_indices_count, EF_Eh, Eh, PA_excitation_energy)
 #pragma omp for
-		for(int iepa=0; iepa<org_indices_count; iepa++){
-			int ie=org_indices[iepa][0];
-			int sp=org_indices[iepa][1];
-			int ia=org_indices[iepa][2];
-			int is=atom_spec_index[ia];
-			int eigen_scale=ie+E_min_scale;
-			printf("Index %6d/%6d, EScale: %4d, Spin: %1d, Atom: %3d\n", iepa+1, org_indices_count, eigen_scale, sp, ia);
-			double kinetic_energy_Eh=(eigen_scale*PA_FPFS_energy_step+PA_excitation_energy)/Eh+EF_Eh;
-			// obtain the nonlocal radial function
-			double wfn_buffer[vps_cutoff_index[is]];
-			for(int l=0; l<5; l++){
-				if(sp==0){
-					solve_nonlocal_wfn(kinetic_energy_Eh, l, vps_cutoff_index[is], VPS_r[is], VKS0_r[ia], VPS_l_length[is], VPS_l[is], VPS_E_ave[is], VPS_nonloc_ave[is], wfn_buffer);
-				}else{
-					solve_nonlocal_wfn(kinetic_energy_Eh, l, vps_cutoff_index[is], VPS_r[is], VKS1_r[ia], VPS_l_length[is], VPS_l[is], VPS_E_ave[is], VPS_nonloc_ave[is], wfn_buffer);
-				}
-				// conversion for wfn_r
-				for(int ir=0; ir<wfn_cutoff_index[is]; ir++){
-					if(wfn_r[is][ir]<VPS_r[is][0]){
-						final_states_FP_nonloc_r[ie][sp][ia][l][ir]=wfn_buffer[0];
+			for(int iepa=0; iepa<org_indices_count; iepa++){
+				int ie=org_indices[iepa][0];
+				int sp=org_indices[iepa][1];
+				int ia=org_indices[iepa][2];
+				int is=atom_spec_index[ia];
+				int eigen_scale=ie+E_min_scale;
+				printf("Index %6d/%6d, EScale: %4d, Spin: %1d, Atom: %3d\n", iepa+1, org_indices_count, eigen_scale, sp, ia);
+				double kinetic_energy_Eh=(eigen_scale*PA_FPFS_energy_step+PA_excitation_energy)/Eh+EF_Eh;
+				// obtain the nonlocal radial function
+				double wfn_buffer[vps_cutoff_index[is]];
+				for(int l=0; l<5; l++){
+					if(sp==0){
+						solve_nonlocal_wfn(kinetic_energy_Eh, l, vps_cutoff_index[is], VPS_r[is], VKS0_r[ia], VPS_l_length[is], VPS_l[is], VPS_E_ave[is], VPS_nonloc_ave[is], wfn_buffer);
+					}else{
+						solve_nonlocal_wfn(kinetic_energy_Eh, l, vps_cutoff_index[is], VPS_r[is], VKS1_r[ia], VPS_l_length[is], VPS_l[is], VPS_E_ave[is], VPS_nonloc_ave[is], wfn_buffer);
 					}
-					if(wfn_r[is][ir]>VPS_r[is][vps_cutoff_index[is]-1]){
-						final_states_FP_nonloc_r[ie][sp][ia][l][ir]=wfn_buffer[vps_cutoff_index[is]-1];
-					}	 
-					for(int irp=0; irp<vps_cutoff_index[is]-1; irp++){
-						if(VPS_r[is][irp] < wfn_r[is][ir] && wfn_r[is][ir] < VPS_r[is][irp+1]){
-							final_states_FP_nonloc_r[ie][sp][ia][l][ir]=(wfn_buffer[irp]*(VPS_r[is][irp+1]-wfn_r[is][ir])+
-																												 wfn_buffer[irp+1]*(wfn_r[is][ir]-VPS_r[is][irp]))/(VPS_r[is][irp+1]-VPS_r[is][irp]);
+					// conversion for wfn_r
+					for(int ir=0; ir<wfn_cutoff_index[is]; ir++){
+						if(wfn_r[is][ir]<VPS_r[is][0]){
+							final_states_FP_nonloc_r[ie][sp][ia][l][ir]=wfn_buffer[0];
+						}
+						if(wfn_r[is][ir]>VPS_r[is][vps_cutoff_index[is]-1]){
+							final_states_FP_nonloc_r[ie][sp][ia][l][ir]=wfn_buffer[vps_cutoff_index[is]-1];
+						}	 
+						for(int irp=0; irp<vps_cutoff_index[is]-1; irp++){
+							if(VPS_r[is][irp] < wfn_r[is][ir] && wfn_r[is][ir] < VPS_r[is][irp+1]){
+								final_states_FP_nonloc_r[ie][sp][ia][l][ir]=(wfn_buffer[irp]*(VPS_r[is][irp+1]-wfn_r[is][ir])+
+																														 wfn_buffer[irp+1]*(wfn_r[is][ir]-VPS_r[is][irp]))/(VPS_r[is][irp+1]-VPS_r[is][irp]);
+							}
 						}
 					}
 				}
@@ -1975,9 +1980,17 @@ void calculate_PAD(){
 						}
 					}
 					// printf("FPIndex = %d, %d\n", FPIndex_1, FPIndex_2);
+					if(FPIndex_1<0 || (spin_i==2 && FPIndex_2<0)){
+						write_log((char*)"Error: FP not found");
+						continue;
+					}
 				}
+				// PAD matrix element for up and down spins
 				complex<double> PAD_1(0, 0);
 				complex<double> PAD_2(0, 0);
+				// Norm of initial and final states for orthgonality correction
+				complex<double> Norm_FI_1(0, 0);
+				complex<double> Norm_FI_2(0, 0);
 				if(strcmp(PA_output_data, "Band")==0){
 					PAD_1=complex<double>(1, 0);
 					PAD_2=complex<double>(1, 0);
@@ -2092,7 +2105,7 @@ void calculate_PAD(){
 										PAD_2+=m1jlp[lp]*radial_part*atom_phase2*coeff2_2;
 									}
 								} // end of for(dl)
-								if(PA_add_nonorth_term){
+								if(PA_add_nonorth_term || PA_orth_correction){
 									double e_vec_re[3];
 									double e_vec_im[3];
 									for(int ix=0; ix<3; ix++){
@@ -2127,9 +2140,17 @@ void calculate_PAD(){
 										atom_phase2=atom_phase;
 									}
 									// cout << atom_phase2 << endl;
-									PAD_1+=m1jlp[l]*radial_part*atom_phase2*coeff2_1*et;
-									if(spin_i==2){
-										PAD_2+=m1jlp[l]*radial_part*atom_phase2*coeff2_2*et;
+									if(PA_add_nonorth_term){
+										PAD_1+=m1jlp[l]*radial_part*atom_phase2*coeff2_1*et;
+										if(spin_i==2){
+											PAD_2+=m1jlp[l]*radial_part*atom_phase2*coeff2_2*et;
+										}
+									}
+									if(PA_orth_correction){
+										Norm_FI_1+=m1jlp[l]*radial_part*atom_phase2*coeff2_1;
+										if(spin_i==2){
+											Norm_FI_2+=m1jlp[l]*radial_part*atom_phase2*coeff2_2;
+										}
 									}
 								}
 							}
@@ -2141,6 +2162,9 @@ void calculate_PAD(){
 							double* final_states_re=new double[wfn_length[is]];
 							double* final_states_im=new double[wfn_length[is]];
 							double* sp_bessel_lp=new double[wfn_length[is]];
+							if(final_states_FP_g_size[ik][FPIndex_1]==0){
+								continue;
+							}
 							for(int ig=0; ig<final_states_FP_g_size[ik][FPIndex_1]; ig++){
 								// printf("ik %3d ib %3d ia %3d ig %3d\n", ik, ib, ia, ig);
 								for(int ix=0; ix<3; ix++){
@@ -2262,7 +2286,7 @@ void calculate_PAD(){
 												//PAD_1+=LCAO_use[mpl][0]*coeff11+LCAO_use[mpl][1]*coeff21;
 												//PAD_2+=LCAO_use[mpl][0]*coeff21+LCAO_use[mpl][1]*coeff22;
 											}
-											if(PA_add_nonorth_term){
+											if(PA_add_nonorth_term || PA_orth_correction){
 												if(lp<abs(m)){
 													continue;
 												}
@@ -2275,7 +2299,6 @@ void calculate_PAD(){
 												double et_real=inner_product(e_vec_re, atom_coordinates[ia]);
 												double et_imag=inner_product(e_vec_im, atom_coordinates[ia]);
 												complex<double> et(et_real, et_imag);
-												complex<double> coeff_no(0,0);
 												
 												complex<double> integral_rt(0, 0);
 												for(int it=0; it<PA_theta_points; it++){
@@ -2296,11 +2319,16 @@ void calculate_PAD(){
 														*spherical_harmonic_theta(lp, m, theta)
 														*spherical_harmonic_theta(l, m, theta)*M_PI/(PA_theta_points*1.0);
 												}
-												coeff_no+=Ylm_k[lp][mpl]*integral_rt;
-												
-												coeff_no*=atom_phase*m1jlp[lp]*sqrt(2.0*M_PI);
-												if(spin_i==0 || spin_i==1){
-													PAD_1+=LCAO_use[mpl][0]*coeff_no;
+												if(PA_add_nonorth_term){
+													// Note: sqrt(2*pi) is due to atom_phase division by sqrt(2*pi) above
+													if(spin_i==0 || spin_i==1){
+														PAD_1+=LCAO_use[mpl][0]*atom_phase*sqrt(2.0*M_PI)*m1jlp[lp]*Ylm_k[lp][mpl]*integral_rt*et;
+													}
+												}
+												if(PA_orth_correction){
+													if(spin_i==0 || spin_i==1){
+														Norm_FI_1+=LCAO_use[mpl][0]*atom_phase*sqrt(2.0*M_PI)*m1jlp[lp]*Ylm_k[lp][mpl]*integral_rt;
+													}
 												}
 											}// end of Add_nonorth_term
 										}// end of for(mpl)
@@ -2370,7 +2398,7 @@ void calculate_PAD(){
 										// cout << endl;
 										PAD_1+=radial_part*coeff2_1*atom_weight/(4.0*M_PI);
 									} // end of for(dl)
-									if(PA_add_nonorth_term){
+									if(PA_add_nonorth_term || PA_orth_correction){
 										double e_vec_re[3];
 										double e_vec_im[3];
 										for(int ix=0; ix<3; ix++){
@@ -2388,7 +2416,12 @@ void calculate_PAD(){
 											coeff2_1+=LCAO_use[mpl][0]*conj(final_states_FP_nonloc[ik][FPIndex_1][ia][l][mpl]);
 										}
 										// cout << endl;
-										PAD_1+=radial_part*coeff2_1*et*atom_weight/(4.0*M_PI);
+										if(PA_add_nonorth_term){
+											PAD_1+=radial_part*coeff2_1*et*atom_weight/(4.0*M_PI);
+										}
+										if(PA_orth_correction){
+											Norm_FI_1+=radial_part*coeff2_1*atom_weight/(4.0*M_PI);
+										}
 									} // end of add_nonorth_term
 								} // end of for(io)
 							} // end of PA_ignore_core
@@ -2407,6 +2440,11 @@ void calculate_PAD(){
 						PAD_norm+=norm(PAD_2);
 					}
 				}
+				if(PA_orth_correction){
+					double Norm_FI=norm(Norm_FI_1)+norm(Norm_FI_2);
+					printf("Norm_FI: %10.4e\n", Norm_FI);
+				}
+				
 				// cout << "!" << PAD_norm << endl;
 				for(j=-tail_index; j<=tail_index; j++){
 					if(eigen_index+j>=0 && eigen_index+j<num_points_E){

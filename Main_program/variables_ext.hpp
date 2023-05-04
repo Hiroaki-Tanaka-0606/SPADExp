@@ -204,6 +204,8 @@ extern bool PA_add_nonorth_term;
 extern bool PA_add_nonorth_term_set;
 extern bool PA_calc_all_nonloc;
 extern bool PA_calc_all_nonloc_set;
+extern bool PA_orth_correction;
+extern bool PA_orth_correction_set;
 /// files
 extern FILE* Log_file_obj;
 extern FILE* Output_file_obj;

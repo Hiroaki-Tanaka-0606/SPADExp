@@ -205,6 +205,8 @@ bool PA_add_nonorth_term; // include the \tau_i \cdot e < psi_F | psi_I> term
 bool PA_add_nonorth_term_set;
 bool PA_calc_all_nonloc;  // calculate the nonlocal wave functions for all atoms which can have zero weights
 bool PA_calc_all_nonloc_set;
+bool PA_orth_correction;  // apply the orthgonality correction
+bool PA_orth_correction_set;
 /// files
 FILE* Log_file_obj;            // log file object
 FILE* Output_file_obj;         // data file object
