@@ -412,9 +412,10 @@ void calculate_PAD(){
 	write_log((char*)"----Load initial states----");
 
 	double*** wfn_phi_rdr=new double**[atom_spec_length]; // [is][io][r]
-	double*** wfn_phi_PAO=new double**[atom_spec_length]; //[is][io][r] for FPFS
-	double*** wfn_phi_AO=new double**[atom_spec_length]; //[is][io][r] for FPFS
-	double*** wfn_phi_dr=new double**[atom_spec_length]; // [is][io][r] for nonorth_term
+	double*** wfn_phi_PAO=new double**[atom_spec_length]; // [is][io][r] for FPFS
+	double*** wfn_phi_AO=new double**[atom_spec_length];  // [is][io][r] for FPFS
+	double*** wfn_phi_dr=new double**[atom_spec_length];  // [is][io][r] for nonorth_term
+	double*** wfn_phi=new double**[atom_spec_length];     // [is][io][r] for orth_correction
 	double** wfn_r=new double*[atom_spec_length]; // [is][r]
 	char AO_group_name[item_size*2];
 	int wfn_length[atom_spec_length];
@@ -430,6 +431,9 @@ void calculate_PAD(){
 		if(PA_FPFS){
 			wfn_phi_PAO[is]=new double*[num_orbits[is]];
 			wfn_phi_AO[is]=new double*[num_orbits[is]];
+		}
+		if(PA_orth_correction){
+			wfn_phi[is]=new double*[num_orbits[is]];
 		}
 		sprintf(AO_group_name, "%s&%s", atom_spec_PAO[is], atom_spec_PS[is]);
 		sprintf(sprintf_buffer, "----Open %s----", AO_group_name);
@@ -476,13 +480,22 @@ void calculate_PAD(){
 				wfn_phi_PAO[is][io]=new double[wfn_length[is]];
 				wfn_phi_AO[is][io]=new double[wfn_length[is]];
 			}
+			if(PA_orth_correction){
+				wfn_phi[is][io]=new double[wfn_length[is]];
+			}
 			for(j=0; j<wfn_length[is]-1; j++){
 				if(empty_atom==true || strcmp(PA_initial_state, "PAO")==0){
 					wfn_phi_rdr[is][io][j]=wfn_both[0][j]*wfn_r[is][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
 					wfn_phi_dr[is][io][j]=wfn_both[0][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
+					if(PA_orth_correction){
+						wfn_phi[is][io][j]=wfn_both[0][j];
+					}
 				}else{
 					wfn_phi_rdr[is][io][j]=wfn_both[1][j]*wfn_r[is][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
 					wfn_phi_dr[is][io][j]=wfn_both[1][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
+					if(PA_orth_correction){
+						wfn_phi[is][io][j]=wfn_both[1][j];
+					}
 				}
 				if(PA_FPFS){
 					wfn_phi_PAO[is][io][j]=wfn_both[0][j];
@@ -858,7 +871,7 @@ void calculate_PAD(){
 	int** Vgg_list;                           // [ig][2] = linear combination coefficients for g vector
 	double** Vgg_vector;                      // [ig][3] = g
 	int Vgg_count=0;                          // ig size
-	// Determing the g range for VPS
+	// Determining the g range for VPS
 	// k=sqrt(2*hn)
 	// g_max=2*k*FPFS_kRange, 2 is necessary because g=g1-g2
 	// the search area is (n1, n2) \in k/min(b1, b2)*FPFS_kRange*FPFS_range
@@ -866,6 +879,9 @@ void calculate_PAD(){
 	// Determing the g range for wave function
 	// |k+G|/2 < |(k//, kz)|
 	// the search area is (n1, n2) \in k/min(b1, b2)*FPFS_kRange*FPFS_range
+
+	/// for orthogonality correction
+	double** Self_radial_int[atom_spec_length]; // [is][io1][io2] = \int r P[io1]P[io2] dr
 	
 	if(strcmp(PA_final_state, "Calc")==0){
 		write_log((char*)"----Calculate final states----");
@@ -1817,6 +1833,24 @@ void calculate_PAD(){
 			printf("%2s: %4.2f Bohr\n", atom_spec_label[is], VPS_cutoff[is]);
 		}
 	}
+
+	/// radial integration for orthogonality correction
+	if(PA_orth_correction){
+		write_log((char*)"----Radial integration for orthgonality correction----");
+		for(int is=0; is<atom_spec_length; is++){
+			double* buffer=new double[num_orbits[is]*num_orbits[is]];
+			Self_radial_int[is]=new double*[num_orbits[is]];
+			for(int io1=0; io1<num_orbits[is]; io1++){
+				Self_radial_int[is][io1]=&buffer[io1*num_orbits[is]];
+				for(int io2=0; io2<num_orbits[is]; io2++){
+					Self_radial_int[is][io1][io2]=ddot(&wfn_length[is], &wfn_phi_rdr[is][io1][0], &wfn_phi[is][io2][0]);
+					printf("%5.2f ", Self_radial_int[is][io1][io2]);
+				}
+				printf("\n");
+			}
+			printf("\n");
+		}
+	}
 	
 	/// 3-5. calculation for each k point
 	double dispersion2[total_count_ext][num_points_E];
@@ -1988,14 +2022,14 @@ void calculate_PAD(){
 				// PAD matrix element for up and down spins
 				complex<double> PAD_1(0, 0);
 				complex<double> PAD_2(0, 0);
-				// Norm of initial and final states for orthgonality correction
-				complex<double> Norm_FI_1(0, 0);
-				complex<double> Norm_FI_2(0, 0);
 				if(strcmp(PA_output_data, "Band")==0){
 					PAD_1=complex<double>(1, 0);
 					PAD_2=complex<double>(1, 0);
 				}else{
 					for(ia=0; ia<atom_length; ia++){
+						// Norm of initial and final states for orthgonality correction
+						complex<double> Norm_FI_1(0, 0);
+						complex<double> Norm_FI_2(0, 0);
 						if(PA_weighting==true && atom_weighting_flag[ia]==false){
 							continue;
 						}
@@ -2430,6 +2464,97 @@ void calculate_PAD(){
 							delete[] sp_bessel_lp;
 							// printf("ig end\n");
 						} // end of if(FPFS==false)
+						
+						// Orthogonality correction
+						if(PA_orth_correction){
+							double sum_cia_1=0.0;
+							double sum_cia_2=0.0;
+							int num_orbits2=num_orbits[is];
+							if(spin_i==1){
+								num_orbits2*=2;
+							}
+							for(io=0; io<num_orbits2; io++){
+								int io2=io; // for initial state radial wfn, l_list
+								if(spin_i==1){
+									// io=0, 2, ... -> Up (sp=0), io=1, 3, ... -> Dn (sp=1)
+									if(sp==0 && io%2==1){
+										continue;
+									}
+									if(sp==1 && io%2==0){
+										continue;
+									}
+									io2=io/2;
+								}
+								complex<double>** LCAO_use=LCAO[ia][io][ik_reduced][ib]; // [twoLp1][digit]
+								int l=l_list[is][io2];
+								for(int mpl=0; mpl<=2*l; mpl++){
+									sum_cia_1+=norm(LCAO_use[mpl][0]);
+									if(spin_i==2){
+										sum_cia_2+=norm(LCAO_use[mpl][1]);
+									}
+								}
+							}
+							complex<double> t1=conj(Norm_FI_1)/sum_cia_1;
+							printf("t1: (%9.2e, %9.2e)\n", t1.real(), t1.imag()); 
+							complex<double> t2(0,0);
+							if(spin_i==2){
+								t2=conj(Norm_FI_2)/sum_cia_2;
+								printf("t2: (%9.2e, %9.2e)\n", t2.real(), t2.imag());
+							}
+							// io is for ket
+							// iop is for bra
+							complex<double> Self_matrix_element1(0,0);
+							complex<double> Self_matrix_element2(0,0);
+							for(io=0; io<num_orbits2; io++){
+								int io2=io; // for initial state radial wfn, l_list
+								if(spin_i==1){
+									// io=0, 2, ... -> Up (sp=0), io=1, 3, ... -> Dn (sp=1)
+									if(sp==0 && io%2==1){
+										continue;
+									}
+									if(sp==1 && io%2==0){
+										continue;
+									}
+									io2=io/2;
+								}
+								complex<double>** LCAO_use=LCAO[ia][io][ik_reduced][ib]; // [twoLp1][digit]
+								int l=l_list[is][io2];
+								for(int mpl=0; mpl<=2*l; mpl++){
+									int m=mpl-l;
+									for(int iop=0; iop<num_orbits2; iop++){
+										int iop2=iop;
+										if(spin_i==1){
+											if(sp==0 && iop%2==1){
+												continue;
+											}
+											if(sp==1 && iop%2==0){
+												continue;
+											}
+											iop2=iop/2;
+										}
+										int lp=l_list[is][iop2];
+										complex<double>** LCAO_p_use=LCAO[ia][iop][ik_reduced][ib];
+										if(lp==l+1 || lp==l-1){
+											int jp1St=max(-1, -(m+lp))+1; // include
+											int jp1En=min(1, lp-m)+2; // not include
+											int jp1;
+											for(jp1=jp1St; jp1<jp1En; jp1++){
+												int mpplp=jp1-1+m+lp;
+												Self_matrix_element1+=Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1]*conj(LCAO_p_use[mpplp][0])*LCAO_use[mpl][0]*Self_radial_int[is][iop2][io2];
+												if(spin_i==2){
+													Self_matrix_element2+=Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1]*conj(LCAO_p_use[mpplp][1])*LCAO_use[mpl][1]*Self_radial_int[is][iop2][io2];
+												}
+											}
+										}
+									} // end of for(iop)
+								} // end of for(m)
+							} // end of for(io)
+							PAD_1-=conj(t1)*Self_matrix_element1;
+							if(spin_i==2){
+								PAD_2-=conj(t2)*Self_matrix_element2;
+							}
+						} // end of orthogonality correction
+						
 					} // end of for(ia)
 				} // end of if(output_data=="Band")
 					// cout << PAD_1 << endl;
@@ -2439,10 +2564,6 @@ void calculate_PAD(){
 					if(spin_i==2){
 						PAD_norm+=norm(PAD_2);
 					}
-				}
-				if(PA_orth_correction){
-					double Norm_FI=norm(Norm_FI_1)+norm(Norm_FI_2);
-					printf("Norm_FI: %10.4e\n", Norm_FI);
 				}
 				
 				// cout << "!" << PAD_norm << endl;
