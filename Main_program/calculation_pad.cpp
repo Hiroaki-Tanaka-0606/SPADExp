@@ -2495,63 +2495,65 @@ void calculate_PAD(){
 								}
 							}
 							complex<double> t1=conj(Norm_FI_1)/sum_cia_1;
-							printf("t1: (%9.2e, %9.2e)\n", t1.real(), t1.imag()); 
+							// printf("t1: (%9.2e, %9.2e)\n", t1.real(), t1.imag()); 
 							complex<double> t2(0,0);
 							if(spin_i==2){
 								t2=conj(Norm_FI_2)/sum_cia_2;
-								printf("t2: (%9.2e, %9.2e)\n", t2.real(), t2.imag());
+								// printf("t2: (%9.2e, %9.2e)\n", t2.real(), t2.imag());
 							}
-							// io is for ket
-							// iop is for bra
-							complex<double> Self_matrix_element1(0,0);
-							complex<double> Self_matrix_element2(0,0);
-							for(io=0; io<num_orbits2; io++){
-								int io2=io; // for initial state radial wfn, l_list
-								if(spin_i==1){
-									// io=0, 2, ... -> Up (sp=0), io=1, 3, ... -> Dn (sp=1)
-									if(sp==0 && io%2==1){
-										continue;
-									}
-									if(sp==1 && io%2==0){
-										continue;
-									}
-									io2=io/2;
-								}
-								complex<double>** LCAO_use=LCAO[ia][io][ik_reduced][ib]; // [twoLp1][digit]
-								int l=l_list[is][io2];
-								for(int mpl=0; mpl<=2*l; mpl++){
-									int m=mpl-l;
-									for(int iop=0; iop<num_orbits2; iop++){
-										int iop2=iop;
-										if(spin_i==1){
-											if(sp==0 && iop%2==1){
-												continue;
-											}
-											if(sp==1 && iop%2==0){
-												continue;
-											}
-											iop2=iop/2;
+							if(isfinite(t1.real()) && isfinite(t1.imag())){
+								// io is for ket
+								// iop is for bra
+								complex<double> Self_matrix_element1(0,0);
+								complex<double> Self_matrix_element2(0,0);
+								for(io=0; io<num_orbits2; io++){
+									int io2=io; // for initial state radial wfn, l_list
+									if(spin_i==1){
+										// io=0, 2, ... -> Up (sp=0), io=1, 3, ... -> Dn (sp=1)
+										if(sp==0 && io%2==1){
+											continue;
 										}
-										int lp=l_list[is][iop2];
-										complex<double>** LCAO_p_use=LCAO[ia][iop][ik_reduced][ib];
-										if(lp==l+1 || lp==l-1){
-											int jp1St=max(-1, -(m+lp))+1; // include
-											int jp1En=min(1, lp-m)+2; // not include
-											int jp1;
-											for(jp1=jp1St; jp1<jp1En; jp1++){
-												int mpplp=jp1-1+m+lp;
-												Self_matrix_element1+=Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1]*conj(LCAO_p_use[mpplp][0])*LCAO_use[mpl][0]*Self_radial_int[is][iop2][io2];
-												if(spin_i==2){
-													Self_matrix_element2+=Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1]*conj(LCAO_p_use[mpplp][1])*LCAO_use[mpl][1]*Self_radial_int[is][iop2][io2];
+										if(sp==1 && io%2==0){
+											continue;
+										}
+										io2=io/2;
+									}
+									complex<double>** LCAO_use=LCAO[ia][io][ik_reduced][ib]; // [twoLp1][digit]
+									int l=l_list[is][io2];
+									for(int mpl=0; mpl<=2*l; mpl++){
+										int m=mpl-l;
+										for(int iop=0; iop<num_orbits2; iop++){
+											int iop2=iop;
+											if(spin_i==1){
+												if(sp==0 && iop%2==1){
+													continue;
+												}
+												if(sp==1 && iop%2==0){
+													continue;
+												}
+												iop2=iop/2;
+											}
+											int lp=l_list[is][iop2];
+											complex<double>** LCAO_p_use=LCAO[ia][iop][ik_reduced][ib];
+											if(lp==l+1 || lp==l-1){
+												int jp1St=max(-1, -(m+lp))+1; // include
+												int jp1En=min(1, lp-m)+2; // not include
+												int jp1;
+												for(jp1=jp1St; jp1<jp1En; jp1++){
+													int mpplp=jp1-1+m+lp;
+													Self_matrix_element1+=Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1]*conj(LCAO_p_use[mpplp][0])*LCAO_use[mpl][0]*Self_radial_int[is][iop2][io2];
+													if(spin_i==2){
+														Self_matrix_element2+=Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1]*conj(LCAO_p_use[mpplp][1])*LCAO_use[mpl][1]*Self_radial_int[is][iop2][io2];
+													}
 												}
 											}
-										}
-									} // end of for(iop)
-								} // end of for(m)
-							} // end of for(io)
-							PAD_1-=conj(t1)*Self_matrix_element1;
-							if(spin_i==2){
-								PAD_2-=conj(t2)*Self_matrix_element2;
+										} // end of for(iop)
+									} // end of for(m)
+								} // end of for(io)
+								PAD_1-=conj(t1)*Self_matrix_element1;
+								if(spin_i==2){
+									PAD_2-=conj(t2)*Self_matrix_element2;
+								}
 							}
 						} // end of orthogonality correction
 						
