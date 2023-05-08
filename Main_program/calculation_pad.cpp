@@ -2501,9 +2501,11 @@ void calculate_PAD(){
 								t2=conj(Norm_FI_2)/sum_cia_2;
 								// printf("t2: (%9.2e, %9.2e)\n", t2.real(), t2.imag());
 							}
-							if(isfinite(t1.real()) && isfinite(t1.imag())){
+							// if(isfinite(t1.real()) && isfinite(t1.imag())){
+							if(abs(sum_cia_1)>PA_zero_threshold){
 								// io is for ket
 								// iop is for bra
+							  //printf("t1: (%9.2e, %9.2e)\n", t1.real(), t1.imag()); 
 								complex<double> Self_matrix_element1(0,0);
 								complex<double> Self_matrix_element2(0,0);
 								for(io=0; io<num_orbits2; io++){
