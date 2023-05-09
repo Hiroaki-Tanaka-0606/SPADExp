@@ -470,7 +470,7 @@ double sp_bessel(int l, double x){
 		// {(15x^4-420x^2+945)*sin(x)-(x^5-105x^3+945x)*cos(x)}/x^6
 		return ((15.0*x*x*x*x-420.0*x*x+945.0)*sin(x)-(x*x*x*x*x-105.0*x*x*x+945.0*x)*cos(x))/(x*x*x*x*x*x);
 	}else{
-		printf("Invalid l");
+		write_log((char*)"Invalid l");
 		return 0.0;
 	}
 }
@@ -680,11 +680,11 @@ complex<double> interpolate_fgz(double z, complex<double>* fgz, double dz, int z
 	double index_d=z/dz;
 	int index_floor=floor(z/dz);
 	if(index_floor<0){
-		printf("Out of range\n");
+		write_log((char*)"Out of range");
 		return fgz[0];
 	}
 	if(index_floor>=z_count-1){
-		printf("Out of range\n");
+		write_log((char*)"Out of range");
 		return fgz[z_count-1];
 	}
 	return fgz[index_floor]*(index_floor+1.0-index_d)+fgz[index_floor+1]*(index_d-index_floor);
@@ -699,7 +699,7 @@ double spherical_harmonic_theta(int l, int m, double theta){
 		if(m==0){
 			return 1.0/(sqrt(2.0));
 		}else{
-			printf("Invalid m\n");
+			write_log((char*)"Invalid m");
 			return 0.0;
 		}
 	}
@@ -714,7 +714,7 @@ double spherical_harmonic_theta(int l, int m, double theta){
 			// p(1): -1/2 sqrt(3/2pi) sin(T)
 			return -(1.0/2.0)*sqrt(3.0)*sinT;
 		}else{
-			printf("Invalid m\n");
+			write_log((char*)"Invalid m");
 			return 0.0;
 		}
 	}
@@ -735,7 +735,7 @@ double spherical_harmonic_theta(int l, int m, double theta){
 			// d(2): 1/4 sqrt(15) sin^2(T)
 			return (1.0/4.0)*sqrt(15.0)*sinT*sinT;
 		}else{
-			printf("Invalid m\n");
+			write_log((char*)"Invalid m");
 			return 0.0;
 		}
 	}
@@ -762,7 +762,7 @@ double spherical_harmonic_theta(int l, int m, double theta){
 			// f(3): -1/8 sqrt(70) sin^3(T)
 			return -(1.0/8.0)*sqrt(70.0)*sinT*sinT*sinT;
 		}else{
-			printf("Invalid m\n");
+			write_log((char*)"Invalid m");
 			return 0.0;
 		}
 	}
@@ -795,7 +795,7 @@ double spherical_harmonic_theta(int l, int m, double theta){
 			// g(4): 3/16 sqrt(35) sin^4(T)
 			return (3.0/16.0)*sqrt(35.0)*sinT*sinT*sinT*sinT;
 		}else{
-			printf("Invalid m\n");
+			write_log((char*)"Invalid m");
 			return 0.0;
 		}
 	}
@@ -834,12 +834,12 @@ double spherical_harmonic_theta(int l, int m, double theta){
 			// h(5): -3/32 sqrt(154) sin^5(T)(cos(5P)-i*sin(5P))
 			return -(3.0/32.0)*sqrt(154)*sinT*sinT*sinT*sinT*sinT;
 		}else{
-			printf("Invalid m");
+			write_log((char*)"Invalid m");
 			return 0.0;
 		}
 	}
-	
-	printf("Invalid l");
+  
+	write_log((char*)"Invalid l");
 	return 0.0;
 }
 
@@ -850,6 +850,7 @@ double** alloc_dmatrix(int n);
 void delete_dmatrix(double** mat);
 
 void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* V_loc, int VPS_l_length, int* VPS_l, double* VPS_E_buffer, double** VPS_nonloc_buffer, double* psi){
+	char* sprintf_buffer2=new char[Log_length+1];
 	int N=2;
 	// printf("Ekin %f, l %d\n", Ekin, l);
 	double** VPS_nonloc=new double*[VPS_l_length];
@@ -991,7 +992,7 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 	int ipiv[r_count];
 	dgetrf_(&r_count, &r_count, &inverse[0][0], &r_count, &ipiv[0], &info);
 	if(info!=0){
-		printf("LU decomposition failed\n");
+		write_log((char*)"LU decomposition failed");
 		return;
 	}
 
@@ -1000,7 +1001,7 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 	double work_dummy;
 	dgetri_(&r_count, &inverse[0][0], &r_count, &ipiv[0], &work_dummy, &lwork, &info);
 	if(info!=0){
-		printf("Work space calculation failed\n");
+		write_log((char*)"Work space calculation failed");
 		return;
 	}
 	lwork=round(work_dummy);
@@ -1009,7 +1010,7 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 	
 	dgetri_(&r_count, &inverse[0][0], &r_count, &ipiv[0], &work[0], &lwork, &info);
 	if(info!=0){
-		printf("Inverse matrix calculation failed\n");
+		write_log((char*)"Inverse matrix calculation failed");
 		return;
 	}
 
@@ -1144,7 +1145,8 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 		}
 		cg_norm_prev=cg_norm;
 	}
-	printf("CG trials: %6d, CG norm: %10.4e\n", trial, cg_norm);
+	sprintf(sprintf_buffer2, "CG trials: %6d, CG norm: %10.4e\n", trial, cg_norm);
+	write_log(sprintf_buffer2);
 
 	dgemv_(&no_trans, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &psi_vector[0], &inc, &beta, &hpsi_vector[0], &inc);
 	// copy & normalization so that the edge is 1.0
@@ -1155,6 +1157,7 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 	}
 	delete[] VPS_E;
 	delete[] VPS_nonloc;
+	delete[] sprintf_buffer2;
 	delete_dmatrix(matrix);
 	delete_dmatrix(inverse);
 	delete_dmatrix(dr_matrix);

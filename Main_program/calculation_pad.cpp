@@ -1045,8 +1045,10 @@ void calculate_PAD(){
 					}
 				}
 			}
-			printf("VPS cutoff #%-4d = %.3f Bohr ~ %.3f Bohr\n", vps_cutoff_index[is], VPS_r[is][vps_cutoff_index[is]], VPS_cutoff[is]);
-			printf("Wfn cutoff #%-4d = %.3f Bohr ~ %.3f Bohr\n", wfn_cutoff_index[is], wfn_r[is][wfn_cutoff_index[is]], VPS_cutoff[is]);
+			sprintf(sprintf_buffer, "VPS cutoff #%-4d = %.3f Bohr ~ %.3f Bohr", vps_cutoff_index[is], VPS_r[is][vps_cutoff_index[is]], VPS_cutoff[is]);
+			write_log(sprintf_buffer);
+			sprintf(sprintf_buffer, "Wfn cutoff #%-4d = %.3f Bohr ~ %.3f Bohr", wfn_cutoff_index[is], wfn_r[is][wfn_cutoff_index[is]], VPS_cutoff[is]);
+			write_log(sprintf_buffer);
 			if(empty_atoms[is]){
 				continue;
 			}
@@ -1114,7 +1116,8 @@ void calculate_PAD(){
 			}
 		}
 		final_states_dz=sqrt(inner_product(atom_cell[0], atom_cell[0]))/VKS_count[0];
-		printf("dz = %.3f\n", final_states_dz);
+		sprintf(sprintf_buffer, "dz = %.3f", final_states_dz);
+		write_log(sprintf_buffer);
 		// caculate average for the nonlocal areas
 		double Lebedev_r[3][PA_Lebedev_order_ave];
 		double Lebedev_w[PA_Lebedev_order_ave];
@@ -1181,10 +1184,14 @@ void calculate_PAD(){
 		double b_length=min(b1_length, b2_length);
 		double gMax=2*khn_approx*PA_FPFS_range;
 		int n_range=ceil(khn_approx/b_length*PA_FPFS_range);
-		printf("khn = %.3f\n", khn_approx);
-		printf("b   = %.3f\n", b_length);
-		printf("gMax= %.3f\n", gMax);
-		printf("n   = %d\n", n_range);
+		sprintf(sprintf_buffer, "khn = %.3f", khn_approx);
+		write_log(sprintf_buffer);
+		sprintf(sprintf_buffer, "b   = %.3f", b_length);
+		write_log(sprintf_buffer);
+		sprintf(sprintf_buffer, "gMax= %.3f", gMax);
+		write_log(sprintf_buffer);
+		sprintf(sprintf_buffer, "n   = %d", n_range);
+		write_log(sprintf_buffer);
 		bool g_included[n_range*2+1][n_range*2+1];
 		double g12[3];
 		double g12_length;
@@ -1204,7 +1211,8 @@ void calculate_PAD(){
 				}
 			}
 		}
-		printf("Vgg size = %d\n", Vgg_count);
+		sprintf(sprintf_buffer, "Vgg size = %d", Vgg_count);
+		write_log(sprintf_buffer);
 		complex<double>* Vgg0_buffer=new complex<double>[Vgg_count*VKS_count[0]];
 		Vgg0=new complex<double>*[Vgg_count];
 		for(int ig=0; ig<Vgg_count; ig++){
@@ -1325,6 +1333,7 @@ void calculate_PAD(){
 #pragma omp parallel firstprivate(scale_width, PA_ext_set, spin_i, num_bands, EF_Eh, Eh, PA_FPFS_energy_step, E_min_scale, E_max_scale, PA_excitation_energy, atom_above_surface, atom_length, n_range, digit) private(j)
 #pragma omp for
 		for(i=0; i<total_count_ext; i++){
+			char* sprintf_buffer2=new char[Log_length+1];
 			// cout << i << endl;
 			int count, count_up, count_dn;
 			bool band_exists[scale_width];
@@ -1465,7 +1474,8 @@ void calculate_PAD(){
 				}
 			}
 			// for debug
-			printf("k=%4d, count=%3d\n", i, FPIndex_size);
+			sprintf(sprintf_buffer2, "k=%4d, count=%3d", i, FPIndex_size);
+			write_log(sprintf_buffer2);
 			/*
 				for(j=0; j<FPIndex_size; j++){
 				printf("Scale=%4d, Energy=%7.3f eV, spin=%d\n",
@@ -1781,6 +1791,7 @@ void calculate_PAD(){
 					// printf("Norm2[%d][%d][%d]= %8.4f\n", i, j, ia, final_states_FP_norm2[i][j][ia]);
 				} //for (ia=0; ia<atom_length; ia++)
 			} // for(j=0; j<FPIndex_size; j++)
+			delete[] sprintf_buffer2;
 		} // omp for(i=0; i<total_count_ext; i++)
 
 		// nonlocal core part
@@ -1788,12 +1799,14 @@ void calculate_PAD(){
 #pragma omp parallel firstprivate(E_min_scale, org_indices_count, EF_Eh, Eh, PA_excitation_energy)
 #pragma omp for
 			for(int iepa=0; iepa<org_indices_count; iepa++){
+				char* sprintf_buffer2=new char[Log_length+1];
 				int ie=org_indices[iepa][0];
 				int sp=org_indices[iepa][1];
 				int ia=org_indices[iepa][2];
 				int is=atom_spec_index[ia];
 				int eigen_scale=ie+E_min_scale;
-				printf("Index %6d/%6d, EScale: %4d, Spin: %1d, Atom: %3d\n", iepa+1, org_indices_count, eigen_scale, sp, ia);
+				sprintf(sprintf_buffer2, "Index %6d/%6d, EScale: %4d, Spin: %1d, Atom: %3d", iepa+1, org_indices_count, eigen_scale, sp, ia);
+				write_log(sprintf_buffer2);
 				double kinetic_energy_Eh=(eigen_scale*PA_FPFS_energy_step+PA_excitation_energy)/Eh+EF_Eh;
 				// obtain the nonlocal radial function
 				double wfn_buffer[vps_cutoff_index[is]];
@@ -1819,8 +1832,9 @@ void calculate_PAD(){
 						}
 					}
 				}
-			}
-		}
+				delete[] sprintf_buffer2;
+			} // for(iepa)
+		} // if(!PA_ignore_core)
 	} // if(FPFS)
 
 	/// Load VPS file for Ignore_core
@@ -1830,7 +1844,8 @@ void calculate_PAD(){
 		for(int is=0; is<atom_spec_length; is++){
 			Group VPSG(VPS_db.openGroup(atom_spec_PS[is]));
 			VPS_cutoff[is]=r_att_double(VPSG, "max_cutoff");
-			printf("%2s: %4.2f Bohr\n", atom_spec_label[is], VPS_cutoff[is]);
+			sprintf(sprintf_buffer, "%2s: %4.2f Bohr", atom_spec_label[is], VPS_cutoff[is]);
+			write_log(sprintf_buffer);
 		}
 	}
 
@@ -1844,11 +1859,11 @@ void calculate_PAD(){
 				Self_radial_int[is][io1]=&buffer[io1*num_orbits[is]];
 				for(int io2=0; io2<num_orbits[is]; io2++){
 					Self_radial_int[is][io1][io2]=ddot(&wfn_length[is], &wfn_phi_rdr[is][io1][0], &wfn_phi[is][io2][0]);
-					printf("%5.2f ", Self_radial_int[is][io1][io2]);
+					// printf("%5.2f ", Self_radial_int[is][io1][io2]);
 				}
-				printf("\n");
+				// printf("\n");
 			}
-			printf("\n");
+			// printf("\n");
 		}
 	}
 	
@@ -1892,6 +1907,7 @@ void calculate_PAD(){
 #pragma omp parallel firstprivate(Y_coeff, sp_max, num_bands, EF_Eh, Eh, PA_E_min, PA_E_pixel, num_points_E, tail_index,  m1jlp, Gaunt_arr, atom_length, atom_spec_index, num_orbits, spin_i,  atom_coordinates, PA_ext_set, PA_final_state_step, k_index_min, atom_weighting_flag, atom_weighting, PA_weighting, axis_au, PA_reflection, PA_reflection_coef, PA_FPFS, PA_FPFS_energy_step, E_min_scale) private(ib, sp, Ylm_k, Ylm_k2, ia, is, io, il, ir, j)
 #pragma omp for
 	for(ik=0; ik<total_count_ext; ik++){
+		char* sprintf_buffer2=new char[Log_length+1];
 		// cout << ik << endl;
 		int ik_reduced=ik;
 		double* k_point;
@@ -2596,9 +2612,10 @@ void calculate_PAD(){
 				delete[] FPFS_rt[ifp];
 			}
 			delete[] FPFS_rt;
+			sprintf(sprintf_buffer2, "k = %4d finished", ik);
+			write_log(sprintf_buffer2);
+			delete[] sprintf_buffer2;
 		}
-		sprintf(sprintf_buffer, "k = %4d finished", ik);
-		write_log(sprintf_buffer);
 	} // end of for(ik) and omp
 	
   end=chrono::system_clock::now();
