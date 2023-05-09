@@ -207,6 +207,8 @@ bool PA_calc_all_nonloc;  // calculate the nonlocal wave functions for all atoms
 bool PA_calc_all_nonloc_set;
 bool PA_orth_correction;  // apply the orthgonality correction
 bool PA_orth_correction_set;
+bool PA_ignore_nonlocal;  // ignore the nonlocal part of the pseudopotential
+bool PA_ignore_nonlocal_set;
 /// files
 FILE* Log_file_obj;            // log file object
 FILE* Output_file_obj;         // data file object

@@ -1795,7 +1795,7 @@ void calculate_PAD(){
 		} // omp for(i=0; i<total_count_ext; i++)
 
 		// nonlocal core part
-		if(!PA_ignore_core){
+		if(!PA_ignore_core && !PA_ignore_nonlocal){
 #pragma omp parallel firstprivate(E_min_scale, org_indices_count, EF_Eh, Eh, PA_excitation_energy)
 #pragma omp for
 			for(int iepa=0; iepa<org_indices_count; iepa++){
@@ -2272,7 +2272,7 @@ void calculate_PAD(){
 										// prepare the spherical Bessel function
 										for(int ir=0; ir<wfn_length[is]; ir++){
 											//if(PA_ignore_core && wfn_r[is][ir]<VPS_cutoff[is]){
-											if(!empty_atoms[is] && ir<wfn_cutoff_index[is]){
+											if(!empty_atoms[is] && ir<wfn_cutoff_index[is] && !PA_ignore_nonlocal){
 												sp_bessel_lp[ir]=0.0;
 											}else{
 												sp_bessel_lp[ir]=sp_bessel(lp, kpg_length*wfn_r[is][ir]);
@@ -2395,7 +2395,7 @@ void calculate_PAD(){
 							// jp1: j+1
 							// mp: of final state, mp=m+j
 							// mpplp: mp+lp=m+j+lp
-							if(!PA_ignore_core && !empty_atoms[is]){
+							if(!PA_ignore_core && !empty_atoms[is] && !PA_ignore_nonlocal){
 								int ie=eigen_scale-E_min_scale;
 								int num_orbits2=num_orbits[is];
 								if(spin_i==1){

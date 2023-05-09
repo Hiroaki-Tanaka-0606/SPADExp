@@ -169,6 +169,8 @@ void initialize(){
 	PA_add_nonorth_term_set=false;
 	PA_calc_all_nonloc=false;
 	PA_calc_all_nonloc_set=false;
+	PA_ignore_nonlocal=false;
+	PA_ignore_nonlocal_set=false;
 }
 
 void finalize(){
