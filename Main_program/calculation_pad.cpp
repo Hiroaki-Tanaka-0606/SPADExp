@@ -2268,6 +2268,19 @@ void calculate_PAD(){
 									// mp: of final state, mp=m+j
 									// mpplp: mp+lp=m+j+lp
 									int l=l_list[is][io2];
+									double* wfn_init=new double[wfn_length[is]];
+									for(int ir=0; ir<wfn_length[is]; ir++){
+										if(strcmp(PA_initial_state, "PAO")==0){
+											wfn_init[ir]=wfn_phi_PAO[is][io2][ir];
+										}else{
+											if(ir<wfn_cutoff_index[is]){
+												wfn_init[ir]=wfn_phi_AO[is][io2][ir];
+											}else{
+												wfn_init[ir]=wfn_phi_PAO[is][io2][ir];
+											}
+										}
+										
+									}
 									for(int lp=0; lp<=PA_lp_max; lp++){
 										// prepare the spherical Bessel function
 										for(int ir=0; ir<wfn_length[is]; ir++){
@@ -2309,8 +2322,8 @@ void calculate_PAD(){
 														}
 														final_states_re[wfn_length[is]-1]=0.0;
 														final_states_im[wfn_length[is]-1]=0.0;
-														double radial_part_re=ddot(&wfn_length[is], &final_states_re[0], &wfn_phi_PAO[is][io2][0]);
-														double radial_part_im=ddot(&wfn_length[is], &final_states_im[0], &wfn_phi_PAO[is][io2][0]);
+														double radial_part_re=ddot(&wfn_length[is], &final_states_re[0], &wfn_init[0]);
+														double radial_part_im=ddot(&wfn_length[is], &final_states_im[0], &wfn_init[0]);
 														complex<double> radial_part(radial_part_re, -radial_part_im);
 														integral_rt+=radial_part*sin(theta)
 															*spherical_harmonic_theta(lp, mpplp-lp, theta)
@@ -2362,8 +2375,8 @@ void calculate_PAD(){
 													}
 													final_states_re[wfn_length[is]-1]=0.0;
 													final_states_im[wfn_length[is]-1]=0.0;
-													double radial_part_re=ddot(&wfn_length[is], &final_states_re[0], &wfn_phi_PAO[is][io2][0]);
-													double radial_part_im=ddot(&wfn_length[is], &final_states_im[0], &wfn_phi_PAO[is][io2][0]);
+													double radial_part_re=ddot(&wfn_length[is], &final_states_re[0], &wfn_init[0]);
+													double radial_part_im=ddot(&wfn_length[is], &final_states_im[0], &wfn_init[0]);
 													complex<double> radial_part(radial_part_re, -radial_part_im);
 													integral_rt+=radial_part*sin(theta)
 														*spherical_harmonic_theta(lp, m, theta)
@@ -2383,6 +2396,7 @@ void calculate_PAD(){
 											}// end of Add_nonorth_term
 										}// end of for(mpl)
 									}// end of for(lp)
+									delete[] wfn_init;
 								}// end of for(io)
 							}//end of for(ig)
 
