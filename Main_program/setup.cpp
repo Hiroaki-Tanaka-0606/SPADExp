@@ -174,7 +174,7 @@ void initialize(){
 	PA_ignore_nonlocal=false;
 	PA_ignore_nonlocal_set=false;
 	PA_FPFS_Numerov=false;
-	PA_FPFS_Numerov=false;
+	PA_FPFS_Numerov_set=false;
 }
 
 void finalize(){

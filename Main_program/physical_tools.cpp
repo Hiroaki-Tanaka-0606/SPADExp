@@ -609,6 +609,7 @@ void delete_zmatrix(complex<double>** mat);
 // In the Numerov method, the solving direction is downward
 // f_{i-1}=(1+h^2/12 a_{i-1})^-1 * [ 2(1-5h^2/12 a_i)*f_i - (1+h^2/12 a_{i+1})*f_{i+1} ]
 void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int z_count, double dz, int V00_index, complex<double>** Vgg_buffer, double* g_vec_buffer, complex<double>* FP_loc_buffer){
+	char* sprintf_buffer2=new char[Log_length+1];
 	// composite matrix
 	complex<double>* Vgg[g_count][g_count];
 	for(int ig1=0; ig1<g_count; ig1++){
@@ -927,7 +928,8 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 		double Anabla[g2_count];
 
 		double res_init=calc_residual_error(g2_count, v2_count, &A_real[0][0], &B_real[0], &x_real[0]);
-		printf("Residual error[%3d] = %10.2e\n", 0, res_init);
+		sprintf(sprintf_buffer2, "Residual error[%3d] = %10.2e\n", 0, res_init);
+		write_log(sprintf_buffer2);
 
 		int trial;
 		double alpha2=1.0;
@@ -948,7 +950,8 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 				break;
 			}
 		}
-		printf("Last residual error[%3d] = %10.2e\n", trial+1, res);
+		sprintf(sprintf_buffer2, "Last residual error[%3d] = %10.2e\n", trial+1, res);
+		write_log(sprintf_buffer2);
 
 		for(int ig=0; ig<g_count; ig++){
 			right_vector[ig]=complex<double>(0.0, 0.0);
@@ -995,7 +998,8 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 		}
 		delete_zmatrix(left_matrix);
 	}
-	
+
+	delete[] sprintf_buffer2;
 }
 
 complex<double>** alloc_zmatrix(int n){
