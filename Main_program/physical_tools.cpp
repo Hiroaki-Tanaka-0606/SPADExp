@@ -118,6 +118,19 @@ extern "C"{
 							 int* INCX,
 							 double* CY,
 							 int* INCY);
+
+	void zgels_(
+							char* TRANS,
+							int* M,
+							int* N,
+							int* NRHS,
+							complex<double>* A,
+							int* LDA,
+							complex<double>* B,
+							int* LDB,
+							complex<double>* WORK,
+							int* LWORK,
+							int* INFO);
   
 }
 
@@ -604,6 +617,7 @@ void calc_gradient_vector(int g_count, int v_count, double* A, double* B, double
 double calc_norm(int count, double* vector);
 
 complex<double>** alloc_zmatrix(int n);
+complex<double>** alloc_zmatrix(int m, int n);
 void delete_zmatrix(complex<double>** mat);
 
 complex<double>*** alloc_zpmatrix(int n);
@@ -896,6 +910,7 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 			}*/
 
 		// by steepest-decent
+		/*
 		int g2_count=g_count*2;
 		int v2_count=vacuum_ok_count*2;
 		double** A_real=alloc_dmatrix(v2_count, g2_count); //transposed
@@ -908,24 +923,24 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 				A_real[iv*2+1][ig*2+1]=H_RL[ig2][ig].real();
 			}
 		}
-		/*
+		
 		printf("A_real\n");
 		for(int igp=0; igp<g2_count; igp++){
 			for(int ivp=0; ivp<v2_count; ivp++){
 				printf("%10.2e ", A_real[ivp][igp]);
 			}
 			printf("\n");
-			}*/
+			}
 		double* B_real=new double[g2_count];
 		for(int ig=0; ig<g_count; ig++){
 			B_real[ig*2]=right_vector[ig].real();
 			B_real[ig*2+1]=right_vector[ig].imag();
 		}
-		/*
+		
 		printf("B_real\n");
 		for(int igp=0; igp<g2_count; igp++){
 			printf("%10.2e\n", B_real[igp]);
-			}*/
+			}
 
 		double* x_real=new double[v2_count];
 		for(int iv=0; iv<v2_count; iv++){
@@ -954,25 +969,67 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 			}
 			res=calc_residual_error(g2_count, v2_count, &A_real[0][0], &B_real[0], &x_real[0]);
 			// printf("Residual error[%3d] = %10.2e\n", trial+1, res);
-			if(res/res_init<1e-7){
+			if(res/res_init<1e-12){
 				break;
 			}
 		}
 		sprintf(sprintf_buffer2, "Last residual error[%3d] = %10.2e", trial+1, res);
-		write_log(sprintf_buffer2);
+		write_log(sprintf_buffer2);*/
+		// by steepest decent finished
+		
+		// by zgels
+		complex<double>** A_complex=alloc_zmatrix(vacuum_ok_count, g_count);
+		for(int ig=0; ig<g_count; ig++){
+			for(int iv=0; iv<vacuum_ok_count; iv++){
+				int ig2=vacuum_ok_index[iv];
+				A_complex[iv][ig]=H_RL[ig2][ig];
+			}
+		}
+		complex<double>* B_complex=new complex<double>[g_count];
+		for(int ig=0; ig<g_count; ig++){
+			B_complex[ig]=right_vector[ig];
+		}
 
+		lwork=-1;
+		zgels_(&notrans, &g_count, &vacuum_ok_count, &nrhs, &A_complex[0][0], &g_count, &B_complex[0], &g_count, &work_dummy, &lwork, &info);
+		if(info!=0){
+			write_log((char*)"Work space calculation failed");
+			return;
+		}
+		lwork=round(abs(work_dummy));
+		work=new complex<double>[lwork];
+		zgels_(&notrans, &g_count, &vacuum_ok_count, &nrhs, &A_complex[0][0], &g_count, &B_complex[0], &g_count, &work[0], &lwork, &info);
+		if(info!=0){
+			write_log((char*)"zgels failed");
+			return;
+		}
+		delete[] work;
+		// by zgels finished
+		
 		for(int ig=0; ig<g_count; ig++){
 			right_vector[ig]=complex<double>(0.0, 0.0);
 		}
 		for(int iv=0; iv<vacuum_ok_count; iv++){
-			right_vector[vacuum_ok_index[iv]]=complex<double>(x_real[2*iv], x_real[2*iv+1]);
+			// right_vector[vacuum_ok_index[iv]]=complex<double>(x_real[2*iv], x_real[2*iv+1]);
+			right_vector[vacuum_ok_index[iv]]=B_complex[iv];
 		}
+
 		/*
 		printf("Right(solution)\n");
 		for(int ig=0; ig<g_count; ig++){
 			printf("(%10.2e, %10.2e)\n", right_vector[ig].real(), right_vector[ig].imag());
 		}
-		printf("\n");*/
+		printf("\n");
+
+		printf("Right(solution) by zgels\n");
+		for(int iv=0; iv<vacuum_ok_count; iv++){
+			printf("(%10.2e, %10.2e)\n", B_complex[iv].real(), B_complex[iv].imag());
+			}*/
+		double zgels_norm=0.0;
+		for(int iv=vacuum_ok_count; iv<g_count; iv++){
+			zgels_norm+=norm(B_complex[iv]);
+		}
+		printf("zgels norm: %10.2e\n", zgels_norm);
 
 		// printf("f_G(z)\n");
 
@@ -1000,22 +1057,25 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 		//for(int ig=0; ig<g_count; ig++){
 		//for(int iz=0; iz<z_count; iz++){
 		//int index=ig*z_count+iz;
-				// printf("(%8.4f, %8.4f)\n", FP_loc_buffer[index].real(), FP_loc_buffer[index].imag());
+		//printf("(%8.4f, %8.4f)\n", FP_loc_buffer[index].real(), FP_loc_buffer[index].imag());
 		//}
-			// printf("\n");
+		//printf("\n");
 		//}
 		delete_zmatrix(left_matrix);
-		delete_dmatrix(A_real);
+		//delete_dmatrix(A_real);
+		delete_zmatrix(A_complex);
 		delete[] vacuum_ok;
 		delete[] vacuum_ok_index;
 		delete[] ipiv;
 		delete[] right_vector;
 		delete[] right_vector2;
-		delete[] B_real;
-		delete[] x_real;
-		delete[] nabla;
-		delete[] Anabla;
+		//delete[] B_real;
+		//delete[] x_real;
+		//delete[] nabla;
+		//delete[] Anabla;
 		delete[] right_vector_all;
+		delete[] B_complex;
+		
 	}
 
 	delete[] sprintf_buffer2;
@@ -1026,6 +1086,15 @@ complex<double>** alloc_zmatrix(int n){
 	complex<double>* buffer=new complex<double>[n*n];
 	complex<double>** mat=new complex<double>*[n];
 	for(int i=0; i<n; i++){
+		mat[i]=&buffer[i*n];
+	}
+	return mat;
+}
+
+complex<double>** alloc_zmatrix(int m, int n){
+	complex<double>* buffer=new complex<double>[m*n];
+	complex<double>** mat=new complex<double>*[m];
+	for(int i=0; i<m; i++){
 		mat[i]=&buffer[i*n];
 	}
 	return mat;
