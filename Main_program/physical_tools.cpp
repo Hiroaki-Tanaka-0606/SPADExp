@@ -606,12 +606,19 @@ double calc_norm(int count, double* vector);
 complex<double>** alloc_zmatrix(int n);
 void delete_zmatrix(complex<double>** mat);
 
+complex<double>*** alloc_zpmatrix(int n);
+void delete_zpmatrix(complex<double>*** mat);
+
+double** alloc_dmatrix(int n);
+double** alloc_dmatrix(int m, int n);
+void delete_dmatrix(double** mat);
+
 // In the Numerov method, the solving direction is downward
 // f_{i-1}=(1+h^2/12 a_{i-1})^-1 * [ 2(1-5h^2/12 a_i)*f_i - (1+h^2/12 a_{i+1})*f_{i+1} ]
 void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int z_count, double dz, int V00_index, complex<double>** Vgg_buffer, double* g_vec_buffer, complex<double>* FP_loc_buffer){
 	char* sprintf_buffer2=new char[Log_length+1];
 	// composite matrix
-	complex<double>* Vgg[g_count][g_count];
+	complex<double>*** Vgg=alloc_zpmatrix(g_count);
 	for(int ig1=0; ig1<g_count; ig1++){
 		for(int ig2=0; ig2<g_count; ig2++){
 			Vgg[ig1][ig2]=Vgg_buffer[ig1*g_count+ig2];
@@ -796,12 +803,13 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 			return;
 		}
 		lwork=round(abs(work_dummy));
-		complex<double> work[lwork];
+		complex<double>* work=new complex<double>[lwork];
 		zgetri_(&eq_dim, &left_matrix[0][0], &eq_dim, &ipiv[0], &work[0], &lwork, &info);
 		if(info!=0){
 			write_log((char*)"zgetri failed");
 			return;
 		}
+		delete[] work;
 		/*
 		for(int i=0; i<eq_dim; i++){
 			for(int j=0; j<eq_dim; j++){
@@ -811,8 +819,8 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 			}*/
 
 		// extract the RL and RR matrices
-		complex<double> H_RL[g_count][g_count]; // inverted
-		complex<double> H_RR[g_count][g_count]; // inverted
+		complex<double>** H_RL=alloc_zmatrix(g_count); // inverted
+		complex<double>** H_RR=alloc_zmatrix(g_count); // inverted
 		int index1, index2;
 		for(int ig1=0; ig1<g_count; ig1++){
 			for(int ig2=0; ig2<g_count; ig2++){
@@ -890,7 +898,7 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 		// by steepest-decent
 		int g2_count=g_count*2;
 		int v2_count=vacuum_ok_count*2;
-		double A_real[v2_count][g2_count]; //transposed
+		double** A_real=alloc_dmatrix(v2_count, g2_count); //transposed
 		for(int ig=0; ig<g_count; ig++){
 			for(int iv=0; iv<vacuum_ok_count; iv++){
 				int ig2=vacuum_ok_index[iv];
@@ -928,7 +936,7 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 		double Anabla[g2_count];
 
 		double res_init=calc_residual_error(g2_count, v2_count, &A_real[0][0], &B_real[0], &x_real[0]);
-		sprintf(sprintf_buffer2, "Residual error[%3d] = %10.2e\n", 0, res_init);
+		sprintf(sprintf_buffer2, "Residual error[%3d] = %10.2e", 0, res_init);
 		write_log(sprintf_buffer2);
 
 		int trial;
@@ -950,7 +958,7 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 				break;
 			}
 		}
-		sprintf(sprintf_buffer2, "Last residual error[%3d] = %10.2e\n", trial+1, res);
+		sprintf(sprintf_buffer2, "Last residual error[%3d] = %10.2e", trial+1, res);
 		write_log(sprintf_buffer2);
 
 		for(int ig=0; ig<g_count; ig++){
@@ -997,9 +1005,11 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 			// printf("\n");
 		}
 		delete_zmatrix(left_matrix);
+		delete_dmatrix(A_real);
 	}
 
 	delete[] sprintf_buffer2;
+	delete_zpmatrix(Vgg);
 }
 
 complex<double>** alloc_zmatrix(int n){
@@ -1009,6 +1019,20 @@ complex<double>** alloc_zmatrix(int n){
 		mat[i]=&buffer[i*n];
 	}
 	return mat;
+}
+
+complex<double>*** alloc_zpmatrix(int n){
+	complex<double>** buffer=new complex<double>*[n*n];
+	complex<double>*** mat=new complex<double>**[n];
+	for(int i=0; i<n; i++){
+		mat[i]=&buffer[i*n];
+	}
+	return mat;
+}
+
+void delete_zpmatrix(complex<double>*** mat){
+	delete[] mat[0];
+	delete[] mat;
 }
 
 void delete_zmatrix(complex<double>** mat){
@@ -1424,8 +1448,6 @@ double spherical_harmonic_theta(int l, int m, double theta){
 void psi_normalize(int count, double* dr, double* psi);
 double expectation_value(int count, double* matrix, double* psi, double* dr);
 double matrix_element(int count, double* left, double* center, double* right);
-double** alloc_dmatrix(int n);
-void delete_dmatrix(double** mat);
 
 void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* V_loc, int VPS_l_length, int* VPS_l, double* VPS_E_buffer, double** VPS_nonloc_buffer, double* psi){
 	char* sprintf_buffer2=new char[Log_length+1];
@@ -1790,6 +1812,15 @@ double** alloc_dmatrix(int n){
 	double* buffer=new double[n*n];
 	double** ret=new double*[n];
 	for(int i=0; i<n; i++){
+		ret[i]=&buffer[i*n];
+	}
+	return ret;
+}
+
+double** alloc_dmatrix(int m, int n){
+	double* buffer=new double[m*n];
+	double** ret=new double*[m];
+	for(int i=0; i<m; i++){
 		ret[i]=&buffer[i*n];
 	}
 	return ret;
