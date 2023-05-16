@@ -732,9 +732,9 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 			}
 		}
 
-		bool vacuum_ok[g_count];
+		bool* vacuum_ok=new bool[g_count];
 		int vacuum_ok_count=0;
-		int vacuum_ok_index[g_count];
+		int* vacuum_ok_index=new int[g_count];
 		
 		double kpg[3];
 		for(int ig=0; ig<g_count; ig++){
@@ -785,7 +785,7 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 
 		// LU decomposition
 		int info;
-		int ipiv[eq_dim];
+		int* ipiv=new int[eq_dim];
 		int nrhs=1;
 		
 		zgetrf_(&eq_dim, &eq_dim, &left_matrix[0][0], &eq_dim, &ipiv[0], &info);
@@ -852,7 +852,7 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 			}*/
 
 		// compute the right vector
-		complex<double> right_vector[g_count];
+		complex<double>* right_vector=new complex<double>[g_count];
 		for(int ig=0; ig<g_count; ig++){
 			if(ig==V00_index){
 				right_vector[ig]=-dz*dz*complex<double>(cos(kzz0), sin(kzz0));
@@ -860,7 +860,7 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 				right_vector[ig]=complex<double>(0.0, 0.0);
 			}
 		}
-		complex<double> right_vector2[g_count];
+		complex<double>* right_vector2=new complex<double>[g_count];
 		for(int ig=0; ig<g_count; ig++){
 			if(ig==V00_index){
 				right_vector2[ig]=-complex<double>(cos(kzz0h), sin(kzz0h));
@@ -916,7 +916,7 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 			}
 			printf("\n");
 			}*/
-		double B_real[g2_count];
+		double* B_real=new double[g2_count];
 		for(int ig=0; ig<g_count; ig++){
 			B_real[ig*2]=right_vector[ig].real();
 			B_real[ig*2+1]=right_vector[ig].imag();
@@ -927,13 +927,13 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 			printf("%10.2e\n", B_real[igp]);
 			}*/
 
-		double x_real[v2_count];
+		double* x_real=new double[v2_count];
 		for(int iv=0; iv<v2_count; iv++){
 			x_real[iv]=0.0;
 		}
 
-		double nabla[v2_count];
-		double Anabla[g2_count];
+		double* nabla=new double[v2_count];
+		double* Anabla=new double[g2_count];
 
 		double res_init=calc_residual_error(g2_count, v2_count, &A_real[0][0], &B_real[0], &x_real[0]);
 		sprintf(sprintf_buffer2, "Residual error[%3d] = %10.2e", 0, res_init);
@@ -977,7 +977,7 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 		// printf("f_G(z)\n");
 
 		// obtain f_G(z)
-		complex<double> right_vector_all[eq_dim];
+		complex<double>* right_vector_all=new complex<double>[eq_dim];
 		for(int igz=0; igz<eq_dim; igz++){
 			right_vector_all[igz]=complex<double>(0.0, 0.0);
 			FP_loc_buffer[igz]=complex<double>(0.0, 0.0);
@@ -992,20 +992,30 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 		}
 		beta=complex<double>(0.0, 0.0);
 		
-		for(int igz=0; igz<eq_dim; igz++){
+		//for(int igz=0; igz<eq_dim; igz++){
 			//printf("(%8.4f, %8.4f)\n", right_vector_all[igz].real(), right_vector_all[igz].imag());
-		}
+		//}
 		zgemv_(&notrans, &eq_dim, &eq_dim, &alpha, &left_matrix[0][0], &eq_dim, &right_vector_all[0], &inc, &beta, &FP_loc_buffer[0], &inc);
 		
-		for(int ig=0; ig<g_count; ig++){
-			for(int iz=0; iz<z_count; iz++){
-				int index=ig*z_count+iz;
+		//for(int ig=0; ig<g_count; ig++){
+		//for(int iz=0; iz<z_count; iz++){
+		//int index=ig*z_count+iz;
 				// printf("(%8.4f, %8.4f)\n", FP_loc_buffer[index].real(), FP_loc_buffer[index].imag());
-			}
+		//}
 			// printf("\n");
-		}
+		//}
 		delete_zmatrix(left_matrix);
 		delete_dmatrix(A_real);
+		delete[] vacuum_ok;
+		delete[] vacuum_ok_index;
+		delete[] ipiv;
+		delete[] right_vector;
+		delete[] right_vector2;
+		delete[] B_real;
+		delete[] x_real;
+		delete[] nabla;
+		delete[] Anabla;
+		delete[] right_vector_all;
 	}
 
 	delete[] sprintf_buffer2;
@@ -1053,23 +1063,25 @@ void calc_residual_vector(int g_count, int v_count, double* A, double* B, double
 }
 
 double calc_residual_error(int g_count, int v_count, double* A, double* B, double* x){
-	double res[g_count];
-	calc_residual_vector(g_count, v_count, A, B, x, res);
+	double* res=new double[g_count];
+	calc_residual_vector(g_count, v_count, A, B, x, &res[0]);
 	double re=0.0;
 	for(int i=0; i<g_count; i++){
 		re+=res[i]*res[i]/2.0;
 	}
+	delete[] res;
 	return re;
 }
 
 void calc_gradient_vector(int g_count, int v_count, double* A, double* B, double* x, double* gr){
-	double res[g_count];
-	calc_residual_vector(g_count, v_count, A, B, x, res);
+	double* res=new double[g_count];
+	calc_residual_vector(g_count, v_count, A, B, x, &res[0]);
 	double alpha=1.0;
 	double beta=0.0;
 	char trans='T';
 	int inc=1;
 	dgemv_(&trans, &g_count, &v_count, &alpha, A, &g_count, &res[0], &inc, &beta, gr, &inc);
+	delete[] res;
 }
 
 double calc_norm(int count, double* vector){
