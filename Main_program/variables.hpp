@@ -189,6 +189,8 @@ bool PA_excitation_energy_set;
 double PA_FPFS_energy_step;    // energy step to calculate FPFSs
 bool PA_FPFS_energy_step_set;
 int PA_FPFS_range;             // index range used to determine the in-plane search area
+double PA_FPFS_kRange;         // determine the k space included in the FPFS calculation with !Numerov
+bool PA_FPFS_kRange_set;
 bool PA_FPFS;                  // whether final_state is (FP_PAO or FP_AO)
 char* PA_FPFS_file;            // export destinaion
 bool PA_FPFS_file_set;
@@ -209,6 +211,8 @@ bool PA_orth_correction;  // apply the orthgonality correction
 bool PA_orth_correction_set;
 bool PA_ignore_nonlocal;  // ignore the nonlocal part of the pseudopotential
 bool PA_ignore_nonlocal_set;
+bool PA_FPFS_Numerov;  // perform the nonlocal wfn calculation using the Numerov method
+bool PA_FPFS_Numerov_set;
 /// files
 FILE* Log_file_obj;            // log file object
 FILE* Output_file_obj;         // data file object

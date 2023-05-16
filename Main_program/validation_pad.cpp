@@ -113,6 +113,8 @@ int validation_PAD(){
 			}
 			sprintf(sprintf_buffer, "%32s = %s", "Ignore_nonlocal", PA_ignore_nonlocal?"true":"false");
 			write_log(sprintf_buffer);
+			sprintf(sprintf_buffer, "%32s = %s", "FPFS_Numerov", PA_FPFS_Numerov?"true":"false");
+			write_log(sprintf_buffer);
 			// reflection cannot be used
 			if(PA_reflection==true){
 				write_log((char*)"Error: Reflection cannot be used in FP_PAO and FP_AO");
@@ -134,6 +136,13 @@ int validation_PAD(){
 			write_log(sprintf_buffer);
 			/// FPFS_energy_step
 			sprintf(sprintf_buffer, "%32s = %.3f eV", "FPFS_energy_step", PA_FPFS_energy_step);
+			write_log(sprintf_buffer);
+			if(PA_FPFS_Numerov){
+				PA_FPFS_kRange=1.0;
+				write_log((char*)"Note: FPFS_kRange is set to 1 because FPFS_Numerov is true");
+			}
+			/// FPFS_kRange
+			sprintf(sprintf_buffer, "%32s = %.3f", "FPFS_kRange", PA_FPFS_kRange);
 			write_log(sprintf_buffer);
 			/// FPFS_file
 			if(PA_FPFS_file_set){

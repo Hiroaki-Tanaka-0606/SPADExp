@@ -188,6 +188,8 @@ extern bool PA_excitation_energy_set;
 extern double PA_FPFS_energy_step;
 extern bool PA_FPFS_energy_step_set;
 extern int PA_FPFS_range;
+extern double PA_FPFS_kRange;
+extern bool PA_FPFS_kRange_set;
 extern bool PA_FPFS;
 extern char* PA_FPFS_file;
 extern bool PA_FPFS_file_set;
@@ -208,6 +210,8 @@ extern bool PA_orth_correction;
 extern bool PA_orth_correction_set;
 extern bool PA_ignore_nonlocal;
 extern bool PA_ignore_nonlocal_set;
+extern bool PA_FPFS_Numerov;
+extern bool PA_FPFS_Numerov_set;
 /// files
 extern FILE* Log_file_obj;
 extern FILE* Output_file_obj;

@@ -22,6 +22,8 @@ void Fourier_expansion_z(double* V_buffer, int* V_count, double* g, double* atom
 
 void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int z_count, double dz, int V00_index, complex<double>** Vgg_buffer, double* g_vec_buffer, complex<double>* FP_loc_buffer);
 
+void solve_final_state_real_space(double Ekin, double* k_para, double kz, double* atom_cell_buffer, int* VKS_count, double* VKS_buffer, complex<double>* FP_loc_buffer);
+
 complex<double> interpolate_fgz(double z, complex<double>* fgz, double dz, int z_count);
 
 double spherical_harmonic_theta(int l, int m, double theta);

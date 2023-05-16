@@ -153,6 +153,8 @@ void initialize(){
 	PA_FPFS_energy_step=0.01;
 	PA_FPFS_energy_step_set=false;
 	PA_FPFS_range=5;
+	PA_FPFS_kRange=2.0;
+	PA_FPFS_kRange_set=false;
 	PA_FPFS=false;
 	PA_FPFS_file=new char[HDF5_file_length+1];
 	PA_FPFS_file_set=false;
@@ -171,6 +173,8 @@ void initialize(){
 	PA_calc_all_nonloc_set=false;
 	PA_ignore_nonlocal=false;
 	PA_ignore_nonlocal_set=false;
+	PA_FPFS_Numerov=false;
+	PA_FPFS_Numerov=false;
 }
 
 void finalize(){
