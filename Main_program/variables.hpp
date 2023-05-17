@@ -205,14 +205,17 @@ bool PA_ignore_core;      // ignore the core (<rc) in the radial integration
 bool PA_ignore_core_set;
 bool PA_add_nonorth_term; // include the \tau_i \cdot e < psi_F | psi_I> term
 bool PA_add_nonorth_term_set;
-bool PA_calc_all_nonloc;  // calculate the nonlocal wave functions for all atoms which can have zero weights
+bool PA_calc_all_nonloc;     // calculate the nonlocal wave functions for all atoms which can have zero weights
 bool PA_calc_all_nonloc_set;
+bool PA_calc_all_loc;        // calculate the local wave functions for the whole range
+bool PA_calc_all_loc_set;
 bool PA_orth_correction;  // apply the orthgonality correction
 bool PA_orth_correction_set;
 bool PA_ignore_nonlocal;  // ignore the nonlocal part of the pseudopotential
 bool PA_ignore_nonlocal_set;
 bool PA_FPFS_Numerov;  // perform the nonlocal wfn calculation using the Numerov method
 bool PA_FPFS_Numerov_set;
+double PA_FPFS_margin;   // margin to determine the calculation range of local wfn if PA_calc_all_wfn=false
 /// files
 FILE* Log_file_obj;            // log file object
 FILE* Output_file_obj;         // data file object

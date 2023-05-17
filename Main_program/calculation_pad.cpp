@@ -619,10 +619,13 @@ void calculate_PAD(){
 	//// if width>0 [origin, origin+width]*(x-(origin+width))*(-1/width)
 	//// if width<0 [origin-|width|, origin]*(x-(origin-|width|))*(1/|width|)
 	/// When Include_neg_depth = true, z satisfying (width>0 && origin>z) || (width<0 && origin<z) becomes 1 in Exp, Tri, and Sqrt
+
+	/// for FPFS, assuming width<0, the bottom edge of the calculation range is range_min-margin
 	
 	double atom_weighting[atom_length];
 	bool atom_weighting_flag[atom_length];
 	bool atom_above_surface[atom_length];
+	double FPFS_z_bottom=0.0;
 
 	// axis_au is also used in reflection correction
 	double axis_au[3];
@@ -676,6 +679,11 @@ void calculate_PAD(){
 		}
 		sprintf(sprintf_buffer, "%32s = [%8.2f, %8.2f] [a.u.]", "Weighting range", range_min, range_max);
 		write_log(sprintf_buffer);
+		if(PA_FPFS && !PA_calc_all_loc){
+			FPFS_z_bottom=range_min-PA_FPFS_margin;
+			sprintf(sprintf_buffer, "%32s = %8.2f [a.u.]", "FPFS z bottom", FPFS_z_bottom);
+			write_log(sprintf_buffer);
+		}
 		for(i=0; i<atom_length; i++){
 			double signed_length=inner_product(axis_au, atom_coordinates[i]);
 			if(range_min<signed_length && signed_length<range_max){
@@ -1335,7 +1343,7 @@ void calculate_PAD(){
 		}
 
 		// Note: n_range are determined in the Fourier expansion of VKS
-#pragma omp parallel firstprivate(scale_width, PA_ext_set, spin_i, num_bands, EF_Eh, Eh, PA_FPFS_energy_step, E_min_scale, E_max_scale, PA_excitation_energy, atom_above_surface, atom_length, n_range, digit, PA_FPFS_kRange, khn_approx) private(j)
+#pragma omp parallel firstprivate(scale_width, PA_ext_set, spin_i, num_bands, EF_Eh, Eh, PA_FPFS_energy_step, E_min_scale, E_max_scale, PA_excitation_energy, atom_above_surface, atom_length, n_range, digit, PA_FPFS_kRange, khn_approx, FPFS_z_bottom) private(j)
 #pragma omp for
 		for(i=0; i<total_count_ext; i++){
 			char* sprintf_buffer2=new char[Log_length+1];
@@ -1610,12 +1618,15 @@ void calculate_PAD(){
 
 				// prepare the solution buffer
 				complex<double>* FP_loc_buffer=new complex<double>[FP_g_count*VKS_count[0]];
+				for(int igz=0; igz<FP_g_count*VKS_count[0]; igz++){
+					FP_loc_buffer[igz]=complex<double>(0.0, 0.0);
+				}
 				final_states_FP_loc[i][j]=new complex<double>*[FP_g_count];
 				for(int ig=0; ig<FP_g_count; ig++){
 					final_states_FP_loc[i][j][ig]=&FP_loc_buffer[ig*VKS_count[0]];
 				}
 				// solve the differential equation by the Numerov method
-				solve_final_state(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0], final_states_dz, V00_index, &Vgg_matrix[0][0], &final_states_FP_g_vec[i][j][0][0], FP_loc_buffer);
+				solve_final_state(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0], final_states_dz, FPFS_z_bottom, V00_index, &Vgg_matrix[0][0], &final_states_FP_g_vec[i][j][0][0], FP_loc_buffer);
 				// printf("k=%4d, FPIndex=%3d, nonlocal part\n", i, j);
 				// obtain the connection condition at rc
 				complex<double> Ylm_k[6][11];

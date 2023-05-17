@@ -206,12 +206,15 @@ extern bool PA_add_nonorth_term;
 extern bool PA_add_nonorth_term_set;
 extern bool PA_calc_all_nonloc;
 extern bool PA_calc_all_nonloc_set;
+extern bool PA_calc_all_loc;
+extern bool PA_calc_all_loc_set;
 extern bool PA_orth_correction;
 extern bool PA_orth_correction_set;
 extern bool PA_ignore_nonlocal;
 extern bool PA_ignore_nonlocal_set;
 extern bool PA_FPFS_Numerov;
 extern bool PA_FPFS_Numerov_set;
+extern double PA_FPFS_margin;
 /// files
 extern FILE* Log_file_obj;
 extern FILE* Output_file_obj;

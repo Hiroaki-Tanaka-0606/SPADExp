@@ -276,8 +276,10 @@ int validation_PAD(){
 	sprintf(sprintf_buffer, "%32s = %s", "Orth_correction", PA_orth_correction?"true":"false");
 	write_log(sprintf_buffer);
 	if(PA_FPFS){
-		/// Calc_all_nonloc
+		/// Calc_all_(non)loc
 		sprintf(sprintf_buffer, "%32s = %s", "Calc_all_nonloc", PA_calc_all_nonloc?"true":"false");
+		write_log(sprintf_buffer);
+		sprintf(sprintf_buffer, "%32s = %s", "Calc_all_loc", PA_calc_all_loc?"true":"false");
 		write_log(sprintf_buffer);
 	}
 	/// 

@@ -997,6 +997,17 @@ int load_input(){
 				}
 			  PA_calc_all_nonloc_set=true; continue;
 			}
+			/// Calc_all_loc: bool
+			if(strcmp(keyword_buffer, "Calc_all_loc")==0){
+				if(PA_calc_all_loc_set){
+					output_error(line_number, (char*)"keyword Calc_all_loc already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_bool(input_line_c, &PA_calc_all_loc, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Calc_all_loc"); status=0; goto FINALIZATION;
+				}
+			  PA_calc_all_loc_set=true; continue;
+			}
 			/// Orth_correction: bool
 			if(strcmp(keyword_buffer, "Orth_correction")==0){
 				if(PA_orth_correction_set){

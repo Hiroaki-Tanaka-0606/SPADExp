@@ -171,10 +171,13 @@ void initialize(){
 	PA_add_nonorth_term_set=false;
 	PA_calc_all_nonloc=false;
 	PA_calc_all_nonloc_set=false;
+	PA_calc_all_loc=true;
+	PA_calc_all_loc_set=false;
 	PA_ignore_nonlocal=false;
 	PA_ignore_nonlocal_set=false;
 	PA_FPFS_Numerov=false;
 	PA_FPFS_Numerov_set=false;
+	PA_FPFS_margin=15.0;
 }
 
 void finalize(){
