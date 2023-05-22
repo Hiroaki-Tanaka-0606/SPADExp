@@ -178,6 +178,12 @@ void initialize(){
 	PA_FPFS_Numerov=false;
 	PA_FPFS_Numerov_set=false;
 	PA_FPFS_margin=15.0;
+	PA_FPFS_edge_smoothing=false;
+	PA_FPFS_edge_smoothing_set=false;
+	PA_FPFS_smoothing_E=0;
+	PA_FPFS_smoothing_E_set=false;
+	PA_FPFS_smoothing_k=0;
+	PA_FPFS_smoothing_k_set=false;
 }
 
 void finalize(){

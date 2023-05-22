@@ -20,6 +20,7 @@
 #include "calculation_atomic_wfn.hpp"
 #include "setup.hpp"
 #include "sphere_lebedev_rule.hpp"
+#include "allocation_tools.hpp"
 
 using namespace std;
 using namespace H5;
@@ -551,6 +552,7 @@ void calculate_PAD(){
 			}
 		}
 	}
+
 	/// x and y vectors
 	double kx_vector[3]={0, 0, 0};
 	double ky_vector[3]={0, 0, 0};
@@ -626,6 +628,7 @@ void calculate_PAD(){
 	bool atom_weighting_flag[atom_length];
 	bool atom_above_surface[atom_length];
 	double FPFS_z_bottom=0.0;
+	int FPFS_z_start=0;
 
 	// axis_au is also used in reflection correction
 	double axis_au[3];
@@ -845,6 +848,7 @@ void calculate_PAD(){
 	int** final_states_FP_g_size;             // [total_count_ext][FPIndex]=ig size
 	int**** final_states_FP_g;                // [total_count_ext][FPIndex][ig][2]=[n1,n2]
 	double**** final_states_FP_g_vec;         // [total_count_ext][FPIndex][ig][3]=g vector
+	complex<double>*** final_states_FP_loc_edge; // [total_count_ext][FPIndex][ig]
 	//// for nonlocal part
 	complex<double>***** final_states_FP_nonloc; // [total_count_ext][FPIndex][ia][l][mpl] @rc
 	double***** final_states_FP_nonloc_r;     // [EScale][sp][ia][l][ir] based on wfn_r, satisfying the value at the end is 1.0
@@ -871,7 +875,6 @@ void calculate_PAD(){
 	double* VKS1_r[atom_length];              // [ia][ir] (average) = radial Kohn-Sham potential for dn spin
 	double* dVKS1_r[atom_length];             // [ia][ir] (stdev)
 	int VKS_count[3];                         // = Size of VKS0 and VKS1
-	double final_states_dz;                   // = atom_cell[0] length / VKS_count[0]
 	int E_min_scale;                          // round(E_min_tail/PA_FPFS_energy_step);
 	int E_max_scale;                          // round(E_max_tail/PA_FPFS_energy_step);
 	// Fourier components
@@ -882,6 +885,7 @@ void calculate_PAD(){
 	int** Vgg_list;                           // [ig][2] = linear combination coefficients for g vector
 	double** Vgg_vector;                      // [ig][3] = g
 	int Vgg_count=0;                          // ig size
+	double final_states_dz;                   // = atom_cell[0] length / VKS_count[0]
 	// Determining the g range for VPS
 	// k=sqrt(2*hn)
 	// g_max=2*k*FPFS_kRange, 2 is necessary because g=g1-g2
@@ -1126,9 +1130,6 @@ void calculate_PAD(){
 			  r_data_3d(PotentialG, "V1", VKS_count[0], VKS_count[1], VKS_count[2], (double***)&VKS1[0][0][0]);
 			}
 		}
-		final_states_dz=sqrt(inner_product(atom_cell[0], atom_cell[0]))/VKS_count[0];
-		sprintf(sprintf_buffer, "dz = %.3f", final_states_dz);
-		write_log(sprintf_buffer);
 		// caculate average for the nonlocal areas
 		double Lebedev_r[3][PA_Lebedev_order_ave];
 		double Lebedev_w[PA_Lebedev_order_ave];
@@ -1288,6 +1289,12 @@ void calculate_PAD(){
 			printf("Vg = (%f, %f)\n", Vgg0[ig][iz].real(), Vgg0[ig][iz].imag());
 			}
 			}*/
+		final_states_dz=sqrt(inner_product(atom_cell[0], atom_cell[0]))/VKS_count[0];
+		sprintf(sprintf_buffer, "dz = %.3f", final_states_dz);
+		write_log(sprintf_buffer);
+		FPFS_z_start=round(FPFS_z_bottom/final_states_dz);
+		sprintf(sprintf_buffer, "z_start = %d", FPFS_z_start);
+		write_log(sprintf_buffer);
 		
 		write_log((char*)"----Energy scale calculations----");
 		sprintf(sprintf_buffer, "Fermi level = %.2f Eh = %.3f eV", EF_Eh, EF_Eh*Eh);
@@ -1307,6 +1314,7 @@ void calculate_PAD(){
 		final_states_FP_g_size=new int*[total_count_ext];
 		final_states_FP_g=new int***[total_count_ext];
 		final_states_FP_g_vec=new double***[total_count_ext];
+		final_states_FP_loc_edge=new complex<double>**[total_count_ext];
 
 		final_states_FP_nonloc=new complex<double>****[total_count_ext];
 		final_states_FP_norm1=new double**[total_count_ext];
@@ -1342,11 +1350,52 @@ void calculate_PAD(){
 			}
 		}
 
+		// if PA_FPFS_Numerov=false, prepare the matrix buffer
+		complex<double>*** left_matrix_buffer;
+		complex<double>*** right_matrix_buffer;
+	  if(!PA_FPFS_Numerov){
+			double g_test[3];
+			int FP_g_count=0;
+			for(int n1=-n_range; n1<=n_range; n1++){
+				int n1p=n1+n_range;
+				for(int n2=-n_range; n2<=n_range; n2++){
+					int n2p=n2+n_range;
+					g_test[2]=0.0;
+					for(int p=0; p<=1; p++){
+						g_test[p]=rec_cell[1][p]*n1+rec_cell[2][p]*n2;
+					}
+					double g_length=sqrt(inner_product(g_test, g_test));
+					if(g_length<khn_approx*PA_FPFS_kRange){
+						FP_g_count++;
+					}
+				}
+			}
+			int z_count_new=VKS_count[0]-FPFS_z_start;
+			int eq_dim=z_count_new*FP_g_count;
+			int nrhs=2*FP_g_count;
+
+			int num_threads=omp_get_max_threads();
+			left_matrix_buffer=new complex<double>**[num_threads];
+			right_matrix_buffer=new complex<double>**[num_threads];
+			for(int it=0; it<num_threads; it++){
+				left_matrix_buffer[it]=&alloc_zmatrix(eq_dim)[0];
+				right_matrix_buffer[it]=&alloc_zmatrix(nrhs, eq_dim)[0];
+			}
+		}
+
 		// Note: n_range are determined in the Fourier expansion of VKS
-#pragma omp parallel firstprivate(scale_width, PA_ext_set, spin_i, num_bands, EF_Eh, Eh, PA_FPFS_energy_step, E_min_scale, E_max_scale, PA_excitation_energy, atom_above_surface, atom_length, n_range, digit, PA_FPFS_kRange, khn_approx, FPFS_z_bottom) private(j)
+#pragma omp parallel firstprivate(scale_width, PA_ext_set, spin_i, num_bands, EF_Eh, Eh, PA_FPFS_energy_step, E_min_scale, E_max_scale, PA_excitation_energy, atom_above_surface, atom_length, n_range, digit, PA_FPFS_kRange, khn_approx, FPFS_z_start) private(j)
 #pragma omp for
 		for(i=0; i<total_count_ext; i++){
 			char* sprintf_buffer2=new char[Log_length+1];
+			complex<double>** left_matrix;
+			complex<double>** right_matrix;
+			if(!PA_FPFS_Numerov){
+				int threadId=omp_get_thread_num();
+				left_matrix=left_matrix_buffer[threadId];
+				right_matrix=right_matrix_buffer[threadId];
+			}
+			
 			// cout << i << endl;
 			int count, count_up, count_dn;
 			bool band_exists[scale_width];
@@ -1365,13 +1414,24 @@ void calculate_PAD(){
 			for(sp=0; sp<sp_max;sp++){
 				// initialization
 				for(j=0; j<scale_width; j++){
-					band_exists[j]=false;
-					band_exists_up[j]=false;
-					band_exists_dn[j]=false;
+					if(PA_FPFS_edge_smoothing){
+						band_exists[j]=true;
+						band_exists_up[j]=true;
+						band_exists_dn[j]=true;
+					}else{
+						band_exists[j]=false;
+						band_exists_up[j]=false;
+						band_exists_dn[j]=false;
+					}
 				}
 				count=0;
 				count_up=0;
 				count_dn=0;
+				if(PA_FPFS_edge_smoothing){
+					count=scale_width;
+					count_up=scale_width;
+					count_dn=scale_width;
+				}
 				// fill
 				for(j=0; j<num_bands; j++){
 					double eigen;
@@ -1426,6 +1486,7 @@ void calculate_PAD(){
 			final_states_FP_g[i]=new int**[FPIndex_size];
 			final_states_FP_g_vec[i]=new double**[FPIndex_size];
 			final_states_FP_g_size[i]=new int[FPIndex_size];
+			final_states_FP_loc_edge[i]=new complex<double>*[FPIndex_size];
 
 			for(j=0; j<FPIndex_size; j++){
 				final_states_k[i][j]=new double[3];
@@ -1488,6 +1549,30 @@ void calculate_PAD(){
 					}
 				}
 			}
+			// fill for edge_smoothing
+			if(PA_FPFS_edge_smoothing){
+				FPIndex=0;
+				for(int sp=0; sp<sp_max; sp++){
+					for(int ie=E_min_scale; ie<=E_max_scale; ie++){
+							if(spin_i==0){
+								final_states_EScale[i][FPIndex]=ie;
+								final_states_spin[i][FPIndex]=0;
+								FPIndex++;
+							}else if(spin_i==1){
+								final_states_EScale[i][FPIndex]=ie;
+								final_states_spin[i][FPIndex]=sp;
+								FPIndex++;
+							}else{
+								final_states_EScale[i][FPIndex]=ie;
+								final_states_spin[i][FPIndex]=0;
+								final_states_EScale[i][FPIndex+1]=ie;
+								final_states_spin[i][FPIndex+1]=1;
+								FPIndex+=2;
+							}
+					}
+				}
+			}
+			 
 			// for debug
 			sprintf(sprintf_buffer2, "k=%4d, count=%3d", i, FPIndex_size);
 			write_log(sprintf_buffer2);
@@ -1496,6 +1581,111 @@ void calculate_PAD(){
 				printf("Scale=%4d, Energy=%7.3f eV, spin=%d\n",
 				final_states_EScale[i][j], final_states_EScale[i][j]*PA_FPFS_energy_step, final_states_spin[i][j]);
 				}*/
+
+			// for testing
+			/*
+			if(PA_FPFS && !PA_FPFS_Numerov){
+				double kinetic_energy_EF=PA_excitation_energy/Eh+EF_Eh;
+				double k_length_EF=sqrt(2*kinetic_energy_EF);
+				double k_au[3]={k_point[0], k_point[1], 0.0};
+				double kz_square=k_length_EF*k_length_EF-inner_product(k_au, k_au);
+				if(kz_square<0){
+					write_log((char*)"Warning: negative kz^2");
+					continue;
+				}
+				double kz=sqrt(kz_square);
+				double g_test_au[2*n_range+1][2*n_range+1][3];
+				int FP_g_count=0;
+				for(int n1=-n_range; n1<=n_range; n1++){
+					int n1p=n1+n_range;
+					for(int n2=-n_range; n2<=n_range; n2++){
+						int n2p=n2+n_range;
+						g_test_au[n1p][n2p][2]=0.0;
+						double kpg_test[3];
+						kpg_test[2]=0.0;
+						for(int p=0; p<=1; p++){
+							g_test_au[n1p][n2p][p]=rec_cell[1][p]*n1+rec_cell[2][p]*n2;
+							kpg_test[p]=g_test_au[n1p][n2p][p]+k_au[p];
+						}
+						double kpg_length=sqrt(inner_product(kpg_test, kpg_test));
+						double g_length=sqrt(inner_product(g_test_au[n1p][n2p], g_test_au[n1p][n2p]));
+						if(g_length<khn_approx*PA_FPFS_kRange){
+							FP_g_count++;
+							g_test_au[n1p][n2p][2]=1.0;
+						}else{
+							g_test_au[n1p][n2p][2]=-1.0;
+						}
+					}
+				}
+				// composite list
+				int* g_buffer=new int[FP_g_count*2];
+				int** g_list=new int*[FP_g_count];
+				for(int ig=0; ig<FP_g_count; ig++){
+					g_list[ig]=&g_buffer[2*ig];
+				}
+				double* gv_buffer=new double[FP_g_count*3];
+			  double** g_vec=new double*[FP_g_count];
+				for(int ig=0; ig<FP_g_count; ig++){
+					g_vec[ig]=&gv_buffer[3*ig];
+				}
+				int ig_count=0;
+				for(int n1=-n_range; n1<=n_range; n1++){
+					int n1p=n1+n_range;
+					for(int n2=-n_range; n2<=n_range; n2++){
+						int n2p=n2+n_range;
+						if(g_test_au[n1p][n2p][2]>0){
+							g_list[ig_count][0]=n1;
+							g_list[ig_count][1]=n2;
+							for(int p=0; p<2; p++){
+								g_vec[ig_count][p]=g_test_au[n1p][n2p][p];
+							}
+						  g_vec[ig_count][2]=0.0;
+							ig_count++;
+						}
+					}
+				}
+				// prapare the Vgg matrix
+				complex<double>* Vgg_matrix[FP_g_count][FP_g_count];
+				int V00_index=-1;
+				bool Vgg_error=false;
+				for(int ig1=0; ig1<FP_g_count; ig1++){
+					if(g_list[ig1][0]==0 && g_list[ig1][1]==0){
+						V00_index=ig1;
+					}
+					for(int ig2=0; ig2<FP_g_count; ig2++){
+						int n1_12=g_list[ig1][0]-g_list[ig2][0];
+						int n2_12=g_list[ig1][1]-g_list[ig2][1];
+						bool Vgg_found=false;
+						for(int ig=0; ig<Vgg_count; ig++){
+							if(n1_12==Vgg_list[ig][0] && n2_12==Vgg_list[ig][1]){
+								Vgg_matrix[ig1][ig2]=&Vgg0[ig][0];
+								Vgg_found=true;
+								break;
+							}
+						}
+						if(Vgg_found==false){
+							write_log((char*)"Error: Vgg not found");
+							Vgg_error=true;
+						}
+					}
+				}
+				if(Vgg_error==true){
+					continue;
+				}
+				// solution buffer
+				complex<double>* FP_loc_buffer=new complex<double>[FP_g_count*VKS_count[0]];
+				for(int igz=0; igz<FP_g_count*VKS_count[0]; igz++){
+					FP_loc_buffer[igz]=complex<double>(0.0, 0.0);
+				}
+				solve_final_state(kinetic_energy_EF, k_au, kz, FP_g_count, VKS_count[0], final_states_dz, FPFS_z_start, V00_index, &Vgg_matrix[0][0], &g_vec[0][0], FP_loc_buffer);
+				delete[] FP_loc_buffer;
+				delete[] g_buffer;
+				delete[] g_list;
+				delete[] gv_buffer;
+				delete[] g_vec;
+				continue;
+				} // end of testing */
+			
 			// calculate the final states from the KS potential
 			for(j=0; j<FPIndex_size; j++){
 				// printf("k=%4d, FPIndex=%3d, local part\n", i, j);
@@ -1533,7 +1723,8 @@ void calculate_PAD(){
 							kpg_test[p]=g_test_au[n1p][n2p][p]+k_au[p];
 						}
 						double kpg_length=sqrt(inner_product(kpg_test, kpg_test));
-						if((PA_FPFS_Numerov && kpg_length<k_length_au) || (!PA_FPFS_Numerov && kpg_length<khn_approx*PA_FPFS_kRange)){
+						double g_length=sqrt(inner_product(g_test_au[n1p][n2p], g_test_au[n1p][n2p]));
+						if((PA_FPFS_Numerov && kpg_length<k_length_au) || (!PA_FPFS_Numerov && g_length<khn_approx*PA_FPFS_kRange)){
 							FP_g_count++;
 							g_test_au[n1p][n2p][2]=1.0;
 						}else{
@@ -1552,6 +1743,10 @@ void calculate_PAD(){
 				final_states_FP_g_vec[i][j]=new double*[FP_g_count];
 				for(int ig=0; ig<FP_g_count; ig++){
 					final_states_FP_g_vec[i][j][ig]=&gv_buffer[3*ig];
+				}
+				final_states_FP_loc_edge[i][j]=new complex<double>[FP_g_count];
+				for(int ig=0; ig<FP_g_count; ig++){
+					final_states_FP_loc_edge[i][j][ig]=complex<double>(0.0, 0.0);
 				}
 				int ig_count=0;
 				for(int n1=-n_range; n1<=n_range; n1++){
@@ -1625,9 +1820,209 @@ void calculate_PAD(){
 				for(int ig=0; ig<FP_g_count; ig++){
 					final_states_FP_loc[i][j][ig]=&FP_loc_buffer[ig*VKS_count[0]];
 				}
-				// solve the differential equation by the Numerov method
-				solve_final_state(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0], final_states_dz, FPFS_z_bottom, V00_index, &Vgg_matrix[0][0], &final_states_FP_g_vec[i][j][0][0], FP_loc_buffer);
+				if(PA_FPFS_Numerov){
+					// solve the differential equation by the Numerov method
+					solve_final_state_Numerov(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0],
+																		final_states_dz, FPFS_z_start, V00_index, &Vgg_matrix[0][0], &final_states_FP_g_vec[i][j][0][0],
+																		FP_loc_buffer);
+				}else{
+					solve_final_state_Matrix(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0],
+																	 final_states_dz, FPFS_z_start, V00_index, &Vgg_matrix[0][0], &final_states_FP_g_vec[i][j][0][0],
+																	 FP_loc_buffer, left_matrix, right_matrix, PA_FPFS_edge_smoothing?1:0, final_states_FP_loc_edge[i][j]);
+				}
 				// printf("k=%4d, FPIndex=%3d, nonlocal part\n", i, j);
+			} // for(FPIndex_size)
+			delete[] sprintf_buffer2;
+		} // for(total_count_ext)
+		
+		if(PA_FPFS_edge_smoothing){
+			int ESize=E_max_scale-E_min_scale+1;
+			int kSize=total_count_ext;
+			int sp_max=(spin_i==0 || spin_i==2)?1:2;
+			int g_count=final_states_FP_g_size[0][0];
+			complex<double>** edge_matrix=alloc_zmatrix(ESize, kSize);
+			complex<double>** edge_matrix2=alloc_zmatrix(ESize, kSize);
+			for(int ig=0; ig<g_count; ig++){
+				for(int sp=0; sp<sp_max; sp++){
+					// extract
+					for(int iep=0; iep<ESize; iep++){
+						int ie=iep+E_min_scale;
+						for(int ik=0; ik<kSize; ik++){
+							bool ifp_found=false;
+							for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
+								if(final_states_EScale[ik][ifp]==ie && final_states_spin[ik][ifp]==sp){
+									edge_matrix[iep][ik]=final_states_FP_loc_edge[ik][ifp][ig];
+									ifp_found=true;
+									break;
+								}
+							}
+							if(!ifp_found){
+								write_log((char*)"Error: ifp not found");
+								return;
+							}
+						}
+					}
+					for(int iep=0; iep<ESize; iep++){
+						for(int ik=0; ik<kSize; ik++){
+							printf("%10.4f ", edge_matrix[iep][ik].real());
+						}
+						printf("\n");
+					}
+					printf("\n");
+					for(int iep=0; iep<ESize; iep++){
+						for(int ik=0; ik<kSize; ik++){
+							printf("%10.4f ", edge_matrix[iep][ik].imag());
+						}
+						printf("\n");
+					}
+					printf("\n");
+
+					// smoothing
+					// -E~E, -k~k
+					int EWidth=PA_FPFS_smoothing_E;
+					int kWidth=PA_FPFS_smoothing_k;
+					for(int iep=0; iep<ESize; iep++){
+						for(int ik=0; ik<kSize; ik++){
+							complex<double> sum(0.0, 0.0);
+							int count=0;
+							for(int ies=-EWidth; ies<=EWidth; ies++){
+								int ie2=iep+ies;
+								for(int iks=-kWidth; iks<=kWidth; iks++){
+									int ik2=ik+iks;
+									if(ie2>=0 && ie2<ESize && ik2>=0 && ik2<kSize){
+										sum+=edge_matrix[ie2][ik2];
+										count++;
+									}
+								}
+							}
+							//cout << count << "COUNT" << endl;
+							edge_matrix2[iep][ik]=sum/complex<double>(1.0*count, 0.0);
+							//printf("AVE %f %f\n", edge_matrix2[iep][ik].real(), edge_matrix2[iep][ik].imag());
+							//printf("SUM %f %f\n", sum.real(), sum.imag());
+							bool ifp_found=false;
+							int ie=iep+E_min_scale;
+							for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
+								if(final_states_EScale[ik][ifp]==ie && final_states_spin[ik][ifp]==sp){
+									//cout << g_count << " " << final_states_FP_g_size[ik][ifp] << endl;
+								  final_states_FP_loc_edge[ik][ifp][ig]=edge_matrix2[iep][ik];
+									ifp_found=true;
+									break;
+								}
+							}
+							if(!ifp_found){
+								write_log((char*)"Error: ifp not found");
+								return;
+							}
+						}
+					}
+					for(int ie=0; ie<ESize; ie++){
+						for(int ik=0; ik<kSize; ik++){
+							printf("%10.4f ", edge_matrix2[ie][ik].real());
+						}
+						printf("\n");
+					}
+					printf("\n");
+					for(int ie=0; ie<ESize; ie++){
+						for(int ik=0; ik<kSize; ik++){
+							printf("%10.4f ", edge_matrix2[ie][ik].imag());
+						}
+						printf("\n");
+					}
+					printf("\n");
+				} // end of for (sp)
+			} // end of for (ig)
+			delete_zmatrix(edge_matrix);
+			delete_zmatrix(edge_matrix2);
+
+			// solve
+#pragma omp parallel firstprivate(scale_width, PA_ext_set, spin_i, num_bands, EF_Eh, Eh, PA_FPFS_energy_step, E_min_scale, E_max_scale, PA_excitation_energy, atom_above_surface, atom_length, n_range, digit, PA_FPFS_kRange, khn_approx, FPFS_z_start) private(j)
+#pragma omp for
+			for(i=0; i<total_count_ext; i++){
+				int threadId=omp_get_thread_num();
+				complex<double>** left_matrix=left_matrix_buffer[threadId];
+				complex<double>** right_matrix=right_matrix_buffer[threadId];
+				double* k_point;
+				int k_index=i;
+				if(PA_ext_set){
+					k_point=k_points_ext[i];
+					k_index=k_index_reduced[k_index];
+				}else{
+					k_point=k_points[i];
+				}
+				for(j=0; j<final_states_FP_size[i]; j++){
+					int eigen_scale=final_states_EScale[i][j];
+					double kinetic_energy_Eh=(eigen_scale*PA_FPFS_energy_step+PA_excitation_energy)/Eh+EF_Eh;
+					int eigen_spin=final_states_spin[i][j];
+					//printf("Scale=%d, Ekin=%.2f, Spin=%d\n", eigen_scale, kinetic_energy_Eh, eigen_spin);
+					double k_au[3]={final_states_k[i][j][0], final_states_k[i][j][1], 0.0}; // contains only in-plane components
+					double kz=final_states_k[i][j][2];
+					int FP_g_count=final_states_FP_g_size[i][j];
+
+					complex<double>* Vgg_matrix[FP_g_count][FP_g_count];
+					int V00_index=-1;
+					bool Vgg_error=false;
+					for(int ig1=0; ig1<FP_g_count; ig1++){
+						if(final_states_FP_g[i][j][ig1][0]==0 && final_states_FP_g[i][j][ig1][1]==0){
+							V00_index=ig1;
+						}
+						for(int ig2=0; ig2<FP_g_count; ig2++){
+							int n1_12=final_states_FP_g[i][j][ig1][0]-final_states_FP_g[i][j][ig2][0];
+							int n2_12=final_states_FP_g[i][j][ig1][1]-final_states_FP_g[i][j][ig2][1];
+							bool Vgg_found=false;
+							for(int ig=0; ig<Vgg_count; ig++){
+								if(n1_12==Vgg_list[ig][0] && n2_12==Vgg_list[ig][1]){
+									if(final_states_spin[i][j]==0){
+										Vgg_matrix[ig1][ig2]=&Vgg0[ig][0];
+									}else{
+										Vgg_matrix[ig1][ig2]=&Vgg1[ig][0];
+									}
+									Vgg_found=true;
+									/*
+										for(int iz=0; iz<VKS_count[0]; iz++){
+										printf("%f %f\n", Vgg_matrix[ig1][ig2][iz].real(), Vgg_matrix[ig1][ig2][iz].imag());
+										}*/
+									break;
+								}
+							}
+							if(Vgg_found==false){
+								write_log((char*)"Error: Vgg not found");
+								Vgg_error=true;
+							}
+						}
+					}
+					if(Vgg_error==true){
+						continue;
+					}
+					
+					solve_final_state_Matrix(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0],
+																	 final_states_dz, FPFS_z_start, V00_index, &Vgg_matrix[0][0], &final_states_FP_g_vec[i][j][0][0],
+																	 &final_states_FP_loc[i][j][0][0], left_matrix, right_matrix, 2, final_states_FP_loc_edge[i][j]);
+				}
+			}
+		}
+		
+		if(!PA_FPFS_Numerov){
+			int num_threads=omp_get_max_threads();
+			for(int it=0; it<num_threads; it++){
+				delete_zmatrix(left_matrix_buffer[it]);
+				delete_zmatrix(right_matrix_buffer[it]);
+			}
+		}
+
+		write_log((char*)"---- Connection calculations between the core and valence ----");
+#pragma omp parallel firstprivate(atom_length, PA_lp_max, PA_theta_points, PA_ext_set) private(j)
+#pragma omp for
+		for(i=0; i<total_count_ext; i++){
+			double* k_point;
+			int k_index=i;
+			if(PA_ext_set){
+				k_point=k_points_ext[i];
+				k_index=k_index_reduced[k_index];
+			}else{
+				k_point=k_points[i];
+			}
+			double k_au[3]={k_point[0], k_point[1], 0.0};
+			for(j=0; j<final_states_FP_size[i]; j++){
 				// obtain the connection condition at rc
 				complex<double> Ylm_k[6][11];
 				complex<double> Ylm_kp[6][11];
@@ -1715,9 +2110,9 @@ void calculate_PAD(){
 									nonloc_lebedev+=4*M_PI*complex<double>(cos(kpgt), sin(kpgt))*interpolate_fgz(r_le[2], final_states_FP_loc[i][j][ig], final_states_dz, VKS_count[0])
 										*conj(Ylm_Le[l][mpl])*wfn_r[is][ir]*Lebedev_w[ile];
 								}
-							}
-							printf("Norm1 theta integral [%2d][%2d]= (%8.4f, %8.4f)\n", l, m, final_states_FP_nonloc[i][j][ia][l][mpl].real(), final_states_FP_nonloc[i][j][ia][l][mpl].imag());
-							printf("Norm2 Lebed integral [%2d][%2d]= (%8.4f, %8.4f)\n\n", l, m, nonloc_lebedev.real(), nonloc_lebedev.imag());*/
+								}*/
+							// printf("Norm1 theta integral [%2d][%2d]= (%8.4f, %8.4f)\n", l, m, final_states_FP_nonloc[i][j][ia][l][mpl].real(), final_states_FP_nonloc[i][j][ia][l][mpl].imag());
+							// printf("Norm1 Lebed integral [%2d][%2d]= (%8.4f, %8.4f)\n\n", l, m, nonloc_lebedev.real(), nonloc_lebedev.imag());
 							
 						} // for(m)
 					} // for(l)
@@ -1798,16 +2193,15 @@ void calculate_PAD(){
 									*conj(interpolate_fgz(r_le[2], final_states_FP_loc[i][j][igp], final_states_dz, VKS_count[0]))*Lebedev_w[ile];
 							}
 						}
-					}
-					printf("Norm2 theta integral [%d][%d][%d]=(%8.4f, %8.4f)\n", i, j, ia, final_states_FP_norm2[i][j][ia].real(), final_states_FP_norm2[i][j][ia].imag());
-					printf("Norm2 Lebed integral [%d][%d][%d]=(%8.4f, %8.4f)\n", i, j, ia, nonloc_lebedev.real(), nonloc_lebedev.imag());
-					*/
+						}*/
+					//printf("Norm2 theta integral [%d][%d][%d]=(%8.4f,   0.0000)\n", i, j, ia, final_states_FP_norm2[i][j][ia]);
+					//printf("Norm2 Lebed integral [%d][%d][%d]=(%8.4f, %8.4f)\n", i, j, ia, nonloc_lebedev.real(), nonloc_lebedev.imag());
+					
 					
 					// debug
 					// printf("Norm2[%d][%d][%d]= %8.4f\n", i, j, ia, final_states_FP_norm2[i][j][ia]);
 				} //for (ia=0; ia<atom_length; ia++)
 			} // for(j=0; j<FPIndex_size; j++)
-			delete[] sprintf_buffer2;
 		} // omp for(i=0; i<total_count_ext; i++)
 
 		// nonlocal core part
@@ -2778,6 +3172,72 @@ void calculate_PAD(){
 
 	w_data_2d(atomG_out, "UnitCell", 3, 3, (double**) atom_cell);
 
+	double**** FP_loc_edge_export_re; // [sp][ig][ie][ik]
+  double**** FP_loc_edge_export_im; // [sp][ig][ie][ik]
+	int EScale_count=E_max_scale-E_min_scale+1;
+	int g_count=0;
+	for(int ik=0; ik<total_count_ext; ik++){
+		for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
+			if(g_count<final_states_FP_g_size[ik][ifp]){
+				g_count=final_states_FP_g_size[ik][ifp];
+			}
+		}
+	}
+	if(PA_FPFS){
+		FP_loc_edge_export_re=new double***[sp_max];
+		FP_loc_edge_export_im=new double***[sp_max];
+		for(int sp=0; sp<sp_max; sp++){
+		  double* buffer_re=new double[g_count*EScale_count*total_count_ext];
+			FP_loc_edge_export_re[sp]=new double**[g_count];
+		  double* buffer_im=new double[g_count*EScale_count*total_count_ext];
+			FP_loc_edge_export_im[sp]=new double**[g_count];
+			for(int ig=0; ig<g_count; ig++){
+				FP_loc_edge_export_re[sp][ig]=new double*[EScale_count];
+				FP_loc_edge_export_im[sp][ig]=new double*[EScale_count];
+				for(int ie=0; ie<EScale_count; ie++){
+					FP_loc_edge_export_re[sp][ig][ie]=&buffer_re[ig*EScale_count*total_count_ext+ie*total_count_ext];
+					FP_loc_edge_export_im[sp][ig][ie]=&buffer_im[ig*EScale_count*total_count_ext+ie*total_count_ext];
+					for(int ik=0; ik<total_count_ext; ik++){
+						FP_loc_edge_export_re[sp][ig][ie][ik]=0.0;
+						FP_loc_edge_export_im[sp][ig][ie][ik]=0.0;
+					}
+				}
+			}
+		}
+		for(int ik=0; ik<total_count_ext; ik++){
+			for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
+				int ie=final_states_EScale[ik][ifp]-E_min_scale;
+				int sp=final_states_spin[ik][ifp];
+				for(int ig=0; ig<g_count; ig++){
+					FP_loc_edge_export_re[sp][ig][ie][ik]=final_states_FP_loc_edge[ik][ifp][ig].real();
+					FP_loc_edge_export_im[sp][ig][ie][ik]=final_states_FP_loc_edge[ik][ifp][ig].imag();
+				}
+			}
+		}
+		if(!PA_FPFS_file_set){
+			// FPFS part
+			Group FPFSG(rootG.createGroup("FPFS"));
+			w_att_int(FPFSG, "E_min_scale", E_min_scale);
+			w_att_int(FPFSG, "E_max_scale", E_max_scale);
+			w_att_double(FPFSG, "FPFS_energy_step", PA_FPFS_energy_step);
+			for(int sp=0; sp<sp_max; sp++){
+				if(spin_i==1){
+					sprintf(group_name, "Local_edge_%s_real", sp==0?"Up":"Dn");
+				}else{
+					sprintf(group_name, "Local_edge_real");
+				}
+				w_data_3d(FPFSG, group_name, g_count, EScale_count, total_count_ext, (double***)&FP_loc_edge_export_re[sp][0][0][0]);
+				cout << "Real" << endl;
+				if(spin_i==1){
+					sprintf(group_name, "Local_edge_%s_imag", sp==0?"Up":"Dn");
+				}else{
+					sprintf(group_name, "Local_edge_imag");
+				}
+				w_data_3d(FPFSG, group_name, g_count, EScale_count, total_count_ext, (double***)&FP_loc_edge_export_im[sp][0][0][0]);
+			}
+		}
+	}
+
 	if(PA_FPFS && PA_FPFS_file_set){
 		H5File output2(PA_FPFS_file, H5F_ACC_TRUNC);	// att Datetime @root
 		Group rootG(output2.openGroup("/"));
@@ -2966,6 +3426,21 @@ void calculate_PAD(){
 					}
 					}*/
 			}
+		}
+		for(int sp=0; sp<sp_max; sp++){
+			if(spin_i==1){
+				sprintf(group_name, "Local_edge_%s_real", sp==0?"Up":"Dn");
+			}else{
+				sprintf(group_name, "Local_edge_real");
+			}
+			w_data_3d(FPFSG, group_name, g_count, EScale_count, total_count_ext, (double***)&FP_loc_edge_export_re[sp][0][0][0]);
+				
+			if(spin_i==1){
+				sprintf(group_name, "Local_edge_%s_imag", sp==0?"Up":"Dn");
+			}else{
+				sprintf(group_name, "Local_edge_imag");
+			}
+			w_data_3d(FPFSG, group_name, g_count, EScale_count, total_count_ext, (double***)&FP_loc_edge_export_im[sp][0][0][0]);
 		}
 	}
 	

@@ -120,6 +120,22 @@ int validation_PAD(){
 				write_log((char*)"Error: Reflection cannot be used in FP_PAO and FP_AO");
 				status=0; goto FINALIZATION;
 			}
+			if(!PA_FPFS_Numerov){
+				sprintf(sprintf_buffer,"%32s = %s", "FPFS_edge_smoothing", PA_FPFS_edge_smoothing?"true":"false");
+				write_log(sprintf_buffer);
+				if(PA_FPFS_edge_smoothing){
+					if(PA_FPFS_smoothing_E<0){
+						write_log((char*)"Error: FPFS_smoothing_E cannot be negative");
+						status=0; goto FINALIZATION;
+					}
+					if(PA_FPFS_smoothing_k<0){
+						write_log((char*)"Error: FPFS_smoothing_k cannot be negative");
+						status=0; goto FINALIZATION;
+					}
+					sprintf(sprintf_buffer, "%32s = (%d, %d)", "FPFS_smoothing (E, k)", PA_FPFS_smoothing_E, PA_FPFS_smoothing_k);
+					write_log(sprintf_buffer);
+				}
+			}
 			/// Excitation energy
 			if(PA_excitation_energy_set==false){
 				write_log((char*)"Error: Excitation_energy is necessary");

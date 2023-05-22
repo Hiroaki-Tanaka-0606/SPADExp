@@ -6,6 +6,7 @@
 #include <iostream>
 #include "log.hpp"
 #include "variables_ext.hpp"
+#include "allocation_tools.hpp"
 using namespace std;
 
 
@@ -191,9 +192,9 @@ complex<double>**** convert_LCAO(int size_k, int size_b, int size_m, int size_d,
 				  py=complex<double>(LCAO_raw[idx1+idx2+  sd+2*id], LCAO_raw[idx1+idx2+  sd+2*id+1]);
 				  pz=complex<double>(LCAO_raw[idx1+idx2+2*sd+2*id], LCAO_raw[idx1+idx2+2*sd+2*id+1]);
 					/*
-				  pm1= (px-I*py)/sqrt(2);
-				  pp0=  pz;
-					pp1=-(px+I*py)/sqrt(2);*/
+						pm1= (px-I*py)/sqrt(2);
+						pp0=  pz;
+						pp1=-(px+I*py)/sqrt(2);*/
 				  pm1= (px+I*py)/sqrt(2);
 				  pp0=  pz;
 					pp1=-(px-I*py)/sqrt(2);
@@ -209,11 +210,11 @@ complex<double>**** convert_LCAO(int size_k, int size_b, int size_m, int size_d,
 				  dxz   =complex<double>(LCAO_raw[idx1+idx2+3*sd+2*id], LCAO_raw[idx1+idx2+3*sd+2*id+1]);
 				  dyz   =complex<double>(LCAO_raw[idx1+idx2+4*sd+2*id], LCAO_raw[idx1+idx2+4*sd+2*id+1]);
 					/*
-				  dm2= (dx2y2-I*dxy)/sqrt(2);
-				  dm1= (dxz-  I*dyz)/sqrt(2);
-				  dp0=  d3z2r2;
-				  dp1=-(dxz+  I*dyz)/sqrt(2);
-				  dp2= (dx2y2+I*dxy)/sqrt(2);*/
+						dm2= (dx2y2-I*dxy)/sqrt(2);
+						dm1= (dxz-  I*dyz)/sqrt(2);
+						dp0=  d3z2r2;
+						dp1=-(dxz+  I*dyz)/sqrt(2);
+						dp2= (dx2y2+I*dxy)/sqrt(2);*/
 				  dm2= (dx2y2+I*dxy)/sqrt(2);
 				  dm1= (dxz+  I*dyz)/sqrt(2);
 				  dp0=  d3z2r2;
@@ -235,13 +236,13 @@ complex<double>**** convert_LCAO(int size_k, int size_b, int size_m, int size_d,
 					fx33xy2 =complex<double>(LCAO_raw[idx1+idx2+5*sd+2*id], LCAO_raw[idx1+idx2+5*sd+2*id+1]);
 					f3yx2y3 =complex<double>(LCAO_raw[idx1+idx2+6*sd+2*id], LCAO_raw[idx1+idx2+6*sd+2*id+1]);
 					/*
-					fm3= (fx33xy2- I*f3yx2y3)/sqrt(2);
-					fm2= (fzx2zy2- I*fxyz)/sqrt(2);
-					fm1= (f5xy2xr2-I*f5yz2yr2)/sqrt(2);
-					fp0=  f5z23r2;
-					fp1=-(f5xy2xr2+I*f5yz2yr2)/sqrt(2);
-					fp2= (fzx2zy2+ I*fxyz)/sqrt(2);
-					fp3=-(fx33xy2+ I*f3yx2y3)/sqrt(2);*/
+						fm3= (fx33xy2- I*f3yx2y3)/sqrt(2);
+						fm2= (fzx2zy2- I*fxyz)/sqrt(2);
+						fm1= (f5xy2xr2-I*f5yz2yr2)/sqrt(2);
+						fp0=  f5z23r2;
+						fp1=-(f5xy2xr2+I*f5yz2yr2)/sqrt(2);
+						fp2= (fzx2zy2+ I*fxyz)/sqrt(2);
+						fp3=-(fx33xy2+ I*f3yx2y3)/sqrt(2);*/
 					fm3= (fx33xy2+ I*f3yx2y3)/sqrt(2);
 					fm2= (fzx2zy2+ I*fxyz)/sqrt(2);
 					fm1= (f5xy2xr2+I*f5yz2yr2)/sqrt(2);
@@ -626,20 +627,122 @@ double calc_residual_error(int g_count, int v_count, double* A, double* B, doubl
 void calc_gradient_vector(int g_count, int v_count, double* A, double* B, double* x, double* gr);
 double calc_norm(int count, double* vector);
 
-complex<double>** alloc_zmatrix(int n);
-complex<double>** alloc_zmatrix(int m, int n);
-void delete_zmatrix(complex<double>** mat);
-
-complex<double>*** alloc_zpmatrix(int n);
-void delete_zpmatrix(complex<double>*** mat);
-
-double** alloc_dmatrix(int n);
-double** alloc_dmatrix(int m, int n);
-void delete_dmatrix(double** mat);
-
 // In the Numerov method, the solving direction is downward
 // f_{i-1}=(1+h^2/12 a_{i-1})^-1 * [ 2(1-5h^2/12 a_i)*f_i - (1+h^2/12 a_{i+1})*f_{i+1} ]
-void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int z_count, double dz, double z_bottom, int V00_index, complex<double>** Vgg_buffer, double* g_vec_buffer, complex<double>* FP_loc_buffer){
+void solve_final_state_Numerov(double Ekin, double* k_para, double kz, int g_count, int z_count, double dz, int z_start, int V00_index, complex<double>** Vgg_buffer, double* g_vec_buffer, complex<double>* FP_loc_buffer){
+	// composite matrix
+	complex<double>*** Vgg=alloc_zpmatrix(g_count);
+	for(int ig1=0; ig1<g_count; ig1++){
+		for(int ig2=0; ig2<g_count; ig2++){
+			Vgg[ig1][ig2]=Vgg_buffer[ig1*g_count+ig2];
+		}
+	}
+	double g_vec[g_count][3];
+	for(int ig=0; ig<g_count; ig++){
+		for(int ix=0; ix<3; ix++){
+			g_vec[ig][ix]=g_vec_buffer[ig*3+ix];
+		}
+	}
+
+	
+	double kzz0=kz*dz*(z_count-1);
+	double kzz0h=kz*dz*z_count;
+
+	// Numerov and Euler
+	complex<double>* FP_loc[g_count];
+	for(int ig=0; ig<g_count; ig++){
+		FP_loc[ig]=&FP_loc_buffer[ig*z_count];
+	}
+
+	// i=z_count-1 (boundary condition)
+	for(int ig=0; ig<g_count; ig++){
+		if(ig==V00_index){
+			FP_loc[ig][z_count-1]=complex<double>(cos(kzz0), sin(kzz0));
+		}else{
+			FP_loc[ig][z_count-1]=complex<double>(0, 0);
+		}
+	}
+
+	// i=z_count-2 (Euler)
+	for(int ig=0; ig<g_count; ig++){
+		if(ig==V00_index){
+			FP_loc[ig][z_count-2]=FP_loc[ig][z_count-1]-dz*kz*complex<double>(-sin(kzz0), cos(kzz0));
+		}else{
+			FP_loc[ig][z_count-2]=complex<double>(0, 0);
+		}
+	}
+
+	// i=z_count-3 ~ 0 (Numerov)
+	double diagonal_part[g_count];
+	for(int ig=0; ig<g_count; ig++){
+		double kpg[3];
+		for(int p=0; p<3; p++){
+			kpg[p]=k_para[p]+g_vec[ig][p];
+		}
+		//printf("g= (%f, %f, %f)\n", g_vec[ig][0], g_vec[ig][1], g_vec[ig][2]);
+		//printf("k+g= (%f, %f, %f)\n", kpg[0], kpg[1], kpg[2]);
+		diagonal_part[ig]=2*Ekin-inner_product(kpg, kpg);
+		//printf("diag[%3d] = %f\n", ig, diagonal_part[ig]);
+	}
+	complex<double> a_matrix[z_count][g_count][g_count];
+	for(int iz=0; iz<z_count; iz++){
+		for(int ig1=0; ig1<g_count; ig1++){
+			for(int ig2=0; ig2<g_count; ig2++){
+				if(ig1==ig2){
+					a_matrix[iz][ig1][ig2]=complex<double>(diagonal_part[ig1], 0);
+					// printf("%d %f %f\n", iz, Vgg[ig1][ig2][iz].real(), Vgg[ig1][ig2][iz].imag());
+				}else{
+					a_matrix[iz][ig1][ig2]=complex<double>(0, 0);
+				}
+				a_matrix[iz][ig1][ig2]-=complex<double>(2, 0)*Vgg[ig1][ig2][iz];
+				
+				//printf("%d %f %f\n", iz, Vgg[ig1][ig2][iz].real(), Vgg[ig1][ig2][iz].imag());
+			}
+		}
+	}
+	complex<double> left_matrix[g_count][g_count]; // transposed!!
+	complex<double> right_vector[g_count];
+	int INFO=0;
+	int NRHS=1;
+	int IPIV[g_count];
+	for(int im1=z_count-3; im1>=z_start; im1--){
+		int i=im1+1;
+		int ip1=i+1;
+		for(int ig1=0; ig1<g_count; ig1++){
+			right_vector[ig1]=complex<double>(2, 0)*FP_loc[ig1][i]-FP_loc[ig1][ip1];
+			
+			for(int ig2=0; ig2<g_count; ig2++){
+				if(ig1==ig2){
+					left_matrix[ig2][ig1]=complex<double>(1, 0);
+				}else{
+					left_matrix[ig2][ig1]=complex<double>(0, 0);
+				}
+				left_matrix[ig2][ig1]+=complex<double>(dz*dz/12.0, 0)*a_matrix[im1][ig1][ig2];
+
+				right_vector[ig1]-=complex<double>(5.0/6.0*dz*dz, 0)*a_matrix[i][ig1][ig2]*FP_loc[ig2][i];
+				right_vector[ig1]-=complex<double>(1.0/12.0*dz*dz, 0)*a_matrix[ip1][ig1][ig2]*FP_loc[ig2][ip1];
+			}
+		}
+		zgesv_(&g_count, &NRHS, &left_matrix[0][0], &g_count, &IPIV[0], &right_vector[0], &g_count, &INFO);
+		if(INFO==0){
+			// ok
+			for(int ig=0; ig<g_count; ig++){
+				FP_loc[ig][im1]=right_vector[ig];
+			}
+		}else{
+			write_log((char*)"zgesv failed");
+			return;
+		}
+	}
+	
+	delete_zpmatrix(Vgg);
+}
+
+// calc_mode:
+// 0: perform the whole calculations, store right vector in loc_edge
+// 1: stop the calculations at zgels, store right vector in loc_edge
+// 2: perform zgesv using the given right vector in loc_edge
+void solve_final_state_Matrix(double Ekin, double* k_para, double kz, int g_count, int z_count, double dz, int z_start, int V00_index, complex<double>** Vgg_buffer, double* g_vec_buffer, complex<double>* FP_loc_buffer, complex<double>** left_matrix, complex<double>** right_matrix, int calc_mode, complex<double>* loc_edge){
 	char* sprintf_buffer2=new char[Log_length+1];
 	// composite matrix
 	complex<double>*** Vgg=alloc_zpmatrix(g_count);
@@ -659,206 +762,107 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 	double kzz0=kz*dz*(z_count-1);
 	double kzz0h=kz*dz*z_count;
 
-	// check Calc_all_loc
-	int z_start=0;
-	if(!PA_calc_all_loc){
-		z_start=round(z_bottom/dz);
-		//printf("z_start: %d\n", z_start);
+	// Linear equations
+	int z_count_new=z_count-z_start;
+	int eq_dim=z_count_new*g_count;
+	//complex<double>** left_matrix=alloc_zmatrix(eq_dim); // transposed
+	for(int i=0; i<eq_dim; i++){
+		for(int j=0; j<eq_dim; j++){
+			left_matrix[j][i]=complex<double>(0.0, 0.0);
+		}
+	}
+	
+	complex<double>* right_vector=new complex<double>[g_count];
+	complex<double>* right_vector2=new complex<double>[g_count];
+
+	double kpg[3];
+	
+	// left matrix
+	/// M
+	for(int ig1=0; ig1<g_count; ig1++){
+		for(int p=0; p<3; p++){
+			kpg[p]=k_para[p]+g_vec[ig1][p];
+		}
+		for(int ig2=0; ig2<g_count; ig2++){
+			for(int iz=z_start; iz<z_count; iz++){
+				int index1=ig1*z_count_new+(iz-z_start);
+				int index2=ig2*z_count_new+(iz-z_start);
+				complex<double> value=-2.0*Vgg[ig1][ig2][iz];
+				if(ig1==ig2){
+					value+=2.0*Ekin-inner_product(kpg, kpg);
+				}
+				left_matrix[index2][index1]+=value;
+			}
+		}
+	}
+	/// A
+	for(int ig=0; ig<g_count; ig++){
+		for(int iz1=z_start; iz1<z_count; iz1++){
+			for(int iz2=z_start; iz2<z_count; iz2++){
+				int index1=ig*z_count_new+(iz1-z_start);
+				int index2=ig*z_count_new+(iz2-z_start);
+				if(iz1==iz2){
+					left_matrix[index2][index1]-=2.0/dz/dz;
+				}
+				if(iz1-1==iz2 || iz1+1==iz2){
+					left_matrix[index2][index1]+=1.0/dz/dz;
+				}
+			}
+		}
 	}
 
-	if(PA_FPFS_Numerov){
-		// Numerov and Euler
-		complex<double>* FP_loc[g_count];
-		for(int ig=0; ig<g_count; ig++){
-			FP_loc[ig]=&FP_loc_buffer[ig*z_count];
-		}
+	/*
+	// LU decomposition
+	int info;
+	int* ipiv=new int[eq_dim];
+	int nrhs=1;
 
-		// i=z_count-1 (boundary condition)
-		for(int ig=0; ig<g_count; ig++){
-			if(ig==V00_index){
-				FP_loc[ig][z_count-1]=complex<double>(cos(kzz0), sin(kzz0));
-			}else{
-				FP_loc[ig][z_count-1]=complex<double>(0, 0);
-			}
-		}
+	cout << "LU start" << endl;
+	zgetrf_(&eq_dim, &eq_dim, &left_matrix[0][0], &eq_dim, &ipiv[0], &info);
+	if(info!=0){
+	write_log((char*)"zgetrf failed");
+	return;
+	}
+	cout << "LU end" << endl;
 
-		// i=z_count-2 (Euler)
-		for(int ig=0; ig<g_count; ig++){
-			if(ig==V00_index){
-				FP_loc[ig][z_count-2]=FP_loc[ig][z_count-1]-dz*kz*complex<double>(-sin(kzz0), cos(kzz0));
-			}else{
-				FP_loc[ig][z_count-2]=complex<double>(0, 0);
-			}
-		}
-
-		// i=z_count-3 ~ 0 (Numerov)
-		double diagonal_part[g_count];
-		for(int ig=0; ig<g_count; ig++){
-			double kpg[3];
-			for(int p=0; p<3; p++){
-				kpg[p]=k_para[p]+g_vec[ig][p];
-			}
-			//printf("g= (%f, %f, %f)\n", g_vec[ig][0], g_vec[ig][1], g_vec[ig][2]);
-			//printf("k+g= (%f, %f, %f)\n", kpg[0], kpg[1], kpg[2]);
-			diagonal_part[ig]=2*Ekin-inner_product(kpg, kpg);
-			//printf("diag[%3d] = %f\n", ig, diagonal_part[ig]);
-		}
-		complex<double> a_matrix[z_count][g_count][g_count];
-		for(int iz=0; iz<z_count; iz++){
-			for(int ig1=0; ig1<g_count; ig1++){
-				for(int ig2=0; ig2<g_count; ig2++){
-					if(ig1==ig2){
-						a_matrix[iz][ig1][ig2]=complex<double>(diagonal_part[ig1], 0);
-						// printf("%d %f %f\n", iz, Vgg[ig1][ig2][iz].real(), Vgg[ig1][ig2][iz].imag());
-					}else{
-						a_matrix[iz][ig1][ig2]=complex<double>(0, 0);
-					}
-					a_matrix[iz][ig1][ig2]-=complex<double>(2, 0)*Vgg[ig1][ig2][iz];
-				
-					//printf("%d %f %f\n", iz, Vgg[ig1][ig2][iz].real(), Vgg[ig1][ig2][iz].imag());
-				}
-			}
-		}
-		complex<double> left_matrix[g_count][g_count]; // transposed!!
-		complex<double> right_vector[g_count];
-		int INFO=0;
-		int NRHS=1;
-		int IPIV[g_count];
-		for(int im1=z_count-3; im1>=z_start; im1--){
-			int i=im1+1;
-			int ip1=i+1;
-			for(int ig1=0; ig1<g_count; ig1++){
-				right_vector[ig1]=complex<double>(2, 0)*FP_loc[ig1][i]-FP_loc[ig1][ip1];
-			
-				for(int ig2=0; ig2<g_count; ig2++){
-					if(ig1==ig2){
-						left_matrix[ig2][ig1]=complex<double>(1, 0);
-					}else{
-						left_matrix[ig2][ig1]=complex<double>(0, 0);
-					}
-					left_matrix[ig2][ig1]+=complex<double>(dz*dz/12.0, 0)*a_matrix[im1][ig1][ig2];
-
-					right_vector[ig1]-=complex<double>(5.0/6.0*dz*dz, 0)*a_matrix[i][ig1][ig2]*FP_loc[ig2][i];
-					right_vector[ig1]-=complex<double>(1.0/12.0*dz*dz, 0)*a_matrix[ip1][ig1][ig2]*FP_loc[ig2][ip1];
-				}
-			}
-			zgesv_(&g_count, &NRHS, &left_matrix[0][0], &g_count, &IPIV[0], &right_vector[0], &g_count, &INFO);
-			if(INFO==0){
-				// ok
-				for(int ig=0; ig<g_count; ig++){
-					FP_loc[ig][im1]=right_vector[ig];
-				}
-			}else{
-				write_log((char*)"zgesv failed");
-				return;
-			}
-		}
-	}else{
-		// Linear equations
-		int z_count_new=z_count-z_start;
-		int eq_dim=z_count_new*g_count;
-		complex<double>** left_matrix=alloc_zmatrix(eq_dim); // transposed
+	// inverse matrix calculation
+	cout << "Inverse 1 start" << endl;
+	int lwork=-1;
+	complex<double> work_dummy;
+	zgetri_(&eq_dim, &left_matrix[0][0], &eq_dim, &ipiv[0], &work_dummy, &lwork, &info);
+	if(info!=0){
+	write_log((char*)"Work space calculation failed");
+	return;
+	}
+	cout << "Inverse 1 end" << endl;
+	lwork=round(abs(work_dummy));
+	complex<double>* work=new complex<double>[lwork];
+	cout << "Inverse 2 start" << endl;
+	zgetri_(&eq_dim, &left_matrix[0][0], &eq_dim, &ipiv[0], &work[0], &lwork, &info);
+	if(info!=0){
+	write_log((char*)"zgetri failed");
+	return;
+	}
+	cout << "Inverse 2 end" << endl;
+	delete[] work;*/
+	/*
 		for(int i=0; i<eq_dim; i++){
-			for(int j=0; j<eq_dim; j++){
-				left_matrix[j][i]=complex<double>(0.0, 0.0);
-			}
+		for(int j=0; j<eq_dim; j++){
+		printf("(%10.2e, %10.2e) ", left_matrix[j][i].real(), left_matrix[j][i].imag());
 		}
+		printf("\n");
+		}*/
 
-		bool* nonzero_edge=new bool[g_count];
-		int nonzero_edge_count=0;
-		int* nonzero_edge_index=new int[g_count];
-		
-		double kpg[3];
-		for(int ig=0; ig<g_count; ig++){
-			for(int p=0; p<3; p++){
-				kpg[p]=k_para[p]+g_vec[ig][p];
-			}
-			double Ekpg=inner_product(kpg, kpg)/2.0;
-			nonzero_edge[ig]=!PA_calc_all_loc || Ekpg<Ekin;
-			// printf("nonzero_edge[%2d]=%s\n", ig, nonzero_edge[ig]?"true":"false");
-			if(nonzero_edge[ig]){
-			  nonzero_edge_index[nonzero_edge_count]=ig;
-				nonzero_edge_count++;
-			}
-		}
-		// left matrix
-		/// M
-		for(int ig1=0; ig1<g_count; ig1++){
-			for(int p=0; p<3; p++){
-				kpg[p]=k_para[p]+g_vec[ig1][p];
-			}
-			for(int ig2=0; ig2<g_count; ig2++){
-				for(int iz=z_start; iz<z_count; iz++){
-					int index1=ig1*z_count_new+(iz-z_start);
-					int index2=ig2*z_count_new+(iz-z_start);
-					complex<double> value=-2.0*Vgg[ig1][ig2][iz];
-					if(ig1==ig2){
-						value+=2.0*Ekin-inner_product(kpg, kpg);
-					}
-					left_matrix[index2][index1]+=value;
-				}
-			}
-		}
-		/// A
-		for(int ig=0; ig<g_count; ig++){
-			for(int iz1=z_start; iz1<z_count; iz1++){
-				for(int iz2=z_start; iz2<z_count; iz2++){
-					int index1=ig*z_count_new+(iz1-z_start);
-					int index2=ig*z_count_new+(iz2-z_start);
-					if(iz1==iz2){
-						left_matrix[index2][index1]-=2.0/dz/dz;
-					}
-					if(iz1-1==iz2 || iz1+1==iz2){
-						left_matrix[index2][index1]+=1.0/dz/dz;
-					}
-				}
-			}
-		}
-
-		/*
-		// LU decomposition
-		int info;
-		int* ipiv=new int[eq_dim];
-		int nrhs=1;
-
-		cout << "LU start" << endl;
-		zgetrf_(&eq_dim, &eq_dim, &left_matrix[0][0], &eq_dim, &ipiv[0], &info);
-		if(info!=0){
-			write_log((char*)"zgetrf failed");
-			return;
-		}
-		cout << "LU end" << endl;
-
-		// inverse matrix calculation
-		cout << "Inverse 1 start" << endl;
-		int lwork=-1;
-		complex<double> work_dummy;
-		zgetri_(&eq_dim, &left_matrix[0][0], &eq_dim, &ipiv[0], &work_dummy, &lwork, &info);
-		if(info!=0){
-			write_log((char*)"Work space calculation failed");
-			return;
-		}
-		cout << "Inverse 1 end" << endl;
-		lwork=round(abs(work_dummy));
-		complex<double>* work=new complex<double>[lwork];
-		cout << "Inverse 2 start" << endl;
-		zgetri_(&eq_dim, &left_matrix[0][0], &eq_dim, &ipiv[0], &work[0], &lwork, &info);
-		if(info!=0){
-			write_log((char*)"zgetri failed");
-			return;
-		}
-		cout << "Inverse 2 end" << endl;
-		delete[] work;*/
-		/*
-		for(int i=0; i<eq_dim; i++){
-			for(int j=0; j<eq_dim; j++){
-				printf("(%10.2e, %10.2e) ", left_matrix[j][i].real(), left_matrix[j][i].imag());
-			}
-			printf("\n");
-			}*/
-
+	int info;
+	int* ipiv=new int[eq_dim];
+	int nrhs=2*g_count;
+	char notrans='N';
+	complex<double> alpha(1.0, 0.0);
+	complex<double> beta(1.0, 0.0);
+	int inc=1;
+	if(calc_mode==0 || calc_mode==1){
 		// 0~g: for RL, g~2g: for RR
-		complex<double>** right_matrix=alloc_zmatrix(2*g_count, eq_dim); //transposed
+		//complex<double>** right_matrix=alloc_zmatrix(2*g_count, eq_dim); //transposed
 		for(int igz1=0; igz1<eq_dim; igz1++){
 			for(int ig2=0; ig2<2*g_count; ig2++){
 				right_matrix[ig2][igz1]=complex<double>(0.0, 0.0);
@@ -873,15 +877,12 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 			right_matrix[index2][index1]=complex<double>(1.0, 0.0);
 		}
 		/*
-		for(int igz1=0; igz1<eq_dim; igz1++){
+			for(int igz1=0; igz1<eq_dim; igz1++){
 			for(int ig2=0; ig2<2*g_count; ig2++){
-				printf("%4.1f ", abs(right_matrix[ig2][igz1]));
+			printf("%4.1f ", abs(right_matrix[ig2][igz1]));
 			}
 			printf("\n");
 			}*/
-		int info;
-		int* ipiv=new int[eq_dim];
-		int nrhs=2*g_count;
 		zgesv_(&eq_dim, &nrhs, &left_matrix[0][0], &eq_dim, &ipiv[0], &right_matrix[0][0], &eq_dim, &info);
 		if(info!=0){
 			write_log((char*)"zgesv failed");
@@ -905,24 +906,23 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 		}
 
 		/*
-		printf("H_RL\n");
-		for(int ig1=0; ig1<g_count; ig1++){
+			printf("H_RL\n");
+			for(int ig1=0; ig1<g_count; ig1++){
 			for(int ig2=0; ig2<g_count; ig2++){
-				printf("(%10.2e, %10.2e) ", H_RL[ig2][ig1].real(), H_RL[ig2][ig1].imag());
+			printf("(%10.2e, %10.2e) ", H_RL[ig2][ig1].real(), H_RL[ig2][ig1].imag());
 			}
 			printf("\n");
-		}
+			}
 		
-		printf("H_RR\n");
-		for(int ig1=0; ig1<g_count; ig1++){
+			printf("H_RR\n");
+			for(int ig1=0; ig1<g_count; ig1++){
 			for(int ig2=0; ig2<g_count; ig2++){
-				printf("(%10.2e, %10.2e) ", H_RR[ig2][ig1].real(), H_RR[ig2][ig1].imag());
+			printf("(%10.2e, %10.2e) ", H_RR[ig2][ig1].real(), H_RR[ig2][ig1].imag());
 			}
 			printf("\n");
 			}*/
 
 		// compute the right vector
-		complex<double>* right_vector=new complex<double>[g_count];
 		for(int ig=0; ig<g_count; ig++){
 			if(ig==V00_index){
 				right_vector[ig]=-dz*dz*complex<double>(cos(kzz0), sin(kzz0));
@@ -930,7 +930,6 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 				right_vector[ig]=complex<double>(0.0, 0.0);
 			}
 		}
-		complex<double>* right_vector2=new complex<double>[g_count];
 		for(int ig=0; ig<g_count; ig++){
 			if(ig==V00_index){
 				right_vector2[ig]=-complex<double>(cos(kzz0h), sin(kzz0h));
@@ -938,34 +937,50 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 				right_vector2[ig]=complex<double>(0.0, 0.0);
 			}
 		}
-		
-		char notrans='N';
-		complex<double> alpha(1.0, 0.0);
-		complex<double> beta(1.0, 0.0);
-		int inc=1;
+
+		// alpha=1
+		// beta=1
 		zgemv_(&notrans, &g_count, &g_count, &alpha, &H_RR[0][0], &g_count, &right_vector2[0], &inc, &beta, &right_vector[0], &inc);
 		
 		/*
-		printf("Right\n");
-		for(int ig=0; ig<g_count; ig++){
+			printf("Right\n");
+			for(int ig=0; ig<g_count; ig++){
 			printf("(%10.2e, %10.2e)\n", right_vector[ig].real(), right_vector[ig].imag());
-		}
-		printf("\n");*/
+			}
+			printf("\n");*/
 
 		// obtain f_G(-h)
 		// by zgesv
 		/*
-		int ipiv2[g_count];
-		zgesv_(&g_count, &nrhs, &H_RL[0][0], &g_count, &ipiv2[0], &right_vector[0], &g_count, &info);
-		if(info==0){
+			int ipiv2[g_count];
+			zgesv_(&g_count, &nrhs, &H_RL[0][0], &g_count, &ipiv2[0], &right_vector[0], &g_count, &info);
+			if(info==0){
 			// ok
 			for(int ig=0; ig<g_count; ig++){
-				printf("(%10.2e, %10.2e)\n", right_vector[ig].real(), right_vector[ig].imag());
+			printf("(%10.2e, %10.2e)\n", right_vector[ig].real(), right_vector[ig].imag());
 			}
-		}else{
+			}else{
 			write_log((char*)"zgesv failed");
 			return;
 			}*/
+
+	
+		bool* nonzero_edge=new bool[g_count];
+		int nonzero_edge_count=0;
+		int* nonzero_edge_index=new int[g_count];
+		
+		for(int ig=0; ig<g_count; ig++){
+			for(int p=0; p<3; p++){
+				kpg[p]=k_para[p]+g_vec[ig][p];
+			}
+			double Ekpg=inner_product(kpg, kpg)/2.0;
+			nonzero_edge[ig]=!PA_calc_all_loc || Ekpg<Ekin;
+			// printf("nonzero_edge[%2d]=%s\n", ig, nonzero_edge[ig]?"true":"false");
+			if(nonzero_edge[ig]){
+				nonzero_edge_index[nonzero_edge_count]=ig;
+				nonzero_edge_count++;
+			}
+		}
 
 		// by steepest-decent
 		
@@ -1031,8 +1046,8 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 				break;
 			}
 			/*
-			printf("Right(solution) by SD\n");
-			for(int ig=0; ig<g_count; ig++){
+				printf("Right(solution) by SD\n");
+				for(int ig=0; ig<g_count; ig++){
 				printf("(%10.2e, %10.2e)\n", right_vector[ig].real(), right_vector[ig].imag());
 				}*/
 		}
@@ -1083,18 +1098,23 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 				right_vector[nonzero_edge_index[iv]]=complex<double>(x_real[2*iv], x_real[2*iv+1]);
 			}
 		}
-
-		/*
-		printf("Right(solution) by SD\n");
-		for(int iv=0; iv<nonzero_edge_count; iv++){
-			printf("(%10.2e, %10.2e)\n", x_real[2*iv], x_real[2*iv+1]);
+		for(int ig=0; ig<g_count; ig++){
+			loc_edge[ig]=right_vector[ig];
 		}
-		printf("\n");*/
-		/*
-		printf("Right(solution) by zgels\n");
-		for(int iv=0; iv<nonzero_edge_count; iv++){
-			printf("(%10.2e, %10.2e)\n", B_complex[iv].real(), B_complex[iv].imag());
-			}*/
+		
+		//if(!PA_calc_all_loc){
+		// printf("Right(solution) by SD\n");
+		//for(int iv=0; iv<nonzero_edge_count; iv++){
+		//	printf("%10.6f %10.6f  ", x_real[2*iv], x_real[2*iv+1]);
+		//}
+		//printf("\n");
+		//}else{
+		//printf("Right(solution) by zgels\n");
+		//for(int iv=0; iv<nonzero_edge_count; iv++){
+		//	printf("%10.6f %10.6f  ", B_complex[iv].real(), B_complex[iv].imag());
+		//}
+		//printf("\n");
+		//}
 
 		if(PA_calc_all_loc){
 			double zgels_norm=0.0;
@@ -1104,9 +1124,26 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 			sprintf(sprintf_buffer2, "zgels norm: %10.2e", zgels_norm);
 			write_log(sprintf_buffer2);
 		}
+	
+		delete_dmatrix(A_real);
+		delete_zmatrix(A_complex);
+		delete[] nonzero_edge;
+		delete[] nonzero_edge_index;
+		delete[] B_real;
+		delete[] x_real;
+		delete[] nabla;
+		delete[] Anabla;
+		delete[] B_complex;
+	}
 
-		// printf("f_G(z)\n");
+	// printf("f_G(z)\n");
+	if(calc_mode==2){
+		for(int ig=0; ig<g_count; ig++){
+			right_vector[ig]=loc_edge[ig];
+		}
+	}
 
+	if(calc_mode==0 || calc_mode==2){
 		// obtain f_G(z)
 		complex<double>* right_vector_all=new complex<double>[eq_dim];
 		for(int ig=0; ig<g_count; ig++){
@@ -1120,12 +1157,21 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 		
 		// beta=complex<double>(0.0, 0.0);
 		//for(int igz=0; igz<eq_dim; igz++){
-			//printf("(%8.4f, %8.4f)\n", right_vector_all[igz].real(), right_vector_all[igz].imag());
+		//printf("(%8.4f, %8.4f)\n", right_vector_all[igz].real(), right_vector_all[igz].imag());
 		//}
 		// zgemv_(&notrans, &eq_dim, &eq_dim, &alpha, &left_matrix[0][0], &eq_dim, &right_vector_all[0], &inc, &beta, &FP_loc_buffer[0], &inc);
-		zgetrs_(&notrans, &eq_dim, &nrhs, &left_matrix[0][0], &eq_dim, &ipiv[0], &right_vector_all[0], &eq_dim, &info);
-		if(info!=0){
-			write_log((char*)"zgetrs failed");
+		if(calc_mode==0){
+			nrhs=1;
+			zgetrs_(&notrans, &eq_dim, &nrhs, &left_matrix[0][0], &eq_dim, &ipiv[0], &right_vector_all[0], &eq_dim, &info);
+			if(info!=0){
+				write_log((char*)"zgetrs failed");
+			}
+		}else if(calc_mode==2){
+			nrhs=1;
+			zgesv_(&eq_dim, &nrhs, &left_matrix[0][0], &eq_dim, &ipiv[0], &right_vector_all[0], &eq_dim, &info);
+			if(info!=0){
+				write_log((char*)"zgesv failed");
+			}
 		}
 
 		for(int ig=0; ig<g_count; ig++){
@@ -1137,70 +1183,23 @@ void solve_final_state(double Ekin, double* k_para, double kz, int g_count, int 
 		}
 		
 		for(int ig=0; ig<g_count; ig++){
-		for(int iz=0; iz<z_count; iz++){
-		int index=ig*z_count+iz;
-		//printf("(%8.4f, %8.4f)\n", FP_loc_buffer[index].real(), FP_loc_buffer[index].imag());
+			for(int iz=0; iz<z_count; iz++){
+				int index=ig*z_count+iz;
+				//printf("(%8.4f, %8.4f)\n", FP_loc_buffer[index].real(), FP_loc_buffer[index].imag());
+			}
+			//printf("\n");
 		}
-		//printf("\n");
-		}
-		
-		delete_zmatrix(left_matrix);
-		//delete_dmatrix(A_real);
-		delete_zmatrix(A_complex);
-		delete_zmatrix(right_matrix);
-		delete[] nonzero_edge;
-		delete[] nonzero_edge_index;
-		delete[] ipiv;
-		delete[] right_vector;
-		delete[] right_vector2;
 		delete[] right_vector_all;
-		delete[] B_real;
-		delete[] x_real;
-		delete[] nabla;
-		delete[] Anabla;
-		delete[] B_complex;
-		
 	}
-
+		
+	//delete_zmatrix(left_matrix);
+	//delete_zmatrix(right_matrix);
+	delete[] ipiv;
+	delete[] right_vector;
+	delete[] right_vector2;
+		
 	delete[] sprintf_buffer2;
 	delete_zpmatrix(Vgg);
-}
-
-complex<double>** alloc_zmatrix(int n){
-	complex<double>* buffer=new complex<double>[n*n];
-	complex<double>** mat=new complex<double>*[n];
-	for(int i=0; i<n; i++){
-		mat[i]=&buffer[i*n];
-	}
-	return mat;
-}
-
-complex<double>** alloc_zmatrix(int m, int n){
-	complex<double>* buffer=new complex<double>[m*n];
-	complex<double>** mat=new complex<double>*[m];
-	for(int i=0; i<m; i++){
-		mat[i]=&buffer[i*n];
-	}
-	return mat;
-}
-
-complex<double>*** alloc_zpmatrix(int n){
-	complex<double>** buffer=new complex<double>*[n*n];
-	complex<double>*** mat=new complex<double>**[n];
-	for(int i=0; i<n; i++){
-		mat[i]=&buffer[i*n];
-	}
-	return mat;
-}
-
-void delete_zpmatrix(complex<double>*** mat){
-	delete[] mat[0];
-	delete[] mat;
-}
-
-void delete_zmatrix(complex<double>** mat){
-	delete[] mat[0];
-	delete[] mat;
 }
 
 // calculate res=Ax-B
@@ -1246,9 +1245,9 @@ double calc_norm(int count, double* vector){
 }
 
 /*
-int conv_index_2D(int i, int j, int* size);
+	int conv_index_2D(int i, int j, int* size);
 
-void solve_final_state_real_space(double Ekin, double* k_para, double kz, double* atom_cell_buffer, int* VKS_count, double* VKS_buffer, complex<double>* FP_loc_buffer){
+	void solve_final_state_real_space(double Ekin, double* k_para, double kz, double* atom_cell_buffer, int* VKS_count, double* VKS_buffer, complex<double>* FP_loc_buffer){
 	int z_size=VKS_count[0];
 	int x_size=VKS_count[1];
 	int y_size=VKS_count[2];
@@ -1256,22 +1255,22 @@ void solve_final_state_real_space(double Ekin, double* k_para, double kz, double
 	// prepare the multi-dimension array
 	double** VKS=new double*[z_size];
 	for(int i=0; i<z_size; i++){
-		VKS[i]=&VKS_buffer[i*xy_size];
+	VKS[i]=&VKS_buffer[i*xy_size];
 	}
 	complex<double>** FP_loc=new complex<double>*[z_size];
 	for(int i=0; i<z_size; i++){
-		FP_loc[i]=&FP_loc_buffer[i*xy_size];
-		if(i==z_size-1 || i==z_size-2){
-			for(int j=0; j<xy_size; j++){
-				FP_loc[i][j]=complex<double>(1.0, 0.0);
-			}
-		}
+	FP_loc[i]=&FP_loc_buffer[i*xy_size];
+	if(i==z_size-1 || i==z_size-2){
+	for(int j=0; j<xy_size; j++){
+	FP_loc[i][j]=complex<double>(1.0, 0.0);
+	}
+	}
 	}
 	double atom_cell[3][3];
 	for(int i=0; i<3; i++){
-		for(int j=0; j<3; j++){
-			atom_cell[i][j]=atom_cell_buffer[i*3+j];
-		}
+	for(int j=0; j<3; j++){
+	atom_cell[i][j]=atom_cell_buffer[i*3+j];
+	}
 	}
 
 	// coefficients for the differential parts
@@ -1306,9 +1305,9 @@ void solve_final_state_real_space(double Ekin, double* k_para, double kz, double
 	double s1, s2, s3;
 	double s_matrix2[3][3];
 	for(int i=0; i<3; i++){
-		for(int j=0; j<3; j++){
-			s_matrix2[i][j]=s_matrix[i][j];
-		}
+	for(int j=0; j<3; j++){
+	s_matrix2[i][j]=s_matrix[i][j];
+	}
 	}
 		
 	s_vec[0]=1.0;
@@ -1316,12 +1315,12 @@ void solve_final_state_real_space(double Ekin, double* k_para, double kz, double
 	s_vec[2]=1.0;
 	dgesv_(&s_size, &nrhs, &s_matrix2[0][0], &s_size, &ipiv[0], &s_vec[0], &s_size, &info);
 	if(info==0){
-		s1=s_vec[0];
-		s2=s_vec[1];
-		s3=s_vec[2];
+	s1=s_vec[0];
+	s2=s_vec[1];
+	s3=s_vec[2];
 	}else{
-		write_log((char*)"dgesv failed");
-		return;
+	write_log((char*)"dgesv failed");
+	return;
 	}
 
 	// debug
@@ -1338,43 +1337,43 @@ void solve_final_state_real_space(double Ekin, double* k_para, double kz, double
 
 	/// diagonal
 	for(int i=0; i<xy_size; i++){
-		for(int j=0; j<xy_size; j++){
-			a_matrix_wo_V[j][i]=complex<double>(0.0, 0.0);
-			if(i==j){
-				a_matrix_wo_V[j][i]=-2.0*(-Ekin+k_para_norm/2.0);
-			}
-		}
+	for(int j=0; j<xy_size; j++){
+	a_matrix_wo_V[j][i]=complex<double>(0.0, 0.0);
+	if(i==j){
+	a_matrix_wo_V[j][i]=-2.0*(-Ekin+k_para_norm/2.0);
+	}
+	}
 	}
 
 	/// derivative
 	
 	complex<double> im(0.0, 1.0);
 	for(int i=0; i<x_size; i++){
-		for(int j=0; j<y_size; j++){
-			int index_ij  =conv_index_2D(i  , j  , VKS_count);
-			int index_ipj =conv_index_2D(i+1, j  , VKS_count);
-			int index_imj =conv_index_2D(i-1, j  , VKS_count);
-			int index_ijp =conv_index_2D(i  , j+1, VKS_count);
-			int index_ijm =conv_index_2D(i  , j-1, VKS_count);
-			int index_ipjp=conv_index_2D(i+1, j+1, VKS_count);
-			int index_imjm=conv_index_2D(i-1, j-1, VKS_count);
+	for(int j=0; j<y_size; j++){
+	int index_ij  =conv_index_2D(i  , j  , VKS_count);
+	int index_ipj =conv_index_2D(i+1, j  , VKS_count);
+	int index_imj =conv_index_2D(i-1, j  , VKS_count);
+	int index_ijp =conv_index_2D(i  , j+1, VKS_count);
+	int index_ijm =conv_index_2D(i  , j-1, VKS_count);
+	int index_ipjp=conv_index_2D(i+1, j+1, VKS_count);
+	int index_imjm=conv_index_2D(i-1, j-1, VKS_count);
 
-			/// second derivative
-			a_matrix_wo_V[index_ij][index_ij]-=2.0*(s1+s2+s3);
-			a_matrix_wo_V[index_ipj][index_ij]+=s1;
-			a_matrix_wo_V[index_imj][index_ij]+=s1;
-			a_matrix_wo_V[index_ijp][index_ij]+=s2;
-			a_matrix_wo_V[index_ijm][index_ij]+=s2;
-			a_matrix_wo_V[index_ipjp][index_ij]+=s3;
-			a_matrix_wo_V[index_imjm][index_ij]+=s3;
+	/// second derivative
+	a_matrix_wo_V[index_ij][index_ij]-=2.0*(s1+s2+s3);
+	a_matrix_wo_V[index_ipj][index_ij]+=s1;
+	a_matrix_wo_V[index_imj][index_ij]+=s1;
+	a_matrix_wo_V[index_ijp][index_ij]+=s2;
+	a_matrix_wo_V[index_ijm][index_ij]+=s2;
+	a_matrix_wo_V[index_ipjp][index_ij]+=s3;
+	a_matrix_wo_V[index_imjm][index_ij]+=s3;
 
-			/// first derivative
-			a_matrix_wo_V[index_ipj][index_ij]+=t1*im;
-			a_matrix_wo_V[index_imj][index_ij]-=t1*im;
-			a_matrix_wo_V[index_ijp][index_ij]+=t2*im;
-			a_matrix_wo_V[index_ijm][index_ij]-=t2*im;
-		}
-		}
+	/// first derivative
+	a_matrix_wo_V[index_ipj][index_ij]+=t1*im;
+	a_matrix_wo_V[index_imj][index_ij]-=t1*im;
+	a_matrix_wo_V[index_ijp][index_ij]+=t2*im;
+	a_matrix_wo_V[index_ijm][index_ij]-=t2*im;
+	}
+	}
 
 	complex<double> left_matrix[xy_size][xy_size]; // transposed
 	complex<double> right_vector[xy_size];
@@ -1387,75 +1386,75 @@ void solve_final_state_real_space(double Ekin, double* k_para, double kz, double
 	int ipiv2[xy_size];
 	
 	for(int im1=z_size-3; im1>=0; im1--){
-		int i=im1+1;
-		int ip1=i+1;
-		// left matrix
-		for(int ixy1=0; ixy1<xy_size; ixy1++){
-			for(int ixy2=0; ixy2<xy_size; ixy2++){
-				left_matrix[ixy1][ixy2]=dz*dz/12.0*a_matrix_wo_V[ixy1][ixy2];
-				if(ixy1==ixy2){
-					left_matrix[ixy1][ixy2]+=1.0+dz*dz/12.0*(-2.0*VKS[im1][ixy1]);
-				}
-			}
-		}
-		// right vector
-		/// diagonal
-		for(int ixy=0; ixy<xy_size; ixy++){
-			right_vector[ixy]=2.0*(1.0-5.0/12.0*dz*dz*(-2.0*VKS[i][ixy]))*FP_loc[i][ixy];
-			right_vector[ixy]-=(1.0+1.0/12.0*dz*dz*(-2.0*VKS[ip1][ixy]))*FP_loc[ip1][ixy];
-		}
-		/// off-diagonal
-		alpha=complex<double>(-5.0/6.0*dz*dz, 0.0);
-		zgemv_(&notrans, &xy_size, &xy_size, &alpha, &a_matrix_wo_V[0][0], &xy_size, &FP_loc[i][0], &inc, &beta, &right_vector[0], &inc);
-		
-		alpha=complex<double>(-1.0/12.0*dz*dz, 0.0);
-		zgemv_(&notrans, &xy_size, &xy_size, &alpha, &a_matrix_wo_V[0][0], &xy_size, &FP_loc[ip1][0], &inc, &beta, &right_vector[0], &inc);
-
-		// solve
-		zgesv_(&xy_size, &nrhs, &left_matrix[0][0], &xy_size, &ipiv2[0], &right_vector[0], &xy_size, &info);
-		if(info==0){
-			// ok
-			for(int ixy=0; ixy<xy_size; ixy++){
-				FP_loc[im1][ixy]=right_vector[ixy];
-				printf("(%8.4f %8.4f) ", FP_loc[im1][ixy].real(), FP_loc[im1][ixy].imag());
-			}
-			printf("\n");
-		}else{
-			write_log((char*)"zgesv failed");
-			return;
-		}
+	int i=im1+1;
+	int ip1=i+1;
+	// left matrix
+	for(int ixy1=0; ixy1<xy_size; ixy1++){
+	for(int ixy2=0; ixy2<xy_size; ixy2++){
+	left_matrix[ixy1][ixy2]=dz*dz/12.0*a_matrix_wo_V[ixy1][ixy2];
+	if(ixy1==ixy2){
+	left_matrix[ixy1][ixy2]+=1.0+dz*dz/12.0*(-2.0*VKS[im1][ixy1]);
 	}
-}
+	}
+	}
+	// right vector
+	/// diagonal
+	for(int ixy=0; ixy<xy_size; ixy++){
+	right_vector[ixy]=2.0*(1.0-5.0/12.0*dz*dz*(-2.0*VKS[i][ixy]))*FP_loc[i][ixy];
+	right_vector[ixy]-=(1.0+1.0/12.0*dz*dz*(-2.0*VKS[ip1][ixy]))*FP_loc[ip1][ixy];
+	}
+	/// off-diagonal
+	alpha=complex<double>(-5.0/6.0*dz*dz, 0.0);
+	zgemv_(&notrans, &xy_size, &xy_size, &alpha, &a_matrix_wo_V[0][0], &xy_size, &FP_loc[i][0], &inc, &beta, &right_vector[0], &inc);
+		
+	alpha=complex<double>(-1.0/12.0*dz*dz, 0.0);
+	zgemv_(&notrans, &xy_size, &xy_size, &alpha, &a_matrix_wo_V[0][0], &xy_size, &FP_loc[ip1][0], &inc, &beta, &right_vector[0], &inc);
+
+	// solve
+	zgesv_(&xy_size, &nrhs, &left_matrix[0][0], &xy_size, &ipiv2[0], &right_vector[0], &xy_size, &info);
+	if(info==0){
+	// ok
+	for(int ixy=0; ixy<xy_size; ixy++){
+	FP_loc[im1][ixy]=right_vector[ixy];
+	printf("(%8.4f %8.4f) ", FP_loc[im1][ixy].real(), FP_loc[im1][ixy].imag());
+	}
+	printf("\n");
+	}else{
+	write_log((char*)"zgesv failed");
+	return;
+	}
+	}
+	}
 
 
-int conv_index_2D(int i, int j, int* size){
+	int conv_index_2D(int i, int j, int* size){
 	// i is for size[1]
 	// j is for size[2]
-	while(i<0){
-		i+=size[1];
-	}
-	while(j<0){
-		j+=size[2];
-	}
-	i=i%size[1];
-	j=j%size[2];
-	return i*size[2]+j;
-}*/
+		while(i<0){
+			i+=size[1];
+		}
+		while(j<0){
+			j+=size[2];
+		}
+		i=i%size[1];
+		j=j%size[2];
+		return i*size[2]+j;
+	}*/
 
 
-complex<double> interpolate_fgz(double z, complex<double>* fgz, double dz, int z_count){
-	double index_d=z/dz;
-	int index_floor=floor(z/dz);
-	if(index_floor<0){
-		write_log((char*)"Out of range");
-		return fgz[0];
+	complex<double> interpolate_fgz(double z, complex<double>* fgz, double dz, int z_count){
+		double index_d=z/dz;
+		int index_floor=floor(z/dz);
+		if(index_floor<0){
+			write_log((char*)"Out of range");
+			return fgz[0];
+		}
+		if(index_floor>=z_count-1){
+			write_log((char*)"Out of range");
+			return fgz[z_count-1];
+		}
+		return fgz[index_floor]*(index_floor+1.0-index_d)+fgz[index_floor+1]*(index_d-index_floor);
 	}
-	if(index_floor>=z_count-1){
-		write_log((char*)"Out of range");
-		return fgz[z_count-1];
-	}
-	return fgz[index_floor]*(index_floor+1.0-index_d)+fgz[index_floor+1]*(index_d-index_floor);
-}
 
 double spherical_harmonic_theta(int l, int m, double theta){
 	double sinT=sin(theta);
@@ -1630,11 +1629,11 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 		}
 	}
 	/*
-	for(int ir=0; ir<r_count; ir++){
+		for(int ir=0; ir<r_count; ir++){
 		printf("%8.4f ", r_arr[ir]);
 		printf("%8.4f ", V_loc[ir]);
 		for(int il=0; il<l_count; il++){
-			printf("%13.4e ", VPS_nonloc[il][ir]);
+		printf("%13.4e ", VPS_nonloc[il][ir]);
 		}
 		printf("\n");
 		}*/
@@ -1667,9 +1666,9 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 			// (-1) * second derivative
 			if(ix==0){
 				/*
-				if(iy==0 || iy==2){
+					if(iy==0 || iy==2){
 					matrix[iy][ix]-=1.0/dx/dx;
-				}else if(iy==1){
+					}else if(iy==1){
 					matrix[iy][ix]-=-2.0/dx/dx;
 					}*/
 				if(iy==-1 || iy==1){
@@ -1692,11 +1691,11 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 			}
 			// first derivative
 			if(ix==0){/*
-				if(iy==0){
-					matrix[iy][ix]+=-1.0/dx;
-				}else if(iy==1){
-				matrix[iy][ix]+=1.0/dx;
-				}*/
+									if(iy==0){
+									matrix[iy][ix]+=-1.0/dx;
+									}else if(iy==1){
+									matrix[iy][ix]+=1.0/dx;
+									}*/
 				if(iy==-1){
 					matrix[iy][ix]+=-0.5/dx;
 				}else if(iy==1){
@@ -1729,18 +1728,18 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 
 	// debug
 	/*
-	for(int ix=0; ix<r_count; ix++){
+		for(int ix=0; ix<r_count; ix++){
 		for(int iy=0; iy<r_count; iy++){
-			printf("%8.1e ", matrix[iy][ix]);
+		printf("%8.1e ", matrix[iy][ix]);
 		}
 		printf("\n");
 		}*/
 
 	// test
 	/*
-	for(int ix=0; ix<r_count; ix++){
+		for(int ix=0; ix<r_count; ix++){
 		for(int iy=0; iy<r_count; iy++){
-			matrix[iy][ix]=(ix==iy)?((ix+0.1)/10000.0-0.1):0.0;
+		matrix[iy][ix]=(ix==iy)?((ix+0.1)/10000.0-0.1):0.0;
 		}
 		}*/
 
@@ -1781,14 +1780,14 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 
 	// check
 	/*
-	double mm[r_count][r_count];
-	double alpha=1.0;
-	double beta=0.0;
-	char trans='N';
-	dgemm_(&trans, &trans, &r_count, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &inverse[0][0], &r_count, &beta, &mm[0][0], &r_count);
-	for(int ix=0; ix<r_count; ix++){
+		double mm[r_count][r_count];
+		double alpha=1.0;
+		double beta=0.0;
+		char trans='N';
+		dgemm_(&trans, &trans, &r_count, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &inverse[0][0], &r_count, &beta, &mm[0][0], &r_count);
+		for(int ix=0; ix<r_count; ix++){
 		for(int iy=0; iy<r_count; iy++){
-			printf("%4.1f ", mm[iy][ix]);
+		printf("%4.1f ", mm[iy][ix]);
 		}
 		printf("\n");
 		}*/
@@ -1807,7 +1806,7 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 	}
 	psi_normalize(r_count, dr, psi_vector);
 	/*
-	for(int ir=0; ir<r_count; ir++){
+		for(int ir=0; ir<r_count; ir++){
 		printf("%10.6f %10.6f\n", r_arr[ir], psi_vector[ir]);
 		}*/
 
@@ -1836,12 +1835,12 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 	// printf("Power iteration trials: %3d, Expectation value: %8.4f\n", trial, expect);
 
 	/*
-	double hpsi_norm=0.0;
-	dgemv_(&trans, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &psi_vector[0], &inc, &beta, &hpsi_vector[0], &inc);
-	for(int ir=0; ir<r_count; ir++){
+		double hpsi_norm=0.0;
+		dgemv_(&trans, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &psi_vector[0], &inc, &beta, &hpsi_vector[0], &inc);
+		for(int ir=0; ir<r_count; ir++){
 		hpsi_norm+=hpsi_vector[ir]*hpsi_vector[ir]*dr[ir];
-	}
-	printf("Norm: %f\n", hpsi_norm);*/
+		}
+		printf("Norm: %f\n", hpsi_norm);*/
 
 	// prepare H^t * diag(dr) * H
 	double** dr_matrix=alloc_dmatrix(r_count);
@@ -1957,41 +1956,18 @@ double expectation_value(int count, double* matrix, double* psi, double* dr){
 	return ret;
 }
 
- double matrix_element(int count, double* left, double* center, double* right){
-	 double cr[count];
-	 char trans='N';
-	 double alpha=1.0;
-	 double beta=0.0;
-	 int inc=1;
+double matrix_element(int count, double* left, double* center, double* right){
+	double cr[count];
+	char trans='N';
+	double alpha=1.0;
+	double beta=0.0;
+	int inc=1;
 
-	 /*
-	 for(int i=0; i<count; i++){
-		 printf("%f %f\n", left[i], right[i]);
-		 }*/
+	/*
+		for(int i=0; i<count; i++){
+		printf("%f %f\n", left[i], right[i]);
+		}*/
 	 
-	 dgemv_(&trans, &count, &count, &alpha, center, &count, right, &inc, &beta, &cr[0], &inc);
-	 return ddot_(&count, left, &inc, &cr[0], &inc);
- }
-
-double** alloc_dmatrix(int n){
-	double* buffer=new double[n*n];
-	double** ret=new double*[n];
-	for(int i=0; i<n; i++){
-		ret[i]=&buffer[i*n];
-	}
-	return ret;
-}
-
-double** alloc_dmatrix(int m, int n){
-	double* buffer=new double[m*n];
-	double** ret=new double*[m];
-	for(int i=0; i<m; i++){
-		ret[i]=&buffer[i*n];
-	}
-	return ret;
-}
-
-void delete_dmatrix(double** mat){
-	delete[] mat[0];
-	delete[] mat;
+	dgemv_(&trans, &count, &count, &alpha, center, &count, right, &inc, &beta, &cr[0], &inc);
+	return ddot_(&count, left, &inc, &cr[0], &inc);
 }

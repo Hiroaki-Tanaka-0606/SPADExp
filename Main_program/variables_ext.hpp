@@ -215,6 +215,12 @@ extern bool PA_ignore_nonlocal_set;
 extern bool PA_FPFS_Numerov;
 extern bool PA_FPFS_Numerov_set;
 extern double PA_FPFS_margin;
+extern bool PA_FPFS_edge_smoothing;
+extern bool PA_FPFS_edge_smoothing_set;
+extern int PA_FPFS_smoothing_E;
+extern bool PA_FPFS_smoothing_E_set;
+extern int PA_FPFS_smoothing_k;
+extern bool PA_FPFS_smoothing_k_set;
 /// files
 extern FILE* Log_file_obj;
 extern FILE* Output_file_obj;

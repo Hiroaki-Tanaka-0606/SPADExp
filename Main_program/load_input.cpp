@@ -1041,6 +1041,39 @@ int load_input(){
 				}
 			  PA_FPFS_Numerov_set=true; continue;
 			}
+			/// FPFS_edge_smoothing: bool
+			if(strcmp(keyword_buffer, "FPFS_edge_smoothing")==0){
+				if(PA_FPFS_edge_smoothing_set){
+					output_error(line_number, (char*)"keyword FPFS_edge_smoothing already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_bool(input_line_c, &PA_FPFS_edge_smoothing, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of FPFS_edge_smoothing"); status=0; goto FINALIZATION;
+				}
+			  PA_FPFS_edge_smoothing_set=true; continue;
+			}
+			/// FPFS_smoothing_E: int
+			if(strcmp(keyword_buffer, "FPFS_smoothing_E")==0){
+				if(PA_FPFS_smoothing_E_set){
+					output_error(line_number, (char*)"keyword FPFS_smoothing_E already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_int(input_line_c, &PA_FPFS_smoothing_E);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of FPFS_smoothing_E"); status=0; goto FINALIZATION;
+				}
+				PA_FPFS_smoothing_E_set=true; continue;
+			}
+			/// FPFS_smoothing_k: int
+			if(strcmp(keyword_buffer, "FPFS_smoothing_k")==0){
+				if(PA_FPFS_smoothing_k_set){
+					output_error(line_number, (char*)"keyword FPFS_smoothing_k already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_int(input_line_c, &PA_FPFS_smoothing_k);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of FPFS_smoothing_k"); status=0; goto FINALIZATION;
+				}
+				PA_FPFS_smoothing_k_set=true; continue;
+			}
 		}else if(*block_name==string("Phase-shift")){
 			// Ph block
 			/// Skip_points (Ph_skip_points): int

@@ -216,6 +216,12 @@ bool PA_ignore_nonlocal_set;
 bool PA_FPFS_Numerov;  // perform the nonlocal wfn calculation using the Numerov method
 bool PA_FPFS_Numerov_set;
 double PA_FPFS_margin;   // margin to determine the calculation range of local wfn if PA_calc_all_wfn=false
+bool PA_FPFS_edge_smoothing; // perform the box smoothing of the edge values
+bool PA_FPFS_edge_smoothing_set;
+int PA_FPFS_smoothing_E; // smoothing width (half-side)
+bool PA_FPFS_smoothing_E_set;
+int PA_FPFS_smoothing_k; // smoothing width (half-side)
+bool PA_FPFS_smoothing_k_set;
 /// files
 FILE* Log_file_obj;            // log file object
 FILE* Output_file_obj;         // data file object
