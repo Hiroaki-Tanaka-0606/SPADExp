@@ -534,13 +534,41 @@ double cubeValue(int n1, int n2, int n3, int* count, double* cube){
 }
 // since the unit cell vectors a_i and reciprocal vectors b_j satisfy (a_i, b_j)=2pi d_{ij},
 // r=p_1 a_1 + p_2 a_2 + p_3 a_3 --> p_i=(b_i, r)/2pi
-double interpolate_potential(double* r, int* count, double* cube, double* rec_cell){
+double interpolate_potential(double* r, int* count, double* cube, double* atom_cell_buffer){
+	int i, j;
+	double atom_cell[3][3];
+	for(i=0; i<3; i++){
+		for(j=0; j<3; j++){
+			atom_cell[i][j]=atom_cell_buffer[i*3+j];
+		}
+	}
+
+	double rec_cell[3][3];
+	double op[3]; // for outer product
+	double det; // for determinant
+	/// reciprocal unit cell
+	outer_product(atom_cell[1], atom_cell[2], op);
+	det=inner_product(atom_cell[0], op);
+	for(i=0; i<3; i++){
+		rec_cell[0][i]=2.0*M_PI*op[i]/det;
+	}
+
+	outer_product(atom_cell[2], atom_cell[0], op);
+	for(i=0; i<3; i++){
+		rec_cell[1][i]=2.0*M_PI*op[i]/det;
+	}
+
+	outer_product(atom_cell[0], atom_cell[1], op);
+	for(i=0; i<3; i++){
+		rec_cell[2][i]=2.0*M_PI*op[i]/det;
+	}
+	
 	double p[3]; // fractional
 	double q[3]; // non-integer index
 	int qf[3]; // integer index (floored)
 	double** rc=new double*[3];
 	for(int i=0; i<3; i++){
-		rc[i]=&rec_cell[i*3];
+		rc[i]=&rec_cell[i][0];
 	}
 	for(int i=0; i<3; i++){
 		p[i]=inner_product(r, rc[i])/(2*M_PI);

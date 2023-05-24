@@ -1160,11 +1160,11 @@ void calculate_PAD(){
 					for(int ix=0; ix<3; ix++){
 						r_ref[ix]=atom_coordinates[ia][ix]+Lebedev_r[ix][iL]*ri;
 					}
-					double VKS_ref=interpolate_potential(r_ref, VKS_count, &VKS0[0][0][0], &rec_cell[0][0]);
+					double VKS_ref=interpolate_potential(r_ref, VKS_count, &VKS0[0][0][0], &atom_cell[0][0]);
 					VKS0_r[ia][ir]+=VKS_ref;
 					dVKS0_r[ia][ir]+=VKS_ref*VKS_ref;
 					if(spin_i>0){
-						VKS_ref=interpolate_potential(r_ref, VKS_count, &VKS1[0][0][0], &rec_cell[0][0]);
+						VKS_ref=interpolate_potential(r_ref, VKS_count, &VKS1[0][0][0], &atom_cell[0][0]);
 						VKS1_r[ia][ir]+=VKS_ref;
 						dVKS1_r[ia][ir]+=VKS_ref*VKS_ref;
 					}
