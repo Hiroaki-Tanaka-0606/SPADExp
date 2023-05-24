@@ -3176,14 +3176,14 @@ void calculate_PAD(){
   double**** FP_loc_edge_export_im; // [sp][ig][ie][ik]
 	int EScale_count=E_max_scale-E_min_scale+1;
 	int g_count=0;
-	for(int ik=0; ik<total_count_ext; ik++){
-		for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
-			if(g_count<final_states_FP_g_size[ik][ifp]){
-				g_count=final_states_FP_g_size[ik][ifp];
+	if(PA_FPFS){
+		for(int ik=0; ik<total_count_ext; ik++){
+			for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
+				if(g_count<final_states_FP_g_size[ik][ifp]){
+					g_count=final_states_FP_g_size[ik][ifp];
+				}
 			}
 		}
-	}
-	if(PA_FPFS){
 		FP_loc_edge_export_re=new double***[sp_max];
 		FP_loc_edge_export_im=new double***[sp_max];
 		for(int sp=0; sp<sp_max; sp++){
