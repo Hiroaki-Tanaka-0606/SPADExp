@@ -221,6 +221,11 @@ extern int PA_FPFS_smoothing_E;
 extern bool PA_FPFS_smoothing_E_set;
 extern int PA_FPFS_smoothing_k;
 extern bool PA_FPFS_smoothing_k_set;
+extern double PA_FPFS_bulk_min_ang;
+extern double PA_FPFS_bulk_max_ang;
+extern int PA_FPFS_bulk_count;
+extern bool PA_FPFS_bulk_set;
+extern int PA_FPFS_bulk_kz_steps;
 /// files
 extern FILE* Log_file_obj;
 extern FILE* Output_file_obj;

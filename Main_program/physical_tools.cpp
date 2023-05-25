@@ -142,6 +142,18 @@ extern "C"{
 							complex<double>* WORK,
 							int* LWORK,
 							int* INFO);
+
+	void zheev_(
+							char* JOBZ,
+							char* UPLO,
+							int* N,
+							complex<double>* A,
+							int* LDA,
+							double* W,
+							complex<double>* WORK,
+							int* LWORK,
+							double* RWORK,
+							int* INFO);
   
 }
 
@@ -1470,19 +1482,19 @@ double calc_norm(int count, double* vector){
 	}*/
 
 
-	complex<double> interpolate_fgz(double z, complex<double>* fgz, double dz, int z_count){
-		double index_d=z/dz;
-		int index_floor=floor(z/dz);
-		if(index_floor<0){
-			write_log((char*)"Out of range");
-			return fgz[0];
-		}
-		if(index_floor>=z_count-1){
-			write_log((char*)"Out of range");
-			return fgz[z_count-1];
-		}
-		return fgz[index_floor]*(index_floor+1.0-index_d)+fgz[index_floor+1]*(index_d-index_floor);
+complex<double> interpolate_fgz(double z, complex<double>* fgz, double dz, int z_count){
+	double index_d=z/dz;
+	int index_floor=floor(z/dz);
+	if(index_floor<0){
+		write_log((char*)"Out of range");
+		return fgz[0];
 	}
+	if(index_floor>=z_count-1){
+		write_log((char*)"Out of range");
+		return fgz[z_count-1];
+	}
+	return fgz[index_floor]*(index_floor+1.0-index_d)+fgz[index_floor+1]*(index_d-index_floor);
+}
 
 double spherical_harmonic_theta(int l, int m, double theta){
 	double sinT=sin(theta);
@@ -1998,4 +2010,222 @@ double matrix_element(int count, double* left, double* center, double* right){
 	 
 	dgemv_(&trans, &count, &count, &alpha, center, &count, right, &inc, &beta, &cr[0], &inc);
 	return ddot_(&count, left, &inc, &cr[0], &inc);
+}
+
+
+void calc_bulk_potential(complex<double>* Vgg, double dz_slab, int slab_count, double z_offset, double bulk_height, double dz_bulk, int z_count_bulk, int bulk_count, complex<double>* Vgg_average, double* Vgg_stdev){
+	for(int iz=0; iz<z_count_bulk; iz++){
+		for(int ib=0; ib<bulk_count; ib++){
+			double z=z_offset+ib*bulk_height+iz*dz_bulk;
+			complex<double> V=interpolate_fgz(z, Vgg, dz_slab, slab_count);
+			Vgg_average[iz]+=V;
+			Vgg_stdev[iz]+=norm(V);
+		}
+		Vgg_average[iz]/=(1.0*bulk_count);
+		Vgg_stdev[iz]=sqrt(Vgg_stdev[iz]/(1.0*bulk_count)-norm(Vgg_average[iz]));			
+	}
+	
+}
+
+
+complex<double> Fourier_expansion_1D(complex<double>* Vgg_bulk, double g, double dz, int count){
+	complex<double> ret(0.0, 0.0);
+	for(int iz=0; iz<count; iz++){
+		double gz=g*dz*iz;
+		ret+=Vgg_bulk[iz]*complex<double>(cos(gz), -sin(gz));
+	}
+	ret/=(count*1.0);
+	return ret;
+}
+
+void prepare_matrix_bulk(int g_count, complex<double>** mat, double Ekin, double* k, double** g_vec, complex<double>** Vgg){
+	double kpg[3];
+	for(int i=0; i<g_count; i++){
+		for(int j=0; j<g_count; j++){
+			mat[j][i]=2.0*Vgg[i][j];
+			if(i==j){
+				mat[j][i]-=2.0*Ekin;
+				for(int ix=0; ix<3; ix++){
+					kpg[ix]=g_vec[i][ix]+k[ix];
+				}
+				//printf("kpg %.3f %.3f %.3f\n", kpg[0], kpg[1], kpg[2]);
+				mat[j][i]+=inner_product(kpg, kpg);
+			}
+			//printf("(%4.1f %4.1f) ", mat[j][i].real(), mat[j][i].imag());
+			
+		}
+		//printf("\n");
+	}
+}
+
+double determinant(int g_count, complex<double>** mat, double Ekin, double* k, double** g_vec, complex<double>** Vgg){
+	prepare_matrix_bulk(g_count, mat, Ekin, k, g_vec, Vgg);
+	int ipiv[g_count];
+	int info;
+	zgetrf_(&g_count, &g_count, &mat[0][0], &g_count, &ipiv[0], &info);
+	if(info!=0){
+		write_log((char*)"zgetrf failed");
+		return -1;
+	}
+	complex<double> zdet=1.0;
+	int i;
+	for(i=0; i<g_count; i++){
+		zdet*=mat[i][i];
+		if(ipiv[i]!=i+1){
+			zdet*=-1;
+		}
+	}
+	return zdet.real();
+}
+
+void solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, double* g_vec_buffer, complex<double>* Vgg_buffer){
+	//printf("Ekin %10.6f\n", Ekin);
+	char* sprintf_buffer2=new char[Log_length+1];
+	int i, j;
+	// prepare matrix
+	double** g_vec=new double*[g_count];
+	for(i=0; i<g_count; i++){
+		g_vec[i]=&g_vec_buffer[3*i];
+	}
+	complex<double>** Vgg=new complex<double>*[g_count];
+	for(i=0; i<g_count; i++){
+		Vgg[i]=&Vgg_buffer[i*g_count];
+	}
+	
+	complex<double>** mat=alloc_zmatrix(g_count); // transposed
+
+	double k_bloch[3];
+	k_bloch[0]=k_para[0];
+	k_bloch[1]=k_para[1];
+	double det_array[PA_FPFS_bulk_kz_steps];
+	// |k+G|^2+2(Vgg-E)
+	for(int ikz=0; ikz<PA_FPFS_bulk_kz_steps; ikz++){
+		double kz=gz*(1.0*ikz-PA_FPFS_bulk_kz_steps*0.5)/(1.0*PA_FPFS_bulk_kz_steps);
+		k_bloch[2]=kz;
+		// printf("k %.3f %.3f %.3f\n", k_bloch[0], k_bloch[1], k_bloch[2]);
+		det_array[ikz]=determinant(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
+	}
+	int solution_count=0;
+	for(int ikz=0; ikz<PA_FPFS_bulk_kz_steps; ikz++){
+		int ikzp1=(ikz+1)%PA_FPFS_bulk_kz_steps;
+		if(det_array[ikz]*det_array[ikzp1]<0){
+			solution_count++;
+		}
+	}
+	sprintf(sprintf_buffer2, "%d solution candidates found", solution_count);
+	write_log(sprintf_buffer2);
+	double solution_indices[solution_count];
+	double solution_kz[solution_count];
+	double solution_eigen_diff[solution_count];
+	complex<double>** solution=alloc_zmatrix(solution_count, g_count);
+	int solution_index=0;
+	for(int ikz=0; ikz<PA_FPFS_bulk_kz_steps; ikz++){
+		int ikzp1=(ikz+1)%PA_FPFS_bulk_kz_steps;
+		if(det_array[ikz]*det_array[ikzp1]<0){
+			solution_indices[solution_index]=ikz;
+			solution_index++;
+		}
+	}
+	// for zheev
+	char compute='V';
+	char uplo='U';
+	
+	complex<double> work_dummy;
+	int lwork=-1;
+	double rwork[3*g_count-2];
+	int info;
+	double w[g_count];
+	complex<double>* work;
+		
+	
+	for(int is=0; is<solution_count; is++){
+		int index=solution_indices[is];
+		double kz_left=gz*(1.0*index-PA_FPFS_bulk_kz_steps*0.5)/(1.0*PA_FPFS_bulk_kz_steps);
+		double kz_right=gz*(1.0*(index+1)-PA_FPFS_bulk_kz_steps*0.5)/(1.0*PA_FPFS_bulk_kz_steps);
+
+		k_bloch[2]=kz_left;
+		double det_left=determinant(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
+		k_bloch[2]=kz_right;
+		double det_right=determinant(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
+
+		//printf("kz          %10.5f -- %10.5f\n", kz_left, kz_right);
+		//printf("Determinant %10.3e -- %10.3e\n", det_left, det_right);
+
+		while(kz_right-kz_left>1e-6){
+			double kz_center=(kz_left+kz_right)/2.0;
+			k_bloch[2]=kz_center;
+			double det_center=determinant(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
+			if(det_left*det_center<0){
+				kz_right=kz_center;
+				det_right=det_center;
+			}else{
+				kz_left=kz_center;
+				det_left=det_center;
+			}			
+			//printf("kz          %10.5f -- %10.5f\n", kz_left, kz_right);
+			//printf("Determinant %10.3e -- %10.3e\n", det_left, det_right);
+		}
+
+		// eigenvalue calculations
+		solution_kz[is]=(kz_left+kz_right)/2.0;
+		k_bloch[2]=solution_kz[is];
+		prepare_matrix_bulk(g_count, mat, 0.0, k_bloch, g_vec, Vgg);
+
+		if(lwork==-1){
+			zheev_(&compute, &uplo, &g_count, &mat[0][0], &g_count, &w[0], &work_dummy, &lwork, &rwork[0], &info);
+			if(info!=0){
+				write_log((char*)"zheev preparation failed");
+				return;
+			}
+			lwork=round(abs(work_dummy));
+			work=new complex<double>[lwork];
+		}
+		
+		zheev_(&compute, &uplo, &g_count, &mat[0][0], &g_count, &w[0], &work[0], &lwork, &rwork[0], &info);
+		if(info!=0){
+			write_log((char*)"zheev failed");
+			return;
+		}
+		double min_diff=-1;
+		int min_diff_index=-1;
+		for(i=0; i<g_count; i++){
+			//printf("Eigen[%d] %10.6f\n", i, w[i]*0.5);
+			double diff=abs(w[i]*0.5-Ekin);
+			if(min_diff_index<0 || diff<min_diff){
+				min_diff_index=i;
+				min_diff=diff;
+			}
+		}
+		// eigenvectors (mat) are not transposed !!
+		//printf("Eigen diff: %10.3e\n", min_diff);
+		for(i=0; i<g_count; i++){
+			solution[is][i]=mat[min_diff_index][i];
+		}
+		/*
+			// for test
+		prepare_matrix_bulk(g_count, mat, 0.0, k_bloch, g_vec, Vgg);
+		complex<double> HV[g_count];
+		for(i=0; i<g_count; i++){
+			HV[i]=complex<double>(0.0, 0.0);
+			for(j=0; j<g_count; j++){
+				HV[i]+=mat[j][i]*solution[is][j];
+			}
+			printf("%8.4f %8.4f %8.4f %8.4f\n", HV[i].real(), HV[i].imag(), (HV[i]/solution[is][i]).real(), (HV[i]/solution[is][i]).imag());
+			}*/
+	}
+
+	/*
+	for(i=0; i<g_count; i++){
+		printf("%8.3f %8.3f %8.3f ", g_vec[i][0], g_vec[i][1], g_vec[i][2]);
+		for(j=0; j<solution_count; j++){
+			printf("%8.3f ", abs(solution[j][i]));
+		}
+		printf("\n");
+		}*/
+
+	delete[] work;
+
+	delete[] g_vec;
+	delete[] Vgg;
+	delete[] sprintf_buffer2;
 }

@@ -31,3 +31,9 @@ complex<double> interpolate_fgz(double z, complex<double>* fgz, double dz, int z
 double spherical_harmonic_theta(int l, int m, double theta);
 
 void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* V_loc, int VPS_l_length, int* VPS_l, double* VPS_E_buffer, double** VPS_nonloc_buffer, double* psi);
+
+void calc_bulk_potential(complex<double>* Vgg, double dz_slab, int slab_count, double z_offset, double bulk_height, double dz_bulk, int z_count_bulk, int bulk_count, complex<double>* Vgg_average, double* Vgg_stdev);
+
+complex<double> Fourier_expansion_1D(complex<double>* Vgg_bulk, double g, double dz, int count);
+
+void solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, double* g_vec_buffer, complex<double>* Vgg_buffer);

@@ -152,7 +152,7 @@ void initialize(){
 	PA_excitation_energy_set=false;
 	PA_FPFS_energy_step=0.01;
 	PA_FPFS_energy_step_set=false;
-	PA_FPFS_range=5;
+	PA_FPFS_range=3;
 	PA_FPFS_kRange=2.0;
 	PA_FPFS_kRange_set=false;
 	PA_FPFS=false;
@@ -184,6 +184,11 @@ void initialize(){
 	PA_FPFS_smoothing_E_set=false;
 	PA_FPFS_smoothing_k=0;
 	PA_FPFS_smoothing_k_set=false;
+	PA_FPFS_bulk_set=false;
+	PA_FPFS_bulk_min_ang=0.0;
+	PA_FPFS_bulk_max_ang=0.0;
+	PA_FPFS_bulk_count=0;
+	PA_FPFS_bulk_kz_steps=1000;
 }
 
 void finalize(){

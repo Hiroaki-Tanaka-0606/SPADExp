@@ -157,6 +157,13 @@ int validation_PAD(){
 				PA_FPFS_kRange=1.0;
 				write_log((char*)"Note: FPFS_kRange is set to 1 because FPFS_Numerov is true");
 			}
+			/// FPFS_bulk
+			if(PA_FPFS_bulk_set){
+				sprintf(sprintf_buffer, "%32s = [%.3f, %.3f] (Ang)", "FPFS_bulk range", PA_FPFS_bulk_min_ang, PA_FPFS_bulk_max_ang);
+				write_log(sprintf_buffer);
+				sprintf(sprintf_buffer, "%32s = %d", "Number of bulk layers", PA_FPFS_bulk_count);
+				write_log(sprintf_buffer);
+			}
 			/// FPFS_kRange
 			sprintf(sprintf_buffer, "%32s = %.3f", "FPFS_kRange", PA_FPFS_kRange);
 			write_log(sprintf_buffer);

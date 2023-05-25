@@ -1074,6 +1074,17 @@ int load_input(){
 				}
 				PA_FPFS_smoothing_k_set=true; continue;
 			}
+			/// FPFS_bulk: double(min, ang) double(max, ang) int(count)
+			if(strcmp(keyword_buffer, "FPFS_bulk")==0){
+				if(PA_FPFS_bulk_set){
+					output_error(line_number, (char*)"keyword FPFS_bulk already appeared"); status=0; goto FINALIZATION;
+				}
+				sscanf_status=sscanf(input_line_c, "%*s %lf %lf %d", &PA_FPFS_bulk_min_ang, &PA_FPFS_bulk_max_ang, &PA_FPFS_bulk_count);
+				if(sscanf_status!=3){
+					output_error(line_number, (char*)"invalid value of FPFS_bulk"); status=0; goto FINALIZATION;
+				}
+				PA_FPFS_bulk_set=true; continue;
+			}
 		}else if(*block_name==string("Phase-shift")){
 			// Ph block
 			/// Skip_points (Ph_skip_points): int
