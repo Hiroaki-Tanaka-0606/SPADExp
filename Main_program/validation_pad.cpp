@@ -163,6 +163,14 @@ int validation_PAD(){
 				write_log(sprintf_buffer);
 				sprintf(sprintf_buffer, "%32s = %d", "Number of bulk layers", PA_FPFS_bulk_count);
 				write_log(sprintf_buffer);
+				if(PA_FPFS_Numerov){
+					write_log((char*)"Error: FPFS_Numerov = true and FPFS_bulk are incompatible");
+					status=0; goto FINALIZATION;
+				}
+				if(PA_calc_all_loc){
+					PA_calc_all_loc=false;
+					write_log((char*)"Note: FPFS_calc_all_loc is set to false");
+				}
 			}
 			/// FPFS_kRange
 			sprintf(sprintf_buffer, "%32s = %.3f", "FPFS_kRange", PA_FPFS_kRange);

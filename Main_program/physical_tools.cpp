@@ -2078,7 +2078,7 @@ double determinant(int g_count, complex<double>** mat, double Ekin, double* k, d
 	return zdet.real();
 }
 
-void solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, double* g_vec_buffer, complex<double>* Vgg_buffer){
+int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, double* g_vec_buffer, complex<double>* Vgg_buffer, complex<double>*** final_states_pointer, double** kz_pointer){
 	//printf("Ekin %10.6f\n", Ekin);
 	char* sprintf_buffer2=new char[Log_length+1];
 	int i, j;
@@ -2100,10 +2100,12 @@ void solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count
 	double det_array[PA_FPFS_bulk_kz_steps];
 	// |k+G|^2+2(Vgg-E)
 	for(int ikz=0; ikz<PA_FPFS_bulk_kz_steps; ikz++){
-		double kz=gz*(1.0*ikz-PA_FPFS_bulk_kz_steps*0.5)/(1.0*PA_FPFS_bulk_kz_steps);
+		double kz=gz*((1.0*ikz)/(1.0*PA_FPFS_bulk_kz_steps)-0.5);
+		//double kz=gz*(1.0*ikz)/(1.0*PA_FPFS_bulk_kz_steps);
 		k_bloch[2]=kz;
 		// printf("k %.3f %.3f %.3f\n", k_bloch[0], k_bloch[1], k_bloch[2]);
 		det_array[ikz]=determinant(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
+		//printf("%8.3f %10.2e\n", kz, det_array[ikz]);
 	}
 	int solution_count=0;
 	for(int ikz=0; ikz<PA_FPFS_bulk_kz_steps; ikz++){
@@ -2115,9 +2117,11 @@ void solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count
 	sprintf(sprintf_buffer2, "%d solution candidates found", solution_count);
 	write_log(sprintf_buffer2);
 	double solution_indices[solution_count];
-	double solution_kz[solution_count];
+	double* solution_kz=new double[solution_count];
 	double solution_eigen_diff[solution_count];
 	complex<double>** solution=alloc_zmatrix(solution_count, g_count);
+	*final_states_pointer=solution;
+	*kz_pointer=solution_kz;
 	int solution_index=0;
 	for(int ikz=0; ikz<PA_FPFS_bulk_kz_steps; ikz++){
 		int ikzp1=(ikz+1)%PA_FPFS_bulk_kz_steps;
@@ -2140,8 +2144,11 @@ void solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count
 	
 	for(int is=0; is<solution_count; is++){
 		int index=solution_indices[is];
-		double kz_left=gz*(1.0*index-PA_FPFS_bulk_kz_steps*0.5)/(1.0*PA_FPFS_bulk_kz_steps);
-		double kz_right=gz*(1.0*(index+1)-PA_FPFS_bulk_kz_steps*0.5)/(1.0*PA_FPFS_bulk_kz_steps);
+		double kz_left=gz*((1.0*index)/(1.0*PA_FPFS_bulk_kz_steps)-0.5);
+		double kz_right=gz*((1.0*(index+1))/(1.0*PA_FPFS_bulk_kz_steps)-0.5);
+		
+		//double kz_left=gz*((1.0*index)/(1.0*PA_FPFS_bulk_kz_steps)-0.0);
+		//double kz_right=gz*((1.0*(index+1))/(1.0*PA_FPFS_bulk_kz_steps)-0.0);
 
 		k_bloch[2]=kz_left;
 		double det_left=determinant(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
@@ -2168,6 +2175,7 @@ void solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count
 
 		// eigenvalue calculations
 		solution_kz[is]=(kz_left+kz_right)/2.0;
+		// printf("solution kz: %10.5f\n", solution_kz[is]);
 		k_bloch[2]=solution_kz[is];
 		prepare_matrix_bulk(g_count, mat, 0.0, k_bloch, g_vec, Vgg);
 
@@ -2175,7 +2183,7 @@ void solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count
 			zheev_(&compute, &uplo, &g_count, &mat[0][0], &g_count, &w[0], &work_dummy, &lwork, &rwork[0], &info);
 			if(info!=0){
 				write_log((char*)"zheev preparation failed");
-				return;
+				return 0;
 			}
 			lwork=round(abs(work_dummy));
 			work=new complex<double>[lwork];
@@ -2184,7 +2192,7 @@ void solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count
 		zheev_(&compute, &uplo, &g_count, &mat[0][0], &g_count, &w[0], &work[0], &lwork, &rwork[0], &info);
 		if(info!=0){
 			write_log((char*)"zheev failed");
-			return;
+			return 0;
 		}
 		double min_diff=-1;
 		int min_diff_index=-1;
@@ -2228,4 +2236,6 @@ void solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count
 	delete[] g_vec;
 	delete[] Vgg;
 	delete[] sprintf_buffer2;
+
+	return solution_count;
 }

@@ -84,3 +84,18 @@ double*** alloc_dcube(int l, int m, int n){
 	}
 	return ret;
 }
+
+complex<double>*** alloc_zcube(int l, int m, int n){
+	complex<double>* buffer=new complex<double>[l*m*n];
+	for(int i=0; i<l*m*n; i++){
+		buffer[i]=complex<double>(0.0, 0.0);
+	}
+	complex<double>*** ret=new complex<double>**[l];
+	for(int i=0; i<l; i++){
+		ret[i]=new complex<double>*[m];
+		for(int j=0; j<m; j++){
+			ret[i][j]=&buffer[i*m*n+j*n];
+		}
+	}
+	return ret;
+}
