@@ -17,13 +17,17 @@ complex<double>** alloc_zmatrix(int n){
 	return alloc_zmatrix(n, n);
 }
 
-complex<double>*** alloc_zpmatrix(int n){
-	complex<double>** buffer=new complex<double>*[n*n];
-	complex<double>*** mat=new complex<double>**[n];
-	for(int i=0; i<n; i++){
+complex<double>*** alloc_zpmatrix(int m, int n){
+	complex<double>** buffer=new complex<double>*[m*n];
+	complex<double>*** mat=new complex<double>**[m];
+	for(int i=0; i<m; i++){
 		mat[i]=&buffer[i*n];
 	}
 	return mat;
+}
+
+complex<double>*** alloc_zpmatrix(int n){
+	return alloc_zpmatrix(n, n);
 }
 
 void delete_zpmatrix(complex<double>*** mat){

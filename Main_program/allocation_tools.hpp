@@ -6,6 +6,7 @@ complex<double>** alloc_zmatrix(int m, int n);
 void delete_zmatrix(complex<double>** mat);
 
 complex<double>*** alloc_zpmatrix(int n);
+complex<double>*** alloc_zpmatrix(int m, int n);
 void delete_zpmatrix(complex<double>*** mat);
 
 double** alloc_dmatrix(int n);

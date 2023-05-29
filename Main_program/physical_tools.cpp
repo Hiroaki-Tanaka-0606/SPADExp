@@ -83,6 +83,20 @@ extern "C"{
 							double* BETA,
 							double* C,
 							int* LDC);
+	void zgemm_(
+							char* TRANSA,
+							char* TRANSB,
+							int* M,
+							int* N,
+							int* K,
+							complex<double>* ALPHA,
+							complex<double>* A,
+							int* LDA,
+							complex<double>* B,
+							int* LDB,
+							complex<double>* BETA,
+							complex<double>* C,
+							int* LDC);
 	void dgemv_(
 							char* TRANS,
 							int* M,
@@ -1167,6 +1181,8 @@ void solve_final_state_Matrix(double Ekin, double* k_para, double kz, int g_coun
 	
 		delete_dmatrix(A_real);
 		delete_zmatrix(A_complex);
+		delete_zmatrix(H_RR);
+		delete_zmatrix(H_RL);
 		delete[] nonzero_edge;
 		delete[] nonzero_edge_index;
 		delete[] B_real;
@@ -1240,6 +1256,366 @@ void solve_final_state_Matrix(double Ekin, double* k_para, double kz, int g_coun
 		
 	delete[] sprintf_buffer2;
 	delete_zpmatrix(Vgg);
+}
+
+void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_count, int z_count, int bulk_count, double dz, int z_start, int V00_index, complex<double>** Vgg_buffer, double* g_vec_buffer, complex<double>* bulk_z_buffer, complex<double>* FP_loc_buffer, complex<double>** left_matrix, complex<double>** right_matrix, complex<double>* bulk_coefs){
+	char* sprintf_buffer2=new char[Log_length+1];
+	
+	// composite matrix
+	complex<double>*** bulk_z=alloc_zpmatrix(bulk_count, g_count);
+	for(int in=0; in<bulk_count; in++){
+		for(int ig=0; ig<g_count; ig++){
+			bulk_z[in][ig]=&bulk_z_buffer[in*g_count*z_count+ig*z_count];
+		}
+	}
+	complex<double>*** Vgg=alloc_zpmatrix(g_count);
+	for(int ig1=0; ig1<g_count; ig1++){
+		for(int ig2=0; ig2<g_count; ig2++){
+			Vgg[ig1][ig2]=Vgg_buffer[ig1*g_count+ig2];
+		}
+	}
+	double g_vec[g_count][3];
+	for(int ig=0; ig<g_count; ig++){
+		for(int ix=0; ix<3; ix++){
+			g_vec[ig][ix]=g_vec_buffer[ig*3+ix];
+		}
+	}
+
+	double kzz0=kz*dz*z_start;
+	double kzz0mh=kz*dz*(z_start-1);
+
+	double kzz1=kz*dz*(z_count-1);
+	double kzz1ph=kz*dz*z_count;
+
+	int z_count_new=z_count-z_start;
+	int eq_dim=z_count_new*g_count;
+
+	//complex<double>** left_matrix=alloc_zmatrix(eq_dim); // transposed
+	// buffer reset
+	for(int i=0; i<eq_dim; i++){
+		for(int j=0; j<eq_dim; j++){
+			left_matrix[j][i]=complex<double>(0.0, 0.0);
+		}
+	}
+	
+	double kpg[3];
+
+	// left matrix
+	/// M
+	for(int ig1=0; ig1<g_count; ig1++){
+		for(int p=0; p<3; p++){
+			kpg[p]=k_para[p]+g_vec[ig1][p];
+		}
+		for(int ig2=0; ig2<g_count; ig2++){
+			for(int iz=z_start; iz<z_count; iz++){
+				int index1=ig1*z_count_new+(iz-z_start);
+				int index2=ig2*z_count_new+(iz-z_start);
+				complex<double> value=-2.0*Vgg[ig1][ig2][iz];
+				if(ig1==ig2){
+					value+=2.0*Ekin-inner_product(kpg, kpg);
+				}
+				left_matrix[index2][index1]+=value;
+			}
+		}
+	}
+	/// A
+	for(int ig=0; ig<g_count; ig++){
+		for(int iz1=z_start; iz1<z_count; iz1++){
+			for(int iz2=z_start; iz2<z_count; iz2++){
+				int index1=ig*z_count_new+(iz1-z_start);
+				int index2=ig*z_count_new+(iz2-z_start);
+				if(iz1==iz2){
+					left_matrix[index2][index1]-=2.0/dz/dz;
+				}
+				if(iz1-1==iz2 || iz1+1==iz2){
+					left_matrix[index2][index1]+=1.0/dz/dz;
+				}
+			}
+		}
+	}
+	
+	int info;
+	int* ipiv=new int[eq_dim];
+	int nrhs=2*g_count;
+	
+	//complex<double>** right_matrix=alloc_zmatrix(2*g_count, eq_dim); //transposed
+	// buffer reset
+	for(int igz1=0; igz1<eq_dim; igz1++){
+		for(int ig2=0; ig2<2*g_count; ig2++){
+			right_matrix[ig2][igz1]=complex<double>(0.0, 0.0);
+		}
+	}
+	// 0~g: for LL and RL, g~2g: for LR and RR
+	for(int ig1=0; ig1<g_count; ig1++){
+		int index1=ig1*z_count_new;
+		int index2=ig1;
+		right_matrix[index2][index1]=complex<double>(1.0, 0.0);
+		index1=(ig1+1)*z_count_new-1;
+		index2=ig1+g_count;
+		right_matrix[index2][index1]=complex<double>(1.0, 0.0);
+	}
+	
+	zgesv_(&eq_dim, &nrhs, &left_matrix[0][0], &eq_dim, &ipiv[0], &right_matrix[0][0], &eq_dim, &info);
+	if(info!=0){
+		write_log((char*)"zgesv failed");
+		return;
+	}
+
+	// extract the RL and RR matrices
+	complex<double>** H_RL=alloc_zmatrix(g_count); // inverted
+	complex<double>** H_RR=alloc_zmatrix(g_count); // inverted
+	complex<double>** H_LL=alloc_zmatrix(g_count); // inverted
+	complex<double>** H_LR=alloc_zmatrix(g_count); // inverted
+	int index1, index2;
+	for(int ig1=0; ig1<g_count; ig1++){
+		for(int ig2=0; ig2<g_count; ig2++){
+			index1=(ig1+1)*z_count_new-1;
+			index2=ig2;
+			H_RL[ig2][ig1]=right_matrix[index2][index1];
+
+			index1=ig1*z_count_new;
+			H_LL[ig2][ig1]=right_matrix[index2][index1];
+				
+			index1=(ig1+1)*z_count_new-1;
+			index2=ig2+g_count;
+			H_RR[ig2][ig1]=right_matrix[index2][index1];
+
+			index1=ig1*z_count_new;
+			H_LR[ig2][ig1]=right_matrix[index2][index1];
+		}
+	}
+
+	/*
+		printf("H_RL\n");
+		for(int ig1=0; ig1<g_count; ig1++){
+		for(int ig2=0; ig2<g_count; ig2++){
+			printf("%10.2e ", abs(H_RL[ig2][ig1]));
+		}
+		printf("\n");
+		}
+		
+		printf("H_RR\n");
+		for(int ig1=0; ig1<g_count; ig1++){
+		for(int ig2=0; ig2<g_count; ig2++){
+			printf("%10.2e ", abs(H_RR[ig2][ig1]));
+		}
+		printf("\n");
+		}
+
+				printf("H_LL\n");
+		for(int ig1=0; ig1<g_count; ig1++){
+		for(int ig2=0; ig2<g_count; ig2++){
+			printf("%10.2e ", abs(H_LL[ig2][ig1]));
+		}
+		printf("\n");
+		}
+		
+		printf("H_LR\n");
+		for(int ig1=0; ig1<g_count; ig1++){
+		for(int ig2=0; ig2<g_count; ig2++){
+			printf("%10.2e ", abs(H_LR[ig2][ig1]));
+		}
+		printf("\n");
+		}*/
+
+	complex<double>* right_vector=new complex<double>[g_count*2];
+	complex<double>* right_vector2=new complex<double>[g_count*2];
+
+	char notrans='N';
+	complex<double> alpha(1.0, 0.0);
+	complex<double> beta(1.0, 0.0);
+	int inc=1;
+  
+	// compute the right vector
+	// upper part (left)
+	for(int ig=0; ig<g_count; ig++){
+		right_vector[ig]=complex<double>(0.0, 0.0);
+	}
+	for(int ig=0; ig<g_count; ig++){
+		if(ig==V00_index){
+			right_vector2[ig]=-complex<double>(cos(kzz1ph), sin(kzz1ph));
+		}else{
+			right_vector2[ig]=complex<double>(0.0, 0.0);
+		}
+	}
+	zgemv_(&notrans, &g_count, &g_count, &alpha, &H_LR[0][0], &g_count, &right_vector2[0], &inc, &beta, &right_vector[0], &inc);
+	
+	// lower part (right)
+	for(int ig=0; ig<g_count; ig++){
+		if(ig==V00_index){
+			right_vector[ig+g_count]=-dz*dz*complex<double>(cos(kzz1), sin(kzz1));
+		}else{
+			right_vector[ig+g_count]=complex<double>(0.0, 0.0);
+		}
+	}
+	for(int ig=0; ig<g_count; ig++){
+		if(ig==V00_index){
+			right_vector2[ig+g_count]=-complex<double>(cos(kzz1ph), sin(kzz1ph));
+		}else{
+			right_vector2[ig+g_count]=complex<double>(0.0, 0.0);
+		}
+	}
+	zgemv_(&notrans, &g_count, &g_count, &alpha, &H_RR[0][0], &g_count, &right_vector2[g_count], &inc, &beta, &right_vector[g_count], &inc);
+
+	/*
+	printf("Right vector\n");
+	for(int ig=0; ig<2*g_count; ig++){
+		printf("%10.2e %10.2e\n", right_vector[ig].real(), right_vector[ig].imag());
+		}*/
+
+	// left matrix
+	// upper (left)
+	complex<double>** left_matrix_upper=alloc_zmatrix(bulk_count, g_count); // transposed
+	complex<double>** zgemm_buffer=alloc_zmatrix(bulk_count, g_count); // transposed
+	// fill h^2 B(z0)
+	for(int in=0; in<bulk_count; in++){
+		for(int ig=0; ig<g_count; ig++){
+			left_matrix_upper[in][ig]=dz*dz*bulk_z[in][ig][z_start];
+			//printf("%10.2e ", abs(left_matrix_upper[in][ig]));
+		}
+		//printf("\n");
+	}
+	// add H_LL*B(z0mh)
+	for(int in=0; in<bulk_count; in++){
+		for(int ig=0; ig<g_count; ig++){
+		  zgemm_buffer[in][ig]=bulk_z[in][ig][z_start-1];
+		}
+	}
+	zgemm_(&notrans, &notrans, &g_count, &bulk_count, &g_count, &alpha, &H_LL[0][0], &g_count, &zgemm_buffer[0][0], &g_count, &beta, &left_matrix_upper[0][0], &g_count);
+	
+	// lower (right)
+	complex<double>** left_matrix_lower=alloc_zmatrix(bulk_count, g_count); // transposed
+	beta=complex<double>(0.0, 0.0);
+	zgemm_(&notrans, &notrans, &g_count, &bulk_count, &g_count, &alpha, &H_RL[0][0], &g_count, &zgemm_buffer[0][0], &g_count, &beta, &left_matrix_lower[0][0], &g_count);
+
+	// combine left_matrix_lower and left_matrix_upper
+	complex<double>** left_matrix_all=alloc_zmatrix(bulk_count, g_count*2); // transposed
+	//complex<double>** left_matrix_all=alloc_zmatrix(bulk_count, g_count); // transposed
+	for(int in=0; in<bulk_count; in++){
+		for(int ig=0; ig<g_count; ig++){
+			left_matrix_all[in][ig]=left_matrix_upper[in][ig];
+			//left_matrix_all[in][ig]=left_matrix_lower[in][ig];
+			left_matrix_all[in][ig+g_count]=left_matrix_lower[in][ig];
+		}
+	}
+	/*
+	for(int ig=0; ig<g_count; ig++){
+		for(int in=0; in<bulk_count; in++){
+			printf("(%10.2e %10.2e) ", left_matrix_all[in][ig].real(), left_matrix_all[in][ig].imag());
+		}
+		printf("\n");
+		}*/
+	
+	int lwork=-1;
+	complex<double> work_dummy;
+	nrhs=1;
+	int numRows=g_count*2;
+	
+	zgels_(&notrans, &numRows, &bulk_count, &nrhs, &left_matrix_all[0][0], &numRows, &right_vector[0], &numRows, &work_dummy, &lwork, &info);
+	//zgels_(&notrans, &g_count, &bulk_count, &nrhs, &left_matrix_all[0][0], &g_count, &right_vector[g_count], &numRows, &work_dummy, &lwork, &info);
+	if(info!=0){
+		write_log((char*)"Work space calculation failed");
+		return;
+	}
+	lwork=round(abs(work_dummy));
+	complex<double>* work=new complex<double>[lwork];
+	zgels_(&notrans, &numRows, &bulk_count, &nrhs, &left_matrix_all[0][0], &numRows, &right_vector[0], &numRows, &work[0], &lwork, &info);
+	//zgels_(&notrans, &g_count, &bulk_count, &nrhs, &left_matrix_all[0][0], &g_count, &right_vector[g_count], &numRows, &work[0], &lwork, &info);
+	if(info!=0){
+		write_log((char*)"zgels failed");
+		return;
+	}
+	delete[] work;
+	
+	double zgels_norm=0.0;
+	// for(int iv=bulk_count; iv<numRows; iv++){
+	for(int iv=bulk_count+g_count; iv<numRows; iv++){
+		zgels_norm+=norm(right_vector[iv]);
+	}
+	sprintf(sprintf_buffer2, "zgels norm: %10.2e", zgels_norm);
+	write_log(sprintf_buffer2);
+
+	/*
+	printf("Solution by zgels\n");
+	for(int in=0; in<bulk_count; in++){
+		printf("%10.2e %10.2e\n", right_vector[in].real(), right_vector[in].imag());
+		}*/
+
+	// export the solution
+	for(int in=0; in<bulk_count; in++){
+		bulk_coefs[in]=right_vector[in];
+		//bulk_coefs[in]=right_vector[in+g_count];
+	}
+
+	complex<double>* left_edge=new complex<double>[g_count];
+	beta=complex<double>(0.0, 0.0);
+
+	zgemv_(&notrans, &g_count, &bulk_count, &alpha, &zgemm_buffer[0][0], &g_count, &bulk_coefs[0], &inc, &beta, &left_edge[0], &inc);
+	/*
+	for(int ig=0; ig<g_count; ig++){
+	printf("%8.4f %8.4f = %8.4f %8.4f\n", g_vec[ig][0], g_vec[ig][1], left_edge[ig].real(), left_edge[ig].imag());
+	}*/
+
+	complex<double>* right_vector_sol=new complex<double>[eq_dim];
+	for(int ig=0; ig<g_count; ig++){
+		for(int iz=z_start; iz<z_count; iz++){
+			int index=ig*z_count_new+(iz-z_start);
+			if(iz==z_start){
+				right_vector_sol[index]=-1.0/dz/dz*left_edge[ig];
+			}else	if(iz==z_count-1 && ig==V00_index){
+				right_vector_sol[index]=-1.0/dz/dz*complex<double>(cos(kzz1ph), sin(kzz1ph));
+			}else{
+				right_vector_sol[index]=complex<double>(0.0, 0.0);
+			}
+		}
+	}
+	zgetrs_(&notrans, &eq_dim, &nrhs, &left_matrix[0][0], &eq_dim, &ipiv[0], &right_vector_sol[0], &eq_dim, &info);
+	if(info!=0){
+		write_log((char*)"zgetrs failed");
+		return;
+	}
+	
+	for(int ig=0; ig<g_count; ig++){
+		for(int iz=0; iz<=z_start; iz++){
+			int index_FP=ig*z_count+iz;
+			for(int in=0; in<bulk_count; in++){
+				FP_loc_buffer[index_FP]+=bulk_coefs[in]*bulk_z[in][ig][iz];
+			}
+		}
+		//printf("%8.4f %8.4f\n", FP_loc_buffer[ig*z_count+z_start].real(), FP_loc_buffer[ig*z_count+z_start].imag());
+		for(int iz=z_start; iz<z_count; iz++){
+			int index_FP=ig*z_count+iz;
+			int index_sol=ig*z_count_new+iz-z_start;
+			FP_loc_buffer[index_FP]=right_vector_sol[index_sol];
+		}
+		//printf("%8.4f %8.4f\n", FP_loc_buffer[ig*z_count+z_start].real(), FP_loc_buffer[ig*z_count+z_start].imag());
+		//printf("\n");
+	}
+
+	/*
+	for(int ig=0; ig<g_count; ig++){
+		for(int iz=z_start-84; iz<z_count; iz++){
+			int index=ig*z_count+iz;
+			printf("%d %8.4f %8.4f\n", iz, FP_loc_buffer[index].real(), FP_loc_buffer[index].imag());
+		}
+		printf("\n");
+		}*/
+	
+	delete_zpmatrix(bulk_z);
+	delete_zpmatrix(Vgg);
+	delete_zmatrix(H_RL);
+	delete_zmatrix(H_RR);
+	delete_zmatrix(H_LL);
+	delete_zmatrix(H_LR);
+	delete_zmatrix(left_matrix_upper);
+	delete_zmatrix(left_matrix_lower);
+	delete_zmatrix(zgemm_buffer);
+	delete[] left_edge;
+	delete[] sprintf_buffer2;
+	delete[] right_vector;
+	delete[] right_vector2;
+	delete[] right_vector_sol;
+	
 }
 
 // calculate res=Ax-B

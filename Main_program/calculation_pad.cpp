@@ -864,6 +864,7 @@ void calculate_PAD(){
 	complex<double>***** final_states_FP_bulk_z; // [total_count_ext][FPIndex][in][ig][iz]
 	double*** final_states_FP_bulk_kz;        // [total_count_ext][FPIndex][in]
 	int** final_states_FP_bulk_count;         // [total_count_ext][FPIndex] = in size
+	complex<double>*** final_states_FP_bulk_coefs; // [total_count_ext][FPIndex][in] = linear combination coefficients
 	//// VPS-related variables
 	int VPS_l_length[atom_spec_length];       // [is]=il value
 	int VPS_r_length[atom_spec_length];       // [is]=ir value
@@ -1420,6 +1421,7 @@ void calculate_PAD(){
 		final_states_FP_bulk_count=new int*[total_count_ext];
 		final_states_FP_bulk_z=new complex<double>****[total_count_ext];
 		final_states_FP_bulk_kz=new double**[total_count_ext];
+		final_states_FP_bulk_coefs=new complex<double>**[total_count_ext];
 		int digit=(spin_i==2)?2:1;
 		
 		final_states_FP_nonloc_r=new double****[scale_width];
@@ -1667,6 +1669,7 @@ void calculate_PAD(){
 			final_states_FP_bulk_count[i]=new int[FPIndex_size];
 			final_states_FP_bulk_z[i]=new complex<double>***[FPIndex_size];
 			final_states_FP_bulk_kz[i]=new double*[FPIndex_size];
+			final_states_FP_bulk_coefs[i]=new complex<double>*[FPIndex_size];
 
 			for(j=0; j<FPIndex_size; j++){
 				final_states_k[i][j]=new double[3];
@@ -1793,6 +1796,7 @@ void calculate_PAD(){
 					}
 					FP_bulk_count=solve_final_states_bulk(kinetic_energy_Eh, k_au, FPFS_gz_length, final_states_FP_g_size_bulk, &final_states_FP_g_vec_bulk[0][0], Vgg_use, &final_states_FP_bulk[i][j], &final_states_FP_bulk_kz[i][j]);
 					final_states_FP_bulk_count[i][j]=FP_bulk_count;
+					final_states_FP_bulk_coefs[i][j]=new complex<double>[FP_bulk_count];
 					// continue;
 				} // end of if(PA_FPFS_bulk_set)
 				
@@ -1943,9 +1947,17 @@ void calculate_PAD(){
 																		final_states_dz, FPFS_z_start, V00_index, &Vgg_matrix[0][0], &final_states_FP_g_vec[i][j][0][0],
 																		&final_states_FP_loc[i][j][0][0]);
 				}else{
-					solve_final_state_Matrix(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0],
-																	 final_states_dz, FPFS_z_start, V00_index, &Vgg_matrix[0][0], &final_states_FP_g_vec[i][j][0][0],
-																	 &final_states_FP_loc[i][j][0][0], left_matrix, right_matrix, PA_FPFS_edge_smoothing?1:0, final_states_FP_loc_edge[i][j]);
+					if(!PA_FPFS_bulk_set){
+						solve_final_state_Matrix(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0],
+																		 final_states_dz, FPFS_z_start, V00_index, &Vgg_matrix[0][0], &final_states_FP_g_vec[i][j][0][0],
+																		 &final_states_FP_loc[i][j][0][0], left_matrix, right_matrix, PA_FPFS_edge_smoothing?1:0, final_states_FP_loc_edge[i][j]);
+					}else{
+						solve_final_state_from_bulk(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0], FP_bulk_count,
+																				final_states_dz, FPFS_z_start, V00_index, &Vgg_matrix[0][0], &final_states_FP_g_vec[i][j][0][0],
+																				&final_states_FP_bulk_z[i][j][0][0][0], &final_states_FP_loc[i][j][0][0], left_matrix, right_matrix,
+																				final_states_FP_bulk_coefs[i][j]);
+																				
+					}
 				}
 				// printf("k=%4d, FPIndex=%3d, nonlocal part\n", i, j);
 			} // for(FPIndex_size)
@@ -2126,200 +2138,202 @@ void calculate_PAD(){
 			}
 		}
 
-		write_log((char*)"---- Connection calculations between the core and valence ----");
+		if(!PA_ignore_core && !PA_ignore_nonlocal){
+			write_log((char*)"---- Connection calculations between the core and valence ----");
 #pragma omp parallel firstprivate(atom_length, PA_lp_max, PA_theta_points, PA_ext_set) private(j)
 #pragma omp for
-		for(i=0; i<total_count_ext; i++){
-			double* k_point;
-			int k_index=i;
-			if(PA_ext_set){
-				k_point=k_points_ext[i];
-				k_index=k_index_reduced[k_index];
-			}else{
-				k_point=k_points[i];
-			}
-			double k_au[3]={k_point[0], k_point[1], 0.0};
-			for(j=0; j<final_states_FP_size[i]; j++){
-				// obtain the connection condition at rc
-				complex<double> Ylm_k[6][11];
-				complex<double> Ylm_kp[6][11];
-				for(int ia=0; ia<atom_length; ia++){
-					int is=atom_spec_index[ia];
-					if(empty_atoms[is]){
-						continue;
-					}
-					double tau_z=atom_coordinates[ia][2];
-					double g_vec[3];
-					double gp_vec[3];
-					double kpg_vec[3];
-					double kpgp_vec[3];
-					final_states_FP_norm1[i][j][ia]=0.0;
-					final_states_FP_norm2[i][j][ia]=0.0;
-					complex<double> p1jlp[12]={
-						complex<double>(1, 0), complex<double>(0, 1), complex<double>(-1, 0), complex<double>(0, -1),
-						complex<double>(1, 0), complex<double>(0, 1), complex<double>(-1, 0), complex<double>(0, -1),
-						complex<double>(1, 0), complex<double>(0, 1), complex<double>(-1, 0), complex<double>(0, -1)
-					};
-					complex<double> m1jlp[12]={
-						complex<double>(1, 0), complex<double>(0, -1), complex<double>(-1, 0), complex<double>(0, 1),
-						complex<double>(1, 0), complex<double>(0, -1), complex<double>(-1, 0), complex<double>(0, 1),
-						complex<double>(1, 0), complex<double>(0, -1), complex<double>(-1, 0), complex<double>(0, 1)
-					};
-					int ir=wfn_cutoff_index[is];
-					for(int l=0; l<5; l++){
-						for(int m=-l; m<=l; m++){
-							// by theta integral
-							int mpl=m+l;
-							final_states_FP_nonloc[i][j][ia][l][mpl]=complex<double>(0,0);
-							for(int lp=0; lp<=PA_lp_max; lp++){
-								if(abs(m)>lp){
-									continue;
-								}
-								int mplp=m+lp;
-								for(int ig=0; ig<final_states_FP_g_size[i][j]; ig++){
-									complex<double> theta_integral(0,0);
-									for(int ix=0; ix<3; ix++){
-										g_vec[ix]=final_states_FP_g_vec[i][j][ig][ix];
-										kpg_vec[ix]=g_vec[ix]+k_au[ix];
+			for(i=0; i<total_count_ext; i++){
+				double* k_point;
+				int k_index=i;
+				if(PA_ext_set){
+					k_point=k_points_ext[i];
+					k_index=k_index_reduced[k_index];
+				}else{
+					k_point=k_points[i];
+				}
+				double k_au[3]={k_point[0], k_point[1], 0.0};
+				for(j=0; j<final_states_FP_size[i]; j++){
+					// obtain the connection condition at rc
+					complex<double> Ylm_k[6][11];
+					complex<double> Ylm_kp[6][11];
+					for(int ia=0; ia<atom_length; ia++){
+						int is=atom_spec_index[ia];
+						if(empty_atoms[is]){
+							continue;
+						}
+						double tau_z=atom_coordinates[ia][2];
+						double g_vec[3];
+						double gp_vec[3];
+						double kpg_vec[3];
+						double kpgp_vec[3];
+						final_states_FP_norm1[i][j][ia]=0.0;
+						final_states_FP_norm2[i][j][ia]=0.0;
+						complex<double> p1jlp[12]={
+							complex<double>(1, 0), complex<double>(0, 1), complex<double>(-1, 0), complex<double>(0, -1),
+							complex<double>(1, 0), complex<double>(0, 1), complex<double>(-1, 0), complex<double>(0, -1),
+							complex<double>(1, 0), complex<double>(0, 1), complex<double>(-1, 0), complex<double>(0, -1)
+						};
+						complex<double> m1jlp[12]={
+							complex<double>(1, 0), complex<double>(0, -1), complex<double>(-1, 0), complex<double>(0, 1),
+							complex<double>(1, 0), complex<double>(0, -1), complex<double>(-1, 0), complex<double>(0, 1),
+							complex<double>(1, 0), complex<double>(0, -1), complex<double>(-1, 0), complex<double>(0, 1)
+						};
+						int ir=wfn_cutoff_index[is];
+						for(int l=0; l<5; l++){
+							for(int m=-l; m<=l; m++){
+								// by theta integral
+								int mpl=m+l;
+								final_states_FP_nonloc[i][j][ia][l][mpl]=complex<double>(0,0);
+								for(int lp=0; lp<=PA_lp_max; lp++){
+									if(abs(m)>lp){
+										continue;
 									}
-									spherical_harmonics(kpg_vec, &Ylm_k[0][0]);
-									double kpg_length=sqrt(inner_product(kpg_vec, kpg_vec));
-									double kt=inner_product(kpg_vec, atom_coordinates[ia]);
-									complex<double> atom_phase(cos(kt), sin(kt));
-									for(int it=0; it<PA_theta_points; it++){
-										double theta=(it*1.0+0.5)/(PA_theta_points*1.0)*M_PI;
-										double z_value=wfn_r[is][ir]*cos(theta)+tau_z;
-										theta_integral+=sin(theta)*interpolate_fgz(z_value, final_states_FP_loc[i][j][ig], final_states_dz, VKS_count[0])
-											*spherical_harmonic_theta(lp, m, theta)
-											*spherical_harmonic_theta(l, m, theta)
-											*M_PI/(PA_theta_points*1.0);
-									}
-									final_states_FP_nonloc[i][j][ia][l][mpl]+=4*M_PI*wfn_r[is][ir]*p1jlp[lp]*atom_phase
-										*sp_bessel(lp, kpg_length*wfn_r[is][ir])*conj(Ylm_k[lp][mplp])*theta_integral;
-								}
-							}
-							final_states_FP_norm1[i][j][ia]+=norm(final_states_FP_nonloc[i][j][ia][l][mpl])/wfn_r[is][ir]/wfn_r[is][ir];
-							// by Lebedev integral
-							/*
-							double Lebedev_r[3][PA_Lebedev_order_int];
-							double Lebedev_w[PA_Lebedev_order_int];
-							ld_by_order(PA_Lebedev_order_int, Lebedev_r[0], Lebedev_r[1], Lebedev_r[2], Lebedev_w);
-							complex<double> Ylm_Le[6][11];
-							complex<double> nonloc_lebedev(0,0);
-							double g_vec[3];
-							double kpg_vec[3];
-							for(int ile=0; ile<PA_Lebedev_order_int; ile++){
-								double r_le[3];
-								for(int ix=0; ix<3; ix++){
-									r_le[ix]=Lebedev_r[ix][ile]*wfn_r[is][ir];
-								}
-								spherical_harmonics(r_le, &Ylm_Le[0][0]);
-								for(int ix=0; ix<3; ix++){
-									r_le[ix]+=atom_coordinates[ia][ix];
-								}
-								
-								for(int ig=0; ig<final_states_FP_g_size[i][j]; ig++){
-									for(int ix=0; ix<3; ix++){
-										g_vec[ix]=final_states_FP_g_vec[i][j][ig][ix];
-										kpg_vec[ix]=g_vec[ix]+k_au[ix];
-									}
-									double kpgt=inner_product(kpg_vec, r_le);
-									nonloc_lebedev+=4*M_PI*complex<double>(cos(kpgt), sin(kpgt))*interpolate_fgz(r_le[2], final_states_FP_loc[i][j][ig], final_states_dz, VKS_count[0])
-										*conj(Ylm_Le[l][mpl])*wfn_r[is][ir]*Lebedev_w[ile];
-								}
-								}*/
-							// printf("Norm1 theta integral [%2d][%2d]= (%8.4f, %8.4f)\n", l, m, final_states_FP_nonloc[i][j][ia][l][mpl].real(), final_states_FP_nonloc[i][j][ia][l][mpl].imag());
-							// printf("Norm1 Lebed integral [%2d][%2d]= (%8.4f, %8.4f)\n\n", l, m, nonloc_lebedev.real(), nonloc_lebedev.imag());
-							
-						} // for(m)
-					} // for(l)
-					// debug
-					// printf("Norm1[%d][%d][%d]= %8.4f\n", i, j, ia, final_states_FP_norm1[i][j][ia]);
-					
-					//norm2
-					// by theta integral
-					complex<double> norm2_temporary(0,0);
-					for(int l=0; l<=PA_lp_max; l++){
-						for(int lp=0; lp<=PA_lp_max; lp++){
-							int l_min=min(l, lp);
-							for(int ig=0; ig<final_states_FP_g_size[i][j]; ig++){
-								for(int ix=0; ix<3; ix++){
-									g_vec[ix]=final_states_FP_g_vec[i][j][ig][ix];
-									kpg_vec[ix]=g_vec[ix]+k_au[ix];
-								}
-								double kpg_length=sqrt(inner_product(kpg_vec, kpg_vec));
-								spherical_harmonics(kpg_vec, &Ylm_k[0][0]);
-								for(int igp=0; igp<final_states_FP_g_size[i][j]; igp++){
-									for(int ix=0; ix<3; ix++){
-										gp_vec[ix]=final_states_FP_g_vec[i][j][igp][ix];
-										kpgp_vec[ix]=gp_vec[ix]+k_au[ix];
-									}
-									double kpgp_length=sqrt(inner_product(kpgp_vec, kpgp_vec));
-									double ggt=inner_product(g_vec, atom_coordinates[ia])-inner_product(gp_vec, atom_coordinates[ia]);
-									complex<double> g_phase(cos(ggt), sin(ggt));
-									spherical_harmonics(kpgp_vec, &Ylm_kp[0][0]);
-									for(int m=-l_min; m<=l_min; m++){
-										int mpl=m+l;
-										int mplp=m+lp;
+									int mplp=m+lp;
+									for(int ig=0; ig<final_states_FP_g_size[i][j]; ig++){
 										complex<double> theta_integral(0,0);
+										for(int ix=0; ix<3; ix++){
+											g_vec[ix]=final_states_FP_g_vec[i][j][ig][ix];
+											kpg_vec[ix]=g_vec[ix]+k_au[ix];
+										}
+										spherical_harmonics(kpg_vec, &Ylm_k[0][0]);
+										double kpg_length=sqrt(inner_product(kpg_vec, kpg_vec));
+										double kt=inner_product(kpg_vec, atom_coordinates[ia]);
+										complex<double> atom_phase(cos(kt), sin(kt));
 										for(int it=0; it<PA_theta_points; it++){
 											double theta=(it*1.0+0.5)/(PA_theta_points*1.0)*M_PI;
 											double z_value=wfn_r[is][ir]*cos(theta)+tau_z;
-											theta_integral+=
-												sin(theta)*conj(interpolate_fgz(z_value, final_states_FP_loc[i][j][igp], final_states_dz, VKS_count[0]))
-												*interpolate_fgz(z_value, final_states_FP_loc[i][j][ig], final_states_dz, VKS_count[0])
+											theta_integral+=sin(theta)*interpolate_fgz(z_value, final_states_FP_loc[i][j][ig], final_states_dz, VKS_count[0])
 												*spherical_harmonic_theta(lp, m, theta)
 												*spherical_harmonic_theta(l, m, theta)
 												*M_PI/(PA_theta_points*1.0);
 										}
-										norm2_temporary+=16.0*M_PI*M_PI*p1jlp[l]*m1jlp[lp]*Ylm_kp[lp][mplp]*conj(Ylm_k[l][mpl])
-											*sp_bessel(lp, kpgp_length*wfn_r[is][ir])*sp_bessel(l, kpg_length*wfn_r[is][ir])*theta_integral*g_phase;
+										final_states_FP_nonloc[i][j][ia][l][mpl]+=4*M_PI*wfn_r[is][ir]*p1jlp[lp]*atom_phase
+											*sp_bessel(lp, kpg_length*wfn_r[is][ir])*conj(Ylm_k[lp][mplp])*theta_integral;
 									}
-								}										
+								}
+								final_states_FP_norm1[i][j][ia]+=norm(final_states_FP_nonloc[i][j][ia][l][mpl])/wfn_r[is][ir]/wfn_r[is][ir];
+								// by Lebedev integral
+								/*
+									double Lebedev_r[3][PA_Lebedev_order_int];
+									double Lebedev_w[PA_Lebedev_order_int];
+									ld_by_order(PA_Lebedev_order_int, Lebedev_r[0], Lebedev_r[1], Lebedev_r[2], Lebedev_w);
+									complex<double> Ylm_Le[6][11];
+									complex<double> nonloc_lebedev(0,0);
+									double g_vec[3];
+									double kpg_vec[3];
+									for(int ile=0; ile<PA_Lebedev_order_int; ile++){
+									double r_le[3];
+									for(int ix=0; ix<3; ix++){
+									r_le[ix]=Lebedev_r[ix][ile]*wfn_r[is][ir];
+									}
+									spherical_harmonics(r_le, &Ylm_Le[0][0]);
+									for(int ix=0; ix<3; ix++){
+									r_le[ix]+=atom_coordinates[ia][ix];
+									}
+								
+									for(int ig=0; ig<final_states_FP_g_size[i][j]; ig++){
+									for(int ix=0; ix<3; ix++){
+									g_vec[ix]=final_states_FP_g_vec[i][j][ig][ix];
+									kpg_vec[ix]=g_vec[ix]+k_au[ix];
+									}
+									double kpgt=inner_product(kpg_vec, r_le);
+									nonloc_lebedev+=4*M_PI*complex<double>(cos(kpgt), sin(kpgt))*interpolate_fgz(r_le[2], final_states_FP_loc[i][j][ig], final_states_dz, VKS_count[0])
+									*conj(Ylm_Le[l][mpl])*wfn_r[is][ir]*Lebedev_w[ile];
+									}
+									}*/
+								// printf("Norm1 theta integral [%2d][%2d]= (%8.4f, %8.4f)\n", l, m, final_states_FP_nonloc[i][j][ia][l][mpl].real(), final_states_FP_nonloc[i][j][ia][l][mpl].imag());
+								// printf("Norm1 Lebed integral [%2d][%2d]= (%8.4f, %8.4f)\n\n", l, m, nonloc_lebedev.real(), nonloc_lebedev.imag());
+							
+							} // for(m)
+						} // for(l)
+						// debug
+						// printf("Norm1[%d][%d][%d]= %8.4f\n", i, j, ia, final_states_FP_norm1[i][j][ia]);
+					
+						//norm2
+						// by theta integral
+						complex<double> norm2_temporary(0,0);
+						for(int l=0; l<=PA_lp_max; l++){
+							for(int lp=0; lp<=PA_lp_max; lp++){
+								int l_min=min(l, lp);
+								for(int ig=0; ig<final_states_FP_g_size[i][j]; ig++){
+									for(int ix=0; ix<3; ix++){
+										g_vec[ix]=final_states_FP_g_vec[i][j][ig][ix];
+										kpg_vec[ix]=g_vec[ix]+k_au[ix];
+									}
+									double kpg_length=sqrt(inner_product(kpg_vec, kpg_vec));
+									spherical_harmonics(kpg_vec, &Ylm_k[0][0]);
+									for(int igp=0; igp<final_states_FP_g_size[i][j]; igp++){
+										for(int ix=0; ix<3; ix++){
+											gp_vec[ix]=final_states_FP_g_vec[i][j][igp][ix];
+											kpgp_vec[ix]=gp_vec[ix]+k_au[ix];
+										}
+										double kpgp_length=sqrt(inner_product(kpgp_vec, kpgp_vec));
+										double ggt=inner_product(g_vec, atom_coordinates[ia])-inner_product(gp_vec, atom_coordinates[ia]);
+										complex<double> g_phase(cos(ggt), sin(ggt));
+										spherical_harmonics(kpgp_vec, &Ylm_kp[0][0]);
+										for(int m=-l_min; m<=l_min; m++){
+											int mpl=m+l;
+											int mplp=m+lp;
+											complex<double> theta_integral(0,0);
+											for(int it=0; it<PA_theta_points; it++){
+												double theta=(it*1.0+0.5)/(PA_theta_points*1.0)*M_PI;
+												double z_value=wfn_r[is][ir]*cos(theta)+tau_z;
+												theta_integral+=
+													sin(theta)*conj(interpolate_fgz(z_value, final_states_FP_loc[i][j][igp], final_states_dz, VKS_count[0]))
+													*interpolate_fgz(z_value, final_states_FP_loc[i][j][ig], final_states_dz, VKS_count[0])
+													*spherical_harmonic_theta(lp, m, theta)
+													*spherical_harmonic_theta(l, m, theta)
+													*M_PI/(PA_theta_points*1.0);
+											}
+											norm2_temporary+=16.0*M_PI*M_PI*p1jlp[l]*m1jlp[lp]*Ylm_kp[lp][mplp]*conj(Ylm_k[l][mpl])
+												*sp_bessel(lp, kpgp_length*wfn_r[is][ir])*sp_bessel(l, kpg_length*wfn_r[is][ir])*theta_integral*g_phase;
+										}
+									}										
+								}
 							}
 						}
-					}
-					final_states_FP_norm2[i][j][ia]=abs(norm2_temporary);
-					// by lebedev integral
-					/*
-					double Lebedev_r[3][PA_Lebedev_order_int];
-					double Lebedev_w[PA_Lebedev_order_int];
-					ld_by_order(PA_Lebedev_order_int, Lebedev_r[0], Lebedev_r[1], Lebedev_r[2], Lebedev_w);
-					complex<double> nonloc_lebedev(0,0);
-					for(int ile=0; ile<PA_Lebedev_order_int; ile++){
-						double r_le[3];
-						for(int ix=0; ix<3; ix++){
+						final_states_FP_norm2[i][j][ia]=abs(norm2_temporary);
+						// by lebedev integral
+						/*
+							double Lebedev_r[3][PA_Lebedev_order_int];
+							double Lebedev_w[PA_Lebedev_order_int];
+							ld_by_order(PA_Lebedev_order_int, Lebedev_r[0], Lebedev_r[1], Lebedev_r[2], Lebedev_w);
+							complex<double> nonloc_lebedev(0,0);
+							for(int ile=0; ile<PA_Lebedev_order_int; ile++){
+							double r_le[3];
+							for(int ix=0; ix<3; ix++){
 							r_le[ix]=Lebedev_r[ix][ile]*wfn_r[is][ir];
 							r_le[ix]+=atom_coordinates[ia][ix];
-						}
+							}
 								
-						for(int ig=0; ig<final_states_FP_g_size[i][j]; ig++){
+							for(int ig=0; ig<final_states_FP_g_size[i][j]; ig++){
 							for(int ix=0; ix<3; ix++){
-								g_vec[ix]=final_states_FP_g_vec[i][j][ig][ix];
-								kpg_vec[ix]=g_vec[ix]+k_au[ix];
+							g_vec[ix]=final_states_FP_g_vec[i][j][ig][ix];
+							kpg_vec[ix]=g_vec[ix]+k_au[ix];
 							}
 							double kpgt=inner_product(kpg_vec, r_le);
 							for(int igp=0; igp<final_states_FP_g_size[i][j]; igp++){
-								for(int ix=0; ix<3; ix++){
-									gp_vec[ix]=final_states_FP_g_vec[i][j][igp][ix];
-									kpgp_vec[ix]=gp_vec[ix]+k_au[ix];
-								}
-								double kpgpt=inner_product(kpgp_vec, r_le);
-								nonloc_lebedev+=4*M_PI*complex<double>(cos(kpgt), sin(kpgt))*complex<double>(cos(kpgpt), -sin(kpgpt))
-									*interpolate_fgz(r_le[2], final_states_FP_loc[i][j][ig], final_states_dz, VKS_count[0])
-									*conj(interpolate_fgz(r_le[2], final_states_FP_loc[i][j][igp], final_states_dz, VKS_count[0]))*Lebedev_w[ile];
+							for(int ix=0; ix<3; ix++){
+							gp_vec[ix]=final_states_FP_g_vec[i][j][igp][ix];
+							kpgp_vec[ix]=gp_vec[ix]+k_au[ix];
 							}
-						}
-						}*/
-					//printf("Norm2 theta integral [%d][%d][%d]=(%8.4f,   0.0000)\n", i, j, ia, final_states_FP_norm2[i][j][ia]);
-					//printf("Norm2 Lebed integral [%d][%d][%d]=(%8.4f, %8.4f)\n", i, j, ia, nonloc_lebedev.real(), nonloc_lebedev.imag());
+							double kpgpt=inner_product(kpgp_vec, r_le);
+							nonloc_lebedev+=4*M_PI*complex<double>(cos(kpgt), sin(kpgt))*complex<double>(cos(kpgpt), -sin(kpgpt))
+							*interpolate_fgz(r_le[2], final_states_FP_loc[i][j][ig], final_states_dz, VKS_count[0])
+							*conj(interpolate_fgz(r_le[2], final_states_FP_loc[i][j][igp], final_states_dz, VKS_count[0]))*Lebedev_w[ile];
+							}
+							}
+							}*/
+						//printf("Norm2 theta integral [%d][%d][%d]=(%8.4f,   0.0000)\n", i, j, ia, final_states_FP_norm2[i][j][ia]);
+						//printf("Norm2 Lebed integral [%d][%d][%d]=(%8.4f, %8.4f)\n", i, j, ia, nonloc_lebedev.real(), nonloc_lebedev.imag());
 					
 					
-					// debug
-					// printf("Norm2[%d][%d][%d]= %8.4f\n", i, j, ia, final_states_FP_norm2[i][j][ia]);
-				} //for (ia=0; ia<atom_length; ia++)
-			} // for(j=0; j<FPIndex_size; j++)
-		} // omp for(i=0; i<total_count_ext; i++)
+						// debug
+						// printf("Norm2[%d][%d][%d]= %8.4f\n", i, j, ia, final_states_FP_norm2[i][j][ia]);
+					} //for (ia=0; ia<atom_length; ia++)
+				} // for(j=0; j<FPIndex_size; j++)
+			} // omp for(i=0; i<total_count_ext; i++)
+		}
 
 		// nonlocal core part
 		if(!PA_ignore_core && !PA_ignore_nonlocal){
@@ -3344,7 +3358,6 @@ void calculate_PAD(){
 					sprintf(group_name, "Local_edge_real");
 				}
 				w_data_3d(FPFSG, group_name, g_count, EScale_count, total_count_ext, (double***)&FP_loc_edge_export_re[sp][0][0][0]);
-				cout << "Real" << endl;
 				if(spin_i==1){
 					sprintf(group_name, "Local_edge_%s_imag", sp==0?"Up":"Dn");
 				}else{
