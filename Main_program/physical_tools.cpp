@@ -2434,7 +2434,7 @@ void prepare_matrix_bulk(int g_count, complex<double>** mat, double Ekin, double
 	}
 }
 
-double determinant(int g_count, complex<double>** mat, double Ekin, double* k, double** g_vec, complex<double>** Vgg){
+double determinant_sign(int g_count, complex<double>** mat, double Ekin, double* k, double** g_vec, complex<double>** Vgg){
 	prepare_matrix_bulk(g_count, mat, Ekin, k, g_vec, Vgg);
 	int ipiv[g_count];
 	int info;
@@ -2446,7 +2446,7 @@ double determinant(int g_count, complex<double>** mat, double Ekin, double* k, d
 	complex<double> zdet=1.0;
 	int i;
 	for(i=0; i<g_count; i++){
-		zdet*=mat[i][i];
+		zdet*=mat[i][i]/abs(mat[i][i]);
 		if(ipiv[i]!=i+1){
 			zdet*=-1;
 		}
@@ -2480,8 +2480,9 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		//double kz=gz*(1.0*ikz)/(1.0*PA_FPFS_bulk_kz_steps);
 		k_bloch[2]=kz;
 		// printf("k %.3f %.3f %.3f\n", k_bloch[0], k_bloch[1], k_bloch[2]);
-		det_array[ikz]=determinant(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
-		//printf("%8.3f %10.2e\n", kz, det_array[ikz]);
+		det_array[ikz]=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
+		// printf("%8.3f %10.2e\n", kz, det_array[ikz]);
+		// printf("%8.3f %10.2e\n", kz, determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg));
 	}
 	int solution_count=0;
 	for(int ikz=0; ikz<PA_FPFS_bulk_kz_steps; ikz++){
@@ -2527,9 +2528,9 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		//double kz_right=gz*((1.0*(index+1))/(1.0*PA_FPFS_bulk_kz_steps)-0.0);
 
 		k_bloch[2]=kz_left;
-		double det_left=determinant(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
+		double det_left=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
 		k_bloch[2]=kz_right;
-		double det_right=determinant(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
+		double det_right=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
 
 		//printf("kz          %10.5f -- %10.5f\n", kz_left, kz_right);
 		//printf("Determinant %10.3e -- %10.3e\n", det_left, det_right);
@@ -2537,7 +2538,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		while(kz_right-kz_left>1e-6){
 			double kz_center=(kz_left+kz_right)/2.0;
 			k_bloch[2]=kz_center;
-			double det_center=determinant(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
+			double det_center=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
 			if(det_left*det_center<0){
 				kz_right=kz_center;
 				det_right=det_center;
