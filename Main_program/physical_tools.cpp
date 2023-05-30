@@ -2433,6 +2433,26 @@ void prepare_matrix_bulk(int g_count, complex<double>** mat, double Ekin, double
 		//printf("\n");
 	}
 }
+double determinant(int g_count, complex<double>** mat, double Ekin, double* k, double** g_vec, complex<double>** Vgg){
+	prepare_matrix_bulk(g_count, mat, Ekin, k, g_vec, Vgg);
+	int ipiv[g_count];
+	int info;
+	zgetrf_(&g_count, &g_count, &mat[0][0], &g_count, &ipiv[0], &info);
+	if(info!=0){
+		write_log((char*)"zgetrf failed");
+		return -1;
+	}
+	complex<double> zdet=1.0;
+	int i;
+	for(i=0; i<g_count; i++){
+		zdet*=mat[i][i];
+		if(ipiv[i]!=i+1){
+			zdet*=-1;
+		}
+	}
+	//printf("%8.4f\n", zdet.imag());
+	return zdet.real();
+}
 
 double determinant_sign(int g_count, complex<double>** mat, double Ekin, double* k, double** g_vec, complex<double>** Vgg){
 	prepare_matrix_bulk(g_count, mat, Ekin, k, g_vec, Vgg);
@@ -2455,7 +2475,7 @@ double determinant_sign(int g_count, complex<double>** mat, double Ekin, double*
 }
 
 int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, double* g_vec_buffer, complex<double>* Vgg_buffer, complex<double>*** final_states_pointer, double** kz_pointer){
-	//printf("Ekin %10.6f\n", Ekin);
+	// printf("Ekin %10.6f\n", Ekin);
 	char* sprintf_buffer2=new char[Log_length+1];
 	int i, j;
 	// prepare matrix
@@ -2535,7 +2555,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		//printf("kz          %10.5f -- %10.5f\n", kz_left, kz_right);
 		//printf("Determinant %10.3e -- %10.3e\n", det_left, det_right);
 
-		while(kz_right-kz_left>1e-6){
+		while(kz_right-kz_left>1e-8){
 			double kz_center=(kz_left+kz_right)/2.0;
 			k_bloch[2]=kz_center;
 			double det_center=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);

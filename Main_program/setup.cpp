@@ -188,7 +188,7 @@ void initialize(){
 	PA_FPFS_bulk_min_ang=0.0;
 	PA_FPFS_bulk_max_ang=0.0;
 	PA_FPFS_bulk_count=0;
-	PA_FPFS_bulk_kz_steps=1000;
+	PA_FPFS_bulk_kz_steps=10000;
 }
 
 void finalize(){

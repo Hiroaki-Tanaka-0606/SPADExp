@@ -911,9 +911,11 @@ void calculate_PAD(){
 	int z_count_bulk;
 	double dz_bulk;
 	complex<double>** Vgg0_average; // [ig][iz']
+	double** Vgg0_average_abs;
 	double** Vgg0_stdev;
 	complex<double>** Vgg1_average;
   double** Vgg1_stdev;
+	double** Vgg1_average_abs;
 	
 	
 	// Determining the g range for VPS
@@ -1295,12 +1297,16 @@ void calculate_PAD(){
 			write_log(sprintf_buffer);
 			sprintf(sprintf_buffer, "dz for bulk = %.3f", dz_bulk);
 			write_log(sprintf_buffer);
+			sprintf(sprintf_buffer, "2pi/c for bulk = %.3f", FPFS_gz_length);
+			write_log(sprintf_buffer);
 
 			Vgg0_average=alloc_zmatrix(Vgg_count, z_count_bulk);
 			Vgg0_stdev=alloc_dmatrix(Vgg_count, z_count_bulk);
+			Vgg0_average_abs=alloc_dmatrix(Vgg_count, z_count_bulk);
 			if(spin_i==1 || spin_i==2){
 				Vgg1_average=alloc_zmatrix(Vgg_count, z_count_bulk);
-				Vgg1_stdev=alloc_dmatrix(Vgg_count, z_count_bulk);				
+				Vgg1_stdev=alloc_dmatrix(Vgg_count, z_count_bulk);
+				Vgg1_average_abs=alloc_dmatrix(Vgg_count, z_count_bulk);
 			}
 
 			for(int ig=0; ig<Vgg_count; ig++){
@@ -1312,7 +1318,13 @@ void calculate_PAD(){
 				printf("\n");*/
 				if(spin_i==1 || spin_i==2){
 					calc_bulk_potential(Vgg1[ig], final_states_dz, VKS_count[0], FPFS_bulk_min, FPFS_bulk_height, dz_bulk, z_count_bulk, FPFS_bulk_count, Vgg1_average[ig], Vgg1_stdev[ig]);
-				}		
+				}
+				for(int iz=0; iz<z_count_bulk; iz++){
+					Vgg0_average_abs[ig][iz]=abs(Vgg0_average[ig][iz]);
+					if(spin_i==1 || spin_i==2){
+						Vgg1_average_abs[ig][iz]=abs(Vgg1_average[ig][iz]);
+					}
+				}
 			}
 
 			// Fourier expansion along z
@@ -1963,8 +1975,18 @@ void calculate_PAD(){
 			} // for(FPIndex_size)
 			delete[] sprintf_buffer2;
 		} // for(total_count_ext)
+
+		// for debug
+		for(int ik=0; ik<total_count_ext; ik++){
+			for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
+				for(int in=0; in<final_states_FP_bulk_count[ik][ifp]; in++){
+					printf("%4d %8.4f\n", final_states_EScale[ik][ifp], final_states_FP_bulk_kz[ik][ifp][in]);
+				}
+			}
+			printf("\n");
+		}
 		
-		if(PA_FPFS_edge_smoothing){
+		if(!PA_FPFS_bulk_set && PA_FPFS_edge_smoothing){
 			int ESize=E_max_scale-E_min_scale+1;
 			int kSize=total_count_ext;
 			int sp_max=(spin_i==0 || spin_i==2)?1:2;
@@ -3351,19 +3373,21 @@ void calculate_PAD(){
 			w_att_int(FPFSG, "E_min_scale", E_min_scale);
 			w_att_int(FPFSG, "E_max_scale", E_max_scale);
 			w_att_double(FPFSG, "FPFS_energy_step", PA_FPFS_energy_step);
-			for(int sp=0; sp<sp_max; sp++){
-				if(spin_i==1){
-					sprintf(group_name, "Local_edge_%s_real", sp==0?"Up":"Dn");
-				}else{
-					sprintf(group_name, "Local_edge_real");
+			if(!PA_FPFS_bulk_set){
+				for(int sp=0; sp<sp_max; sp++){
+					if(spin_i==1){
+						sprintf(group_name, "Local_edge_%s_real", sp==0?"Up":"Dn");
+					}else{
+						sprintf(group_name, "Local_edge_real");
+					}
+					w_data_3d(FPFSG, group_name, g_count, EScale_count, total_count_ext, (double***)&FP_loc_edge_export_re[sp][0][0][0]);
+					if(spin_i==1){
+						sprintf(group_name, "Local_edge_%s_imag", sp==0?"Up":"Dn");
+					}else{
+						sprintf(group_name, "Local_edge_imag");
+					}
+					w_data_3d(FPFSG, group_name, g_count, EScale_count, total_count_ext, (double***)&FP_loc_edge_export_im[sp][0][0][0]);
 				}
-				w_data_3d(FPFSG, group_name, g_count, EScale_count, total_count_ext, (double***)&FP_loc_edge_export_re[sp][0][0][0]);
-				if(spin_i==1){
-					sprintf(group_name, "Local_edge_%s_imag", sp==0?"Up":"Dn");
-				}else{
-					sprintf(group_name, "Local_edge_imag");
-				}
-				w_data_3d(FPFSG, group_name, g_count, EScale_count, total_count_ext, (double***)&FP_loc_edge_export_im[sp][0][0][0]);
 			}
 		}
 	}
@@ -3452,6 +3476,13 @@ void calculate_PAD(){
 		w_att_int(FPFSG, "Spin_i", spin_i);
 		w_att_double(FPFSG, "Excitation_energy", PA_excitation_energy);
 		w_att_double(FPFSG, "FPFS_energy_step", PA_FPFS_energy_step);
+		if(PA_FPFS_bulk_set){
+			w_att_double(FPFSG, "bulk_min", FPFS_bulk_min);
+			w_att_double(FPFSG, "bulk_max", FPFS_bulk_max);
+			w_att_int(FPFSG, "bulk_count", FPFS_bulk_count);
+			w_att_int(FPFSG, "g_bulk_count", final_states_FP_g_size_bulk);
+			w_data_2d(FPFSG, "g_vector_bulk", final_states_FP_g_size_bulk, 3, (double**)&final_states_FP_g_vec_bulk[0][0]);
+		}
 		int atom_props[atom_length];
 		for(i=0; i<atom_length; i++){
 			if(atom_above_surface[i]){
@@ -3502,6 +3533,21 @@ void calculate_PAD(){
 				w_data_1d(PotG_ia, "V1_stdev", VPS_r_length[is], &dVKS1_r[ia][0]);
 			}
 		}
+		if(PA_FPFS_bulk_set){
+			w_data_2d(PotG, "Vgg0_bulk_z_abs", Vgg_count, z_count_bulk, (double**)&Vgg0_average_abs[0][0]);
+			w_data_2d(PotG, "Vgg0_bulk_z_stdev", Vgg_count, z_count_bulk, (double**)&Vgg0_stdev[0][0]);
+			if(spin_i>0){
+				w_data_2d(PotG, "Vgg1_bulk_z_abs", Vgg_count, z_count_bulk, (double**)&Vgg1_average_abs[0][0]);
+				w_data_2d(PotG, "Vgg1_bulk_z_stdev", Vgg_count, z_count_bulk, (double**)&Vgg1_stdev[0][0]);
+			}
+
+			w_data_2d(PotG, "Vgg_vector_bulk", Vgg_count_bulk, 3, (double**)&Vgg_vector_bulk[0][0]);
+			w_data_1d(PotG, "Vgg0_bulk_abs", Vgg_count_bulk, &Vgg0_abs_bulk[0]);
+			if(spin_i>0){
+				w_data_1d(PotG, "Vgg1_bulk_abs", Vgg_count_bulk, &Vgg1_abs_bulk[0]);
+			}
+		}
+		
 		
 		for(i=0; i<total_count_ext; i++){
 			if(dimension==2){
@@ -3533,6 +3579,24 @@ void calculate_PAD(){
 					}
 					w_data_3d(FPFSG_ke, "FP_local", g_size, z_size, 2, (double***)&final_states_FP_loc_export[0][0][0]);
 				}
+				int FP_size_bulk=final_states_FP_bulk_count[i][j];
+				int g_size_bulk=final_states_FP_g_size_bulk;
+				w_att_int(FPFSG_ke, "bulk_count", FP_size_bulk);
+				if(FP_size_bulk>0){
+					double final_states_FP_bulk_export[FP_size_bulk][g_size_bulk][2];
+					for(int in=0; in<FP_size_bulk; in++){
+						for(int ig=0; ig<g_size_bulk; ig++){
+							final_states_FP_bulk_export[in][ig][0]=final_states_FP_bulk[i][j][in][ig].real();
+							final_states_FP_bulk_export[in][ig][1]=final_states_FP_bulk[i][j][in][ig].imag();
+						}
+					}
+					w_data_3d(FPFSG_ke, "FP_bulk", FP_size_bulk, g_size_bulk, 2, (double***)&final_states_FP_bulk_export[0][0][0]);
+					double final_states_FP_bulk_coefs_export[FP_size_bulk];
+					for(int in=0; in<FP_size_bulk; in++){
+						final_states_FP_bulk_coefs_export[in]=abs(final_states_FP_bulk_coefs[i][j][in]);
+					}
+					w_data_1d(FPFSG_ke, "FP_bulk_coefs_abs", FP_size_bulk, &final_states_FP_bulk_coefs_export[0]);
+				}
 				/*
 					for(ia=0; ia<atom_length; ia++){
 					int is=atom_spec_index[ia];
@@ -3557,20 +3621,22 @@ void calculate_PAD(){
 					}*/
 			}
 		}
-		for(int sp=0; sp<sp_max; sp++){
-			if(spin_i==1){
-				sprintf(group_name, "Local_edge_%s_real", sp==0?"Up":"Dn");
-			}else{
-				sprintf(group_name, "Local_edge_real");
-			}
-			w_data_3d(FPFSG, group_name, g_count, EScale_count, total_count_ext, (double***)&FP_loc_edge_export_re[sp][0][0][0]);
+		if(!PA_FPFS_bulk_set){
+			for(int sp=0; sp<sp_max; sp++){
+				if(spin_i==1){
+					sprintf(group_name, "Local_edge_%s_real", sp==0?"Up":"Dn");
+				}else{
+					sprintf(group_name, "Local_edge_real");
+				}
+				w_data_3d(FPFSG, group_name, g_count, EScale_count, total_count_ext, (double***)&FP_loc_edge_export_re[sp][0][0][0]);
 				
-			if(spin_i==1){
-				sprintf(group_name, "Local_edge_%s_imag", sp==0?"Up":"Dn");
-			}else{
-				sprintf(group_name, "Local_edge_imag");
+				if(spin_i==1){
+					sprintf(group_name, "Local_edge_%s_imag", sp==0?"Up":"Dn");
+				}else{
+					sprintf(group_name, "Local_edge_imag");
+				}
+				w_data_3d(FPFSG, group_name, g_count, EScale_count, total_count_ext, (double***)&FP_loc_edge_export_im[sp][0][0][0]);
 			}
-			w_data_3d(FPFSG, group_name, g_count, EScale_count, total_count_ext, (double***)&FP_loc_edge_export_im[sp][0][0][0]);
 		}
 	}
 	
