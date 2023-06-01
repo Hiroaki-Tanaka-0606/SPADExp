@@ -1085,6 +1085,28 @@ int load_input(){
 				}
 				PA_FPFS_bulk_set=true; continue;
 			}
+			/// interpolate_wfn: bool
+			if(strcmp(keyword_buffer, "Interpolate_wfn")==0){
+				if(PA_interpolate_wfn_set){
+					output_error(line_number, (char*)"keyword Interpolate_wfn already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_bool(input_line_c, &PA_interpolate_wfn, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Interpolate_wfn"); status=0; goto FINALIZATION;
+				}
+			  PA_interpolate_wfn_set=true; continue;
+			}
+			/// Interpolate_wfn_coef: double
+			if(strcmp(keyword_buffer, "Interpolate_wfn_coef")==0){
+				if(PA_interpolate_wfn_coef_set){
+					output_error(line_number, (char*)"keyword Interpolate_wfn_coef already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PA_interpolate_wfn_coef);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Interpolate_wfn_coef"); status=0; goto FINALIZATION;
+				}
+				PA_interpolate_wfn_coef_set=true; continue;
+			}
 		}else if(*block_name==string("Phase-shift")){
 			// Ph block
 			/// Skip_points (Ph_skip_points): int

@@ -226,6 +226,10 @@ extern double PA_FPFS_bulk_max_ang;
 extern int PA_FPFS_bulk_count;
 extern bool PA_FPFS_bulk_set;
 extern int PA_FPFS_bulk_kz_steps;
+extern bool PA_interpolate_wfn;
+extern bool PA_interpolate_wfn_set;
+extern double PA_interpolate_wfn_coef;
+extern bool PA_interpolate_wfn_coef_set;
 /// files
 extern FILE* Log_file_obj;
 extern FILE* Output_file_obj;

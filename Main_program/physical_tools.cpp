@@ -2636,3 +2636,57 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 
 	return solution_count;
 }
+
+double* interpolate_wfn(int wfn_length, double* wfn, double* r, int wfn_length_reduced, double dr){
+	double* wfn_reduced=new double[wfn_length_reduced];
+	int* wfn_count=new int[wfn_length_reduced];
+
+	for(int ir=0; ir<wfn_length_reduced; ir++){
+		wfn_reduced[ir]=0.0;
+		wfn_count[ir]=0;
+	}
+	for(int ir=0; ir<wfn_length; ir++){
+		int index=floor(r[ir]/dr);
+		wfn_reduced[index]+=wfn[ir];
+		wfn_count[index]++;
+	}
+	for(int ir=0; ir<wfn_length_reduced; ir++){
+		if(wfn_count[ir]>0){
+			wfn_reduced[ir]/=wfn_count[ir];
+		}
+	}
+	for(int ir=0; ir<wfn_length_reduced; ir++){
+		if(wfn_count[ir]==0){
+			int ir_left, ir_right;
+			bool ir_left_found=false;
+			bool ir_right_found=false;
+			for(ir_left=ir-1; ir_left>=0; ir_left--){
+				if(wfn_count[ir_left]>0){
+					ir_left_found=true;
+					break;
+				}
+			}
+			for(ir_right=ir+1; ir_right<wfn_length_reduced; ir_right++){
+				if(wfn_count[ir_right]>0){
+					ir_right_found=true;
+					break;
+				}
+			}
+			if(ir_left_found && ir_right_found){
+				wfn_reduced[ir]=(wfn_reduced[ir_right]*(ir-ir_left)+wfn_reduced[ir_left]*(ir_right-ir))/(ir_right-ir_left);
+			}
+		}
+	}
+	
+	delete[] wfn_count;
+	/*
+	for(int ir=0; ir<wfn_length; ir++){
+		printf("%8.4f %8.4f ", r[ir], wfn[ir]);
+		if(ir<wfn_length_reduced){
+			printf("%8.4f %8.4f", (ir+0.5)*dr, wfn_reduced[ir]);
+		}
+		printf("\n");
+		}*/
+	
+	return wfn_reduced;
+}

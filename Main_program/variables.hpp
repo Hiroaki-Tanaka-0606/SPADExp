@@ -227,6 +227,10 @@ double PA_FPFS_bulk_max_ang; //
 int PA_FPFS_bulk_count;  // number of bulk layers in the bulk range
 bool PA_FPFS_bulk_set;
 int PA_FPFS_bulk_kz_steps;
+bool PA_interpolate_wfn; // reduce the number of points in radial wave functions
+bool PA_interpolate_wfn_set;
+double PA_interpolate_wfn_coef;
+bool PA_interpolate_wfn_coef_set;
 /// files
 FILE* Log_file_obj;            // log file object
 FILE* Output_file_obj;         // data file object

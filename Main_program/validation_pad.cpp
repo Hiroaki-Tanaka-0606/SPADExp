@@ -49,6 +49,12 @@ int validation_PAD(){
 			status=0; goto FINALIZATION;
 		}
 	}
+	sprintf(sprintf_buffer, "%32s = %s", "Interpolate_wfn", PA_interpolate_wfn?"true":"false");
+	write_log(sprintf_buffer);
+	if(PA_interpolate_wfn){
+		sprintf(sprintf_buffer, "%32s = %.2f", "Interpolate_wfn_coef", PA_interpolate_wfn_coef);
+		write_log(sprintf_buffer);
+	}
 	/// Final_state
 	if(!PA_final_state_set){
 		write_log((char*)"Error: Final_state is necessary");

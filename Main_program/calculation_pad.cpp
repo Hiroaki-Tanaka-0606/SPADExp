@@ -411,15 +411,24 @@ void calculate_PAD(){
 	
 	// 2. load initial state
 	write_log((char*)"----Load initial states----");
-
+	/// interpolate wave functions	
+	Group PotentialG(OutputG.openGroup("Potential"));
+	int VKS_count_for_wfn[3];
+	r_att_1i(PotentialG, "Count", 3, &VKS_count_for_wfn[0]);
+	double wfn_interpolate_dz=sqrt(inner_product(atom_cell[0], atom_cell[0]))/VKS_count_for_wfn[0]*PA_interpolate_wfn_coef;
+  
 	double*** wfn_phi_rdr=new double**[atom_spec_length]; // [is][io][r]
 	double*** wfn_phi_PAO=new double**[atom_spec_length]; // [is][io][r] for FPFS
 	double*** wfn_phi_AO=new double**[atom_spec_length];  // [is][io][r] for FPFS
 	double*** wfn_phi_dr=new double**[atom_spec_length];  // [is][io][r] for nonorth_term
 	double*** wfn_phi=new double**[atom_spec_length];     // [is][io][r] for orth_correction
-	double** wfn_r=new double*[atom_spec_length]; // [is][r]
+	double** wfn_r=new double*[atom_spec_length]; // [is][r] original values
+	double** wfn_r_reduced=new double*[atom_spec_length];
+	double** wfn_r_use=new double*[atom_spec_length];
 	char AO_group_name[item_size*2];
 	int wfn_length[atom_spec_length];
+	int wfn_length_reduced[atom_spec_length];
+	int wfn_length_use[atom_spec_length];
 	int Z[atom_spec_length];
 	bool empty_atoms[atom_spec_length];
 
@@ -429,10 +438,8 @@ void calculate_PAD(){
 	for(is=0; is<atom_spec_length; is++){
 		wfn_phi_rdr[is]=new double*[num_orbits[is]];
 		wfn_phi_dr[is]=new double*[num_orbits[is]];
-		if(PA_FPFS){
-			wfn_phi_PAO[is]=new double*[num_orbits[is]];
-			wfn_phi_AO[is]=new double*[num_orbits[is]];
-		}
+		wfn_phi_PAO[is]=new double*[num_orbits[is]];
+		wfn_phi_AO[is]=new double*[num_orbits[is]];
 		if(PA_orth_correction){
 			wfn_phi[is]=new double*[num_orbits[is]];
 		}
@@ -463,10 +470,26 @@ void calculate_PAD(){
 		// printf("%s\n", AO_group_name);
 		
 		Group AOG(AO_file.openGroup(AO_group_name));
+		// read wfn_r
 		wfn_length[is]=r_att_int(AOG, "length");
 		Z[is]=r_att_int(AOG, "Z");
 		wfn_r[is]=new double[wfn_length[is]];
 		r_att_1d(AOG, "r", wfn_length[is], &wfn_r[is][0]);
+		// generate wfn_r_reduced
+		if(PA_interpolate_wfn){
+			wfn_length_reduced[is]=floor(wfn_r[is][wfn_length[is]-1]/wfn_interpolate_dz)+1;
+			wfn_r_reduced[is]=new double[wfn_length_reduced[is]];
+			for(int ir=0; ir<wfn_length_reduced[is]; ir++){
+				wfn_r_reduced[is][ir]=(ir+0.5)*wfn_interpolate_dz;
+			}
+		}
+
+		wfn_length_use[is]=PA_interpolate_wfn?wfn_length_reduced[is]:wfn_length[is];
+		wfn_r_use[is]=new double[wfn_length_use[is]];
+		for(j=0; j<wfn_length_use[is]; j++){
+			wfn_r_use[is][j]=PA_interpolate_wfn?wfn_r_reduced[is][j]:wfn_r[is][j];
+		}
+		// load wfn_phi
 		for(io=0; io<num_orbits[is]; io++){
 			s_data_2d(AOG, orbital_list[is][io], &size1, &size2);
 			if(size2!=wfn_length[is]){
@@ -475,40 +498,39 @@ void calculate_PAD(){
 			}
 			double wfn_both[2][wfn_length[is]];
 			r_data_2d(AOG, orbital_list[is][io], 2, wfn_length[is], (double**) wfn_both);
-			wfn_phi_rdr[is][io]=new double[wfn_length[is]];
-			wfn_phi_dr[is][io]=new double[wfn_length[is]];
-			if(PA_FPFS){
-				wfn_phi_PAO[is][io]=new double[wfn_length[is]];
-				wfn_phi_AO[is][io]=new double[wfn_length[is]];
-			}
-			if(PA_orth_correction){
-				wfn_phi[is][io]=new double[wfn_length[is]];
-			}
-			for(j=0; j<wfn_length[is]-1; j++){
-				if(empty_atom==true || strcmp(PA_initial_state, "PAO")==0){
-					wfn_phi_rdr[is][io][j]=wfn_both[0][j]*wfn_r[is][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
-					wfn_phi_dr[is][io][j]=wfn_both[0][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
-					if(PA_orth_correction){
-						wfn_phi[is][io][j]=wfn_both[0][j];
-					}
-				}else{
-					wfn_phi_rdr[is][io][j]=wfn_both[1][j]*wfn_r[is][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
-					wfn_phi_dr[is][io][j]=wfn_both[1][j]*(wfn_r[is][j+1]-wfn_r[is][j]);
-					if(PA_orth_correction){
-						wfn_phi[is][io][j]=wfn_both[1][j];
-					}
-				}
-				if(PA_FPFS){
+			if(PA_interpolate_wfn){
+				wfn_phi_PAO[is][io]=interpolate_wfn(wfn_length[is], &wfn_both[0][0], &wfn_r[is][0], wfn_length_reduced[is], wfn_interpolate_dz);
+				wfn_phi_AO[is][io]=interpolate_wfn(wfn_length[is], &wfn_both[1][0], &wfn_r[is][0], wfn_length_reduced[is], wfn_interpolate_dz);
+			}else{
+				wfn_phi_PAO[is][io]=new double[wfn_length_use[is]];
+				wfn_phi_AO[is][io]=new double[wfn_length_use[is]];
+				for(j=0; j<wfn_length_use[is]; j++){
 					wfn_phi_PAO[is][io][j]=wfn_both[0][j];
 					wfn_phi_AO[is][io][j]=wfn_both[1][j];
 				}
 			}
-			wfn_phi_rdr[is][io][wfn_length[is]-1]=0;
-			wfn_phi_dr[is][io][wfn_length[is]-1]=0;
-			if(PA_FPFS){
-				wfn_phi_PAO[is][io][wfn_length[is]-1]=0;
-				wfn_phi_AO[is][io][wfn_length[is]-1]=0;
+			wfn_phi_rdr[is][io]=new double[wfn_length_use[is]];
+			wfn_phi_dr[is][io]=new double[wfn_length_use[is]];
+			if(PA_orth_correction){
+				wfn_phi[is][io]=new double[wfn_length_use[is]];
 			}
+			for(j=0; j<wfn_length_use[is]-1; j++){
+				if(empty_atom==true || strcmp(PA_initial_state, "PAO")==0){
+					wfn_phi_rdr[is][io][j]=wfn_phi_PAO[is][io][j]*wfn_r_use[is][j]*(wfn_r_use[is][j+1]-wfn_r_use[is][j]);
+					wfn_phi_dr[is][io][j]=wfn_phi_PAO[is][io][j]*(wfn_r_use[is][j+1]-wfn_r_use[is][j]);
+					if(PA_orth_correction){
+						wfn_phi[is][io][j]=wfn_phi_PAO[is][io][j];
+					}
+				}else{
+					wfn_phi_rdr[is][io][j]=wfn_phi_AO[is][io][j]*wfn_r_use[is][j]*(wfn_r_use[is][j+1]-wfn_r_use[is][j]);
+					wfn_phi_dr[is][io][j]=wfn_phi_AO[is][io][j]*(wfn_r_use[is][j+1]-wfn_r_use[is][j]);
+					if(PA_orth_correction){
+						wfn_phi[is][io][j]=wfn_phi_AO[is][io][j];
+					}
+				}
+			}
+			wfn_phi_rdr[is][io][wfn_length_use[is]-1]=0;
+			wfn_phi_dr[is][io][wfn_length_use[is]-1]=0;
 			/*for(j=0; j<wfn_length[is]; j++){
 				printf("%f %f\n", wfn_r[is][j], wfn_phi_rdr[is][io][j]);
 				}*/
@@ -838,11 +860,11 @@ void calculate_PAD(){
 	int final_states_count;
 	double**** final_states_calc; // [k_index][atom_spec][l][r] for Calc
 	double*** final_states_phase; // [k_index][atom_spec][l] for Calc
+	/// for FPFS
 	int** final_states_EScale;                // [total_count_ext][FPIndex]=round(E/FPFS_energy_step)
 	int** final_states_spin;                  // [total_count_ext][FPIndex]=up(0) or down(1), always zero for spin_i==0 (off)
 	double*** final_states_k;                 // [total_count_ext][FPIndex]=k vector (au^-1)
 	int* final_states_FP_size;                // [total_count_ext]=FPIndex_size
-	/// for FPFS
 	int E_min_scale;                          // round(E_min_tail/PA_FPFS_energy_step);
 	int E_max_scale;                          // round(E_max_tail/PA_FPFS_energy_step);
 	//// for local part
@@ -956,10 +978,10 @@ void calculate_PAD(){
 		for(i=0; i<final_states_count; i++){
 			final_states_calc[i]=new double**[atom_spec_length];
 			for(j=0; j<atom_spec_length; j++){
-				double* final_states_alloc=new double[5*wfn_length[j]];
+				double* final_states_alloc=new double[5*wfn_length_use[j]];
 				final_states_calc[i][j]=new double*[5];
 				for(k=0; k<5; k++){
-					final_states_calc[i][j][k]=&final_states_alloc[k*wfn_length[j]];
+					final_states_calc[i][j][k]=&final_states_alloc[k*wfn_length_use[j]];
 					// cout << final_states_calc[i][j][k] << endl;
 				}
 			}
@@ -995,14 +1017,14 @@ void calculate_PAD(){
 				for(l=0; l<5; l++){
 					Atomic_wfn_evolution(mu, l, Ekin, false);
 					final_states_phase[i][j][l]=analyze_phase(mu, k_length, l, mod_start_x);
-					// interpolate final states so that they correspond to wfn_r[j]
+					// interpolate final states so that they correspond to wfn_r_use[j]
 					int x1, x2;
-					for(x1=0; x1<wfn_length[j]; x1++){
+					for(x1=0; x1<wfn_length_use[j]; x1++){
 						bool r_found=false;
 						for(x2=0; x2<x_count-1; x2++){
-							if(mu*x_coordinates[x2] < wfn_r[j][x1] && wfn_r[j][x1] < mu*x_coordinates[x2+1]){
-								double dr1=wfn_r[j][x1]-mu*x_coordinates[x2];
-								double dr2=mu*x_coordinates[x2+1]-wfn_r[j][x1];
+							if(mu*x_coordinates[x2] < wfn_r_use[j][x1] && wfn_r_use[j][x1] < mu*x_coordinates[x2+1]){
+								double dr1=wfn_r_use[j][x1]-mu*x_coordinates[x2];
+								double dr2=mu*x_coordinates[x2+1]-wfn_r_use[j][x1];
 								final_states_calc[i][j][l][x1]=(At_p_x[x2]*dr2+At_p_x[x2+1]*dr1)/(dr1+dr2);
 								r_found=true;
 								break;
@@ -1085,8 +1107,8 @@ void calculate_PAD(){
 						break;
 					}
 				}
-				for(int ir=0; ir<wfn_length[is]; ir++){
-					if(wfn_r[is][ir]>VPS_cutoff[is]){
+				for(int ir=0; ir<wfn_length_use[is]; ir++){
+					if(wfn_r_use[is][ir]>VPS_cutoff[is]){
 						wfn_cutoff_index[is]=ir;
 						break;
 					}
@@ -1094,7 +1116,7 @@ void calculate_PAD(){
 			}
 			sprintf(sprintf_buffer, "VPS cutoff #%-4d = %.3f Bohr ~ %.3f Bohr", vps_cutoff_index[is], VPS_r[is][vps_cutoff_index[is]], VPS_cutoff[is]);
 			write_log(sprintf_buffer);
-			sprintf(sprintf_buffer, "Wfn cutoff #%-4d = %.3f Bohr ~ %.3f Bohr", wfn_cutoff_index[is], wfn_r[is][wfn_cutoff_index[is]], VPS_cutoff[is]);
+			sprintf(sprintf_buffer, "Wfn cutoff #%-4d = %.3f Bohr ~ %.3f Bohr", wfn_cutoff_index[is], wfn_r_use[is][wfn_cutoff_index[is]], VPS_cutoff[is]);
 			write_log(sprintf_buffer);
 			if(empty_atoms[is]){
 				continue;
@@ -1977,6 +1999,7 @@ void calculate_PAD(){
 		} // for(total_count_ext)
 
 		// for debug
+		/*
 		for(int ik=0; ik<total_count_ext; ik++){
 			for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
 				for(int in=0; in<final_states_FP_bulk_count[ik][ifp]; in++){
@@ -1984,7 +2007,7 @@ void calculate_PAD(){
 				}
 			}
 			printf("\n");
-		}
+			}*/
 		
 		if(!PA_FPFS_bulk_set && PA_FPFS_edge_smoothing){
 			int ESize=E_max_scale-E_min_scale+1;
@@ -2223,17 +2246,17 @@ void calculate_PAD(){
 										complex<double> atom_phase(cos(kt), sin(kt));
 										for(int it=0; it<PA_theta_points; it++){
 											double theta=(it*1.0+0.5)/(PA_theta_points*1.0)*M_PI;
-											double z_value=wfn_r[is][ir]*cos(theta)+tau_z;
+											double z_value=wfn_r_use[is][ir]*cos(theta)+tau_z;
 											theta_integral+=sin(theta)*interpolate_fgz(z_value, final_states_FP_loc[i][j][ig], final_states_dz, VKS_count[0])
 												*spherical_harmonic_theta(lp, m, theta)
 												*spherical_harmonic_theta(l, m, theta)
 												*M_PI/(PA_theta_points*1.0);
 										}
-										final_states_FP_nonloc[i][j][ia][l][mpl]+=4*M_PI*wfn_r[is][ir]*p1jlp[lp]*atom_phase
-											*sp_bessel(lp, kpg_length*wfn_r[is][ir])*conj(Ylm_k[lp][mplp])*theta_integral;
+										final_states_FP_nonloc[i][j][ia][l][mpl]+=4*M_PI*wfn_r_use[is][ir]*p1jlp[lp]*atom_phase
+											*sp_bessel(lp, kpg_length*wfn_r_use[is][ir])*conj(Ylm_k[lp][mplp])*theta_integral;
 									}
 								}
-								final_states_FP_norm1[i][j][ia]+=norm(final_states_FP_nonloc[i][j][ia][l][mpl])/wfn_r[is][ir]/wfn_r[is][ir];
+								final_states_FP_norm1[i][j][ia]+=norm(final_states_FP_nonloc[i][j][ia][l][mpl])/wfn_r_use[is][ir]/wfn_r_use[is][ir];
 								// by Lebedev integral
 								/*
 									double Lebedev_r[3][PA_Lebedev_order_int];
@@ -2299,7 +2322,7 @@ void calculate_PAD(){
 											complex<double> theta_integral(0,0);
 											for(int it=0; it<PA_theta_points; it++){
 												double theta=(it*1.0+0.5)/(PA_theta_points*1.0)*M_PI;
-												double z_value=wfn_r[is][ir]*cos(theta)+tau_z;
+												double z_value=wfn_r_use[is][ir]*cos(theta)+tau_z;
 												theta_integral+=
 													sin(theta)*conj(interpolate_fgz(z_value, final_states_FP_loc[i][j][igp], final_states_dz, VKS_count[0]))
 													*interpolate_fgz(z_value, final_states_FP_loc[i][j][ig], final_states_dz, VKS_count[0])
@@ -2308,7 +2331,7 @@ void calculate_PAD(){
 													*M_PI/(PA_theta_points*1.0);
 											}
 											norm2_temporary+=16.0*M_PI*M_PI*p1jlp[l]*m1jlp[lp]*Ylm_kp[lp][mplp]*conj(Ylm_k[l][mpl])
-												*sp_bessel(lp, kpgp_length*wfn_r[is][ir])*sp_bessel(l, kpg_length*wfn_r[is][ir])*theta_integral*g_phase;
+												*sp_bessel(lp, kpgp_length*wfn_r_use[is][ir])*sp_bessel(l, kpg_length*wfn_r_use[is][ir])*theta_integral*g_phase;
 										}
 									}										
 								}
@@ -2379,18 +2402,18 @@ void calculate_PAD(){
 					}else{
 						solve_nonlocal_wfn(kinetic_energy_Eh, l, vps_cutoff_index[is], VPS_r[is], VKS1_r[ia], VPS_l_length[is], VPS_l[is], VPS_E_ave[is], VPS_nonloc_ave[is], wfn_buffer);
 					}
-					// conversion for wfn_r
+					// conversion for wfn_r_use
 					for(int ir=0; ir<wfn_cutoff_index[is]; ir++){
-						if(wfn_r[is][ir]<VPS_r[is][0]){
+						if(wfn_r_use[is][ir]<VPS_r[is][0]){
 							final_states_FP_nonloc_r[ie][sp][ia][l][ir]=wfn_buffer[0];
 						}
-						if(wfn_r[is][ir]>VPS_r[is][vps_cutoff_index[is]-1]){
+						if(wfn_r_use[is][ir]>VPS_r[is][vps_cutoff_index[is]-1]){
 							final_states_FP_nonloc_r[ie][sp][ia][l][ir]=wfn_buffer[vps_cutoff_index[is]-1];
 						}	 
 						for(int irp=0; irp<vps_cutoff_index[is]-1; irp++){
-							if(VPS_r[is][irp] < wfn_r[is][ir] && wfn_r[is][ir] < VPS_r[is][irp+1]){
-								final_states_FP_nonloc_r[ie][sp][ia][l][ir]=(wfn_buffer[irp]*(VPS_r[is][irp+1]-wfn_r[is][ir])+
-																														 wfn_buffer[irp+1]*(wfn_r[is][ir]-VPS_r[is][irp]))/(VPS_r[is][irp+1]-VPS_r[is][irp]);
+							if(VPS_r[is][irp] < wfn_r_use[is][ir] && wfn_r_use[is][ir] < VPS_r[is][irp+1]){
+								final_states_FP_nonloc_r[ie][sp][ia][l][ir]=(wfn_buffer[irp]*(VPS_r[is][irp+1]-wfn_r_use[is][ir])+
+																														 wfn_buffer[irp+1]*(wfn_r_use[is][ir]-VPS_r[is][irp]))/(VPS_r[is][irp+1]-VPS_r[is][irp]);
 							}
 						}
 					}
@@ -2416,12 +2439,10 @@ void calculate_PAD(){
 	if(PA_orth_correction){
 		write_log((char*)"----Radial integration for orthgonality correction----");
 		for(int is=0; is<atom_spec_length; is++){
-			double* buffer=new double[num_orbits[is]*num_orbits[is]];
-			Self_radial_int[is]=new double*[num_orbits[is]];
+			Self_radial_int[is]=alloc_dmatrix(num_orbits[is]);
 			for(int io1=0; io1<num_orbits[is]; io1++){
-				Self_radial_int[is][io1]=&buffer[io1*num_orbits[is]];
 				for(int io2=0; io2<num_orbits[is]; io2++){
-					Self_radial_int[is][io1][io2]=ddot(&wfn_length[is], &wfn_phi_rdr[is][io1][0], &wfn_phi[is][io2][0]);
+					Self_radial_int[is][io1][io2]=ddot(&wfn_length_use[is], &wfn_phi_rdr[is][io1][0], &wfn_phi[is][io2][0]);
 					// printf("%5.2f ", Self_radial_int[is][io1][io2]);
 				}
 				// printf("\n");
@@ -2429,7 +2450,7 @@ void calculate_PAD(){
 			// printf("\n");
 		}
 	}
-	
+
 	/// 3-5. calculation for each k point
 	double dispersion2[total_count_ext][num_points_E];
 	for(i=0; i<total_count_ext; i++){
@@ -2616,28 +2637,28 @@ void calculate_PAD(){
 							if(spin_i==1){
 								num_orbits2*=2;
 							}
-							double final_states[5][wfn_length[is]];
+							double final_states[5][wfn_length_use[is]];
 							for(il=0; il<5; il++){
-								for(ir=0; ir<wfn_length[is]; ir++){
+								for(ir=0; ir<wfn_length_use[is]; ir++){
 									final_states[il][ir]=0.0;
 								}
 							}
 							int k_index;
 							if(strcmp(PA_final_state, "PW")==0 && k_length>1e-5){
 								for(il=0; il<5; il++){
-									for(ir=0; ir<wfn_length[is]; ir++){
-										if(PA_ignore_core && !empty_atoms[is] && wfn_r[is][ir]<VPS_cutoff[is]){
+									for(ir=0; ir<wfn_length_use[is]; ir++){
+										if(PA_ignore_core && !empty_atoms[is] && wfn_r_use[is][ir]<VPS_cutoff[is]){
 											final_states[il][ir]=0.0;
 										}else{
-											final_states[il][ir]=wfn_r[is][ir]*sp_bessel(il, wfn_r[is][ir]*k_length);
+											final_states[il][ir]=wfn_r_use[is][ir]*sp_bessel(il, wfn_r_use[is][ir]*k_length);
 										}
 									}
 								}
 							}else if(strcmp(PA_final_state, "Calc")==0){
 								k_index=round(k_length/PA_final_state_step);
 								for(il=0; il<5; il++){
-									for(ir=0; ir<wfn_length[is]; ir++){
-										if(PA_ignore_core && !empty_atoms[is] && wfn_r[is][ir]<VPS_cutoff[is]){
+									for(ir=0; ir<wfn_length_use[is]; ir++){
+										if(PA_ignore_core && !empty_atoms[is] && wfn_r_use[is][ir]<VPS_cutoff[is]){
 											final_states[il][ir]=0.0;
 										}else{
 											final_states[il][ir]=final_states_calc[k_index-k_index_min][is][il][ir];
@@ -2672,7 +2693,7 @@ void calculate_PAD(){
 									if(lp<0){
 										continue;
 									}
-									double radial_part=ddot(&wfn_length[is], &final_states[lp][0], &wfn_phi_rdr[is][io2][0]);
+									double radial_part=ddot(&wfn_length_use[is], &final_states[lp][0], &wfn_phi_rdr[is][io2][0]);
 									int mpl;
 									complex<double> coeff2_1(0, 0);
 									complex<double> coeff2_2(0, 0);
@@ -2720,7 +2741,7 @@ void calculate_PAD(){
 									double et_real=inner_product(e_vec_re, atom_coordinates[ia]);
 									double et_imag=inner_product(e_vec_im, atom_coordinates[ia]);
 									complex<double> et(et_real, et_imag);
-									double radial_part=ddot(&wfn_length[is], &final_states[l][0], &wfn_phi_dr[is][io2][0]);
+									double radial_part=ddot(&wfn_length_use[is], &final_states[l][0], &wfn_phi_dr[is][io2][0]);
 									complex<double> coeff2_1(0, 0);
 									complex<double> coeff2_2(0, 0);
 									int mpl;
@@ -2764,25 +2785,21 @@ void calculate_PAD(){
 							double g_vec[3];
 							double kpg_vec[3]; // the z component is zero
 							is=atom_spec_index[ia];
-							double* final_states_re=new double[wfn_length[is]];
-							double* final_states_im=new double[wfn_length[is]];
-							double* sp_bessel_lp=new double[wfn_length[is]];
+							double* final_states_re=new double[wfn_length_use[is]];
+							double* final_states_im=new double[wfn_length_use[is]];
+							double* sp_bessel_lp=new double[wfn_length_use[is]];
 							if(final_states_FP_g_size[ik][FPIndex_1]==0){
 								continue;
 							}
-							complex<double>* FPFS_rt_buffer=new complex<double>[PA_theta_points*wfn_length[is]];
-							complex<double>** FPFS_rt=new complex<double>*[PA_theta_points]; //[it][ir]
-							for(int it=0; it<PA_theta_points; it++){								
-								FPFS_rt[it]=&FPFS_rt_buffer[it*wfn_length[is]];
-							}
+							complex<double>** FPFS_rt=alloc_zmatrix(PA_theta_points, wfn_length_use[is]);
 							for(int ig=0; ig<final_states_FP_g_size[ik][FPIndex_1]; ig++){
 								// prepare FPFS_rt
 								double kz_value=final_states_k[ik][FPIndex_1][2];
 								double tau_z=atom_coordinates[ia][2];
 								for(int it=0; it<PA_theta_points; it++){
 									double theta=(it*1.0+0.5)/(PA_theta_points*1.0)*M_PI;
-									for(int ir=0; ir<wfn_length[is]; ir++){
-										double z_value=wfn_r[is][ir]*cos(theta)+tau_z;
+									for(int ir=0; ir<wfn_length_use[is]; ir++){
+										double z_value=wfn_r_use[is][ir]*cos(theta)+tau_z;
 										FPFS_rt[it][ir]=interpolate_fgz(z_value, final_states_FP_loc[ik][FPIndex_1][ig], final_states_dz, VKS_count[0]);
 									}
 								}
@@ -2839,8 +2856,8 @@ void calculate_PAD(){
 									// mp: of final state, mp=m+j
 									// mpplp: mp+lp=m+j+lp
 									int l=l_list[is][io2];
-									double* wfn_init=new double[wfn_length[is]];
-									for(int ir=0; ir<wfn_length[is]; ir++){
+									double* wfn_init=new double[wfn_length_use[is]];
+									for(int ir=0; ir<wfn_length_use[is]; ir++){
 										if(strcmp(PA_initial_state, "PAO")==0){
 											wfn_init[ir]=wfn_phi_PAO[is][io2][ir];
 										}else{
@@ -2854,12 +2871,12 @@ void calculate_PAD(){
 									}
 									for(int lp=0; lp<=PA_lp_max; lp++){
 										// prepare the spherical Bessel function
-										for(int ir=0; ir<wfn_length[is]; ir++){
+										for(int ir=0; ir<wfn_length_use[is]; ir++){
 											//if(PA_ignore_core && wfn_r[is][ir]<VPS_cutoff[is]){
 											if(!empty_atoms[is] && ir<wfn_cutoff_index[is] && !PA_ignore_nonlocal){
 												sp_bessel_lp[ir]=0.0;
 											}else{
-												sp_bessel_lp[ir]=sp_bessel(lp, kpg_length*wfn_r[is][ir]);
+												sp_bessel_lp[ir]=sp_bessel(lp, kpg_length*wfn_r_use[is][ir]);
 											}
 											//printf("%d %12.7f %12.7f %12.7f\n", lp, wfn_r[is][ir], sp_bessel_lp[ir], kpg_length*wfn_r[is][ir]);
 										}
@@ -2884,17 +2901,17 @@ void calculate_PAD(){
 													for(int it=0; it<PA_theta_points; it++){
 														double theta=(it*1.0+0.5)/(PA_theta_points*1.0)*M_PI;
 														// printf("%6.4f ", theta);
-														for(ir=0; ir<wfn_length[is]-1; ir++){
-															final_states_re[ir]=(wfn_r[is][ir+1]-wfn_r[is][ir])*wfn_r[is][ir]*wfn_r[is][ir]
+														for(ir=0; ir<wfn_length_use[is]-1; ir++){
+															final_states_re[ir]=(wfn_r_use[is][ir+1]-wfn_r_use[is][ir])*wfn_r_use[is][ir]*wfn_r_use[is][ir]
 																*sp_bessel_lp[ir]*FPFS_rt[it][ir].real();
-															final_states_im[ir]=(wfn_r[is][ir+1]-wfn_r[is][ir])*wfn_r[is][ir]*wfn_r[is][ir]
+															final_states_im[ir]=(wfn_r_use[is][ir+1]-wfn_r_use[is][ir])*wfn_r_use[is][ir]*wfn_r_use[is][ir]
 																*sp_bessel_lp[ir]*FPFS_rt[it][ir].imag();
 															//printf("%7.4f (%7.4f, %7.4f) (%7.4f, %7.4f) %7.4f\n", wfn_r[is][ir], final_states_re[ir], final_states_im[ir], FPFS_rt[FPIndex_1][ig][ia][it][ir].real(), FPFS_rt[FPIndex_1][ig][ia][it][ir].imag(), sp_bessel_lp[ir]);
 														}
-														final_states_re[wfn_length[is]-1]=0.0;
-														final_states_im[wfn_length[is]-1]=0.0;
-														double radial_part_re=ddot(&wfn_length[is], &final_states_re[0], &wfn_init[0]);
-														double radial_part_im=ddot(&wfn_length[is], &final_states_im[0], &wfn_init[0]);
+														final_states_re[wfn_length_use[is]-1]=0.0;
+														final_states_im[wfn_length_use[is]-1]=0.0;
+														double radial_part_re=ddot(&wfn_length_use[is], &final_states_re[0], &wfn_init[0]);
+														double radial_part_im=ddot(&wfn_length_use[is], &final_states_im[0], &wfn_init[0]);
 														complex<double> radial_part(radial_part_re, -radial_part_im);
 														integral_rt+=radial_part*sin(theta)
 															*spherical_harmonic_theta(lp, mpplp-lp, theta)
@@ -2938,16 +2955,16 @@ void calculate_PAD(){
 												for(int it=0; it<PA_theta_points; it++){
 													double theta=(it*1.0+0.5)/(PA_theta_points*1.0)*M_PI;
 													// printf("%6.4f ", theta);
-													for(ir=0; ir<wfn_length[is]-1; ir++){
-														final_states_re[ir]=(wfn_r[is][ir+1]-wfn_r[is][ir])*wfn_r[is][ir]
+													for(ir=0; ir<wfn_length_use[is]-1; ir++){
+														final_states_re[ir]=(wfn_r_use[is][ir+1]-wfn_r_use[is][ir])*wfn_r_use[is][ir]
 															*sp_bessel_lp[ir]*FPFS_rt[it][ir].real();
-														final_states_im[ir]=(wfn_r[is][ir+1]-wfn_r[is][ir])*wfn_r[is][ir]
+														final_states_im[ir]=(wfn_r_use[is][ir+1]-wfn_r_use[is][ir])*wfn_r_use[is][ir]
 															*sp_bessel_lp[ir]*FPFS_rt[it][ir].imag();
 													}
-													final_states_re[wfn_length[is]-1]=0.0;
-													final_states_im[wfn_length[is]-1]=0.0;
-													double radial_part_re=ddot(&wfn_length[is], &final_states_re[0], &wfn_init[0]);
-													double radial_part_im=ddot(&wfn_length[is], &final_states_im[0], &wfn_init[0]);
+													final_states_re[wfn_length_use[is]-1]=0.0;
+													final_states_im[wfn_length_use[is]-1]=0.0;
+													double radial_part_re=ddot(&wfn_length_use[is], &final_states_re[0], &wfn_init[0]);
+													double radial_part_im=ddot(&wfn_length_use[is], &final_states_im[0], &wfn_init[0]);
 													complex<double> radial_part(radial_part_re, -radial_part_im);
 													integral_rt+=radial_part*sin(theta)
 														*spherical_harmonic_theta(lp, m, theta)
@@ -2973,8 +2990,7 @@ void calculate_PAD(){
 							delete[] final_states_re;
 							delete[] final_states_im;
 							delete[] sp_bessel_lp;
-							delete[] FPFS_rt_buffer;
-							delete[] FPFS_rt;
+							delete_zmatrix(FPFS_rt);
 							
 							//continue;
 							// nonlocal (core) part
