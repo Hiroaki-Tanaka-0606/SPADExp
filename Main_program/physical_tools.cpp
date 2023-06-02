@@ -2663,7 +2663,8 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 			solution[is][i]=mat[solution_band_indices[is]][i];
 		}
 	}
-	printf("Diff max: %8.4f\n", eigen_diff_max);
+	sprintf(sprintf_buffer2, "Diff max: %8.4f", eigen_diff_max);
+	write_log(sprintf_buffer2);
 
 	delete[] work;
 

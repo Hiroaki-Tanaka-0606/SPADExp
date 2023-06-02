@@ -3600,7 +3600,14 @@ void calculate_PAD(){
 				w_data_1d(PotG, "Vgg1_bulk_abs", Vgg_count_bulk, &Vgg1_abs_bulk[0]);
 			}
 		}
-		
+		// bulk band dispersion
+		if(PA_FPFS_bulk_set){
+			w_data_3d(FPFSG, "bulk_dispersion_up", total_count_ext, PA_FPFS_bulk_kz_steps, final_states_FP_g_size_bulk, (double***)&FP_bulk_dispersion_up[0][0][0]);
+			if(spin_i>0){
+				w_data_3d(FPFSG, "bulk_dispersion_dn", total_count_ext, PA_FPFS_bulk_kz_steps, final_states_FP_g_size_bulk, (double***)&FP_bulk_dispersion_dn[0][0][0]);
+			}
+			w_att_1d(FPFSG, "bulk_dispersion_kz", PA_FPFS_bulk_kz_steps, FP_bulk_dispersion_kz);
+		}
 		
 		for(i=0; i<total_count_ext; i++){
 			if(dimension==2){
