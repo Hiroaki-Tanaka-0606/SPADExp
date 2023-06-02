@@ -21,6 +21,7 @@ void w_att_2d(Group g, const char* key, int size1, int size2, double** value);
 void w_data_1c(Group g, const char* key, int size, int length, char** value);
 void w_data_1d(Group g, const char* key, int size, double* value);
 void w_data_2d(Group g, const char* key, int size1, int size2, double** value);
+void w_data_2i(Group g, const char* key, int size1, int size2, int** value);
 void w_data_3d(Group g, const char* key, int size1, int size2,
 							 int size3, double*** value);
 void w_data_4d(Group g, const char* key,

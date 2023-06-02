@@ -3380,9 +3380,13 @@ void calculate_PAD(){
 
 	double**** FP_loc_edge_export_re; // [sp][ig][ie][ik]
   double**** FP_loc_edge_export_im; // [sp][ig][ie][ik]
+	int** FP_bulk_count_export_up; // [sp][ie][ik];
+	int** FP_bulk_count_export_dn;
+	
 	int EScale_count=E_max_scale-E_min_scale+1;
 	int g_count=0;
 	if(PA_FPFS){
+		Group FPFSG(rootG.createGroup("FPFS"));
 		for(int ik=0; ik<total_count_ext; ik++){
 			for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
 				if(g_count<final_states_FP_g_size[ik][ifp]){
@@ -3420,27 +3424,46 @@ void calculate_PAD(){
 				}
 			}
 		}
-		if(!PA_FPFS_file_set){
-			// FPFS part
-			Group FPFSG(rootG.createGroup("FPFS"));
-			w_att_int(FPFSG, "E_min_scale", E_min_scale);
-			w_att_int(FPFSG, "E_max_scale", E_max_scale);
-			w_att_double(FPFSG, "FPFS_energy_step", PA_FPFS_energy_step);
-			if(!PA_FPFS_bulk_set){
-				for(int sp=0; sp<sp_max; sp++){
-					if(spin_i==1){
-						sprintf(group_name, "Local_edge_%s_real", sp==0?"Up":"Dn");
+		if(PA_FPFS_bulk_set){
+			FP_bulk_count_export_up=alloc_imatrix(EScale_count, total_count_ext);
+			if(spin_i>0){
+				FP_bulk_count_export_dn=alloc_imatrix(EScale_count, total_count_ext);
+			}
+			for(int ik=0; ik<total_count_ext; ik++){
+				for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
+					int ie=final_states_EScale[ik][ifp]-E_min_scale;
+					int sp=final_states_spin[ik][ifp];
+					if(sp==0){
+						FP_bulk_count_export_up[ie][ik]=final_states_FP_bulk_count[ik][ifp];
 					}else{
-						sprintf(group_name, "Local_edge_real");
+						FP_bulk_count_export_dn[ie][ik]=final_states_FP_bulk_count[ik][ifp];
 					}
-					w_data_3d(FPFSG, group_name, g_count, EScale_count, total_count_ext, (double***)&FP_loc_edge_export_re[sp][0][0][0]);
-					if(spin_i==1){
-						sprintf(group_name, "Local_edge_%s_imag", sp==0?"Up":"Dn");
-					}else{
-						sprintf(group_name, "Local_edge_imag");
-					}
-					w_data_3d(FPFSG, group_name, g_count, EScale_count, total_count_ext, (double***)&FP_loc_edge_export_im[sp][0][0][0]);
 				}
+			}
+			w_data_2i(FPFSG, "FP_bulk_count_up", EScale_count, total_count_ext, (int**)&FP_bulk_count_export_up[0][0]);
+			if(spin_i>0){
+				w_data_2i(FPFSG, "FP_bulk_count_dn", EScale_count, total_count_ext, (int**)&FP_bulk_count_export_dn[0][0]);
+			}
+		}
+	  
+		// FPFS part
+		w_att_int(FPFSG, "E_min_scale", E_min_scale);
+		w_att_int(FPFSG, "E_max_scale", E_max_scale);
+		w_att_double(FPFSG, "FPFS_energy_step", PA_FPFS_energy_step);
+		if(!PA_FPFS_bulk_set){
+			for(int sp=0; sp<sp_max; sp++){
+				if(spin_i==1){
+					sprintf(group_name, "Local_edge_%s_real", sp==0?"Up":"Dn");
+				}else{
+					sprintf(group_name, "Local_edge_real");
+				}
+				w_data_3d(FPFSG, group_name, g_count, EScale_count, total_count_ext, (double***)&FP_loc_edge_export_re[sp][0][0][0]);
+				if(spin_i==1){
+					sprintf(group_name, "Local_edge_%s_imag", sp==0?"Up":"Dn");
+				}else{
+					sprintf(group_name, "Local_edge_imag");
+				}
+				w_data_3d(FPFSG, group_name, g_count, EScale_count, total_count_ext, (double***)&FP_loc_edge_export_im[sp][0][0][0]);
 			}
 		}
 	}
