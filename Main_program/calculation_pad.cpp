@@ -887,6 +887,9 @@ void calculate_PAD(){
 	double*** final_states_FP_bulk_kz;        // [total_count_ext][FPIndex][in]
 	int** final_states_FP_bulk_count;         // [total_count_ext][FPIndex] = in size
 	complex<double>*** final_states_FP_bulk_coefs; // [total_count_ext][FPIndex][in] = linear combination coefficients
+	double*** FP_bulk_dispersion_up; // [total_count_ext][ikz][ig']
+	double*** FP_bulk_dispersion_dn; // [total_count_ext][ikz][ig']
+	double* FP_bulk_dispersion_kz=new double[PA_FPFS_bulk_kz_steps]; // [ikz]
 	//// VPS-related variables
 	int VPS_l_length[atom_spec_length];       // [is]=il value
 	int VPS_r_length[atom_spec_length];       // [is]=ir value
@@ -1456,6 +1459,7 @@ void calculate_PAD(){
 		final_states_FP_bulk_z=new complex<double>****[total_count_ext];
 		final_states_FP_bulk_kz=new double**[total_count_ext];
 		final_states_FP_bulk_coefs=new complex<double>**[total_count_ext];
+		// final_states_FP_bulk_dispersion=new double*[total_count_ext];
 		int digit=(spin_i==2)?2:1;
 		
 		final_states_FP_nonloc_r=new double****[scale_width];
@@ -1546,6 +1550,13 @@ void calculate_PAD(){
 			final_states_FP_g_size_bulk=FP_g_count_bulk;
 			final_states_FP_g_bulk=alloc_imatrix(FP_g_count_bulk, 3);
 			final_states_FP_g_vec_bulk=alloc_dmatrix(FP_g_count_bulk, 3);
+			FP_bulk_dispersion_up=alloc_dcube(total_count_ext, PA_FPFS_bulk_kz_steps, FP_g_count_bulk);
+			if(spin_i==1 || spin_i==2){
+				FP_bulk_dispersion_dn=alloc_dcube(total_count_ext, PA_FPFS_bulk_kz_steps, FP_g_count_bulk);
+			}
+			for(int ikz=0; ikz<PA_FPFS_bulk_kz_steps; ikz++){
+				FP_bulk_dispersion_kz[ikz]=FPFS_gz_length*((ikz*1.0)/(PA_FPFS_bulk_kz_steps*1.0)-0.5);
+			}
 
 			int ig_count=0;
 			for(int n1=-n_range; n1<=n_range; n1++){
@@ -1592,7 +1603,7 @@ void calculate_PAD(){
 					}
 				}
 			}			
-		}
+		} // end of if(PA_FPFS_bulk_set)
 
 		// Note: n_range are determined in the Fourier expansion of VKS
 #pragma omp parallel firstprivate(scale_width, PA_ext_set, spin_i, num_bands, EF_Eh, Eh, PA_FPFS_energy_step, E_min_scale, E_max_scale, PA_excitation_energy, atom_above_surface, atom_length, n_range, digit, PA_FPFS_kRange, khn_approx, FPFS_z_start, n_range_z, final_states_FP_g_size_bulk) private(j)
@@ -1623,6 +1634,27 @@ void calculate_PAD(){
 			int sp;
 			int sp_max=(spin_i==0 || spin_i==2)? 1 : 2;
 			for(sp=0; sp<sp_max;sp++){
+				// bulk band calculations
+				if(PA_FPFS_bulk_set){
+					complex<double>* Vgg_use;
+					double* dispersion_use;
+					if(sp==0){
+						Vgg_use=&Vgg0_matrix_bulk[0][0];
+						dispersion_use=&FP_bulk_dispersion_up[i][0][0];
+					}else{
+						Vgg_use=&Vgg1_matrix_bulk[0][0];
+						dispersion_use=&FP_bulk_dispersion_dn[i][0][0];
+					}
+					calc_bulk_dispersion(k_point, PA_FPFS_bulk_kz_steps, FP_bulk_dispersion_kz, final_states_FP_g_size_bulk,
+															 &final_states_FP_g_vec_bulk[0][0], Vgg_use, dispersion_use);
+					/*
+					for(int ig=0; ig<final_states_FP_g_size_bulk; ig++){
+						for(int ikz=0; ikz<PA_FPFS_bulk_kz_steps; ikz++){
+							printf("%8.4f %8.4f\n", FP_bulk_dispersion_kz[ikz], FP_bulk_dispersion_up[i][ikz][ig]);
+						}
+						printf("\n");
+						}*/
+				}
 				// initialization
 				for(j=0; j<scale_width; j++){
 					if(PA_FPFS_edge_smoothing){
@@ -1823,12 +1855,17 @@ void calculate_PAD(){
 				// bulk eigenstate calculations
 				if(PA_FPFS_bulk_set){
 					complex<double>* Vgg_use;
+					double* dispersion_use;
 					if(final_states_spin[i][j]==0){
 						Vgg_use=&Vgg0_matrix_bulk[0][0];
+						dispersion_use=&FP_bulk_dispersion_up[i][0][0];
 					}else{
 						Vgg_use=&Vgg1_matrix_bulk[0][0];
+						dispersion_use=&FP_bulk_dispersion_dn[i][0][0];
 					}
-					FP_bulk_count=solve_final_states_bulk(kinetic_energy_Eh, k_au, FPFS_gz_length, final_states_FP_g_size_bulk, &final_states_FP_g_vec_bulk[0][0], Vgg_use, &final_states_FP_bulk[i][j], &final_states_FP_bulk_kz[i][j]);
+					FP_bulk_count=solve_final_states_bulk(kinetic_energy_Eh, k_au, FPFS_gz_length, final_states_FP_g_size_bulk,
+																								&final_states_FP_g_vec_bulk[0][0], Vgg_use, PA_FPFS_bulk_kz_steps, FP_bulk_dispersion_kz,
+																								dispersion_use, &final_states_FP_bulk[i][j], &final_states_FP_bulk_kz[i][j]);
 					final_states_FP_bulk_count[i][j]=FP_bulk_count;
 					final_states_FP_bulk_coefs[i][j]=new complex<double>[FP_bulk_count];
 					// continue;

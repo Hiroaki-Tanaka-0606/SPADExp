@@ -2474,7 +2474,7 @@ double determinant_sign(int g_count, complex<double>** mat, double Ekin, double*
 	return zdet.real();
 }
 
-int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, double* g_vec_buffer, complex<double>* Vgg_buffer, complex<double>*** final_states_pointer, double** kz_pointer){
+int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, double* g_vec_buffer, complex<double>* Vgg_buffer, int kz_count, double* dispersion_kz, double* dispersion_buffer, complex<double>*** final_states_pointer, double** kz_pointer){
 	// printf("Ekin %10.6f\n", Ekin);
 	char* sprintf_buffer2=new char[Log_length+1];
 	int i, j;
@@ -2487,45 +2487,124 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 	for(i=0; i<g_count; i++){
 		Vgg[i]=&Vgg_buffer[i*g_count];
 	}
+	double** dispersion=new double*[kz_count];
+	for(i=0; i<kz_count; i++){
+		dispersion[i]=&dispersion_buffer[i*g_count];
+	}
 	
 	complex<double>** mat=alloc_zmatrix(g_count); // transposed
 
 	double k_bloch[3];
 	k_bloch[0]=k_para[0];
 	k_bloch[1]=k_para[1];
-	double det_array[PA_FPFS_bulk_kz_steps];
-	// |k+G|^2+2(Vgg-E)
-	for(int ikz=0; ikz<PA_FPFS_bulk_kz_steps; ikz++){
-		double kz=gz*((1.0*ikz)/(1.0*PA_FPFS_bulk_kz_steps)-0.5);
-		//double kz=gz*(1.0*ikz)/(1.0*PA_FPFS_bulk_kz_steps);
-		k_bloch[2]=kz;
-		// printf("k %.3f %.3f %.3f\n", k_bloch[0], k_bloch[1], k_bloch[2]);
-		det_array[ikz]=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
-		// printf("%8.3f %10.2e\n", kz, det_array[ikz]);
-		// printf("%8.3f %10.2e\n", kz, determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg));
+	int solution_count_cross=0;
+	int solution_count_local=0;
+	for(int ib=0; ib<g_count; ib++){
+		for(int ikz=0; ikz<kz_count; ikz++){
+			int index_prev=(ikz-1+kz_count)%kz_count;
+			int index_next=(ikz+1)%kz_count;
+			double eigen_prev=dispersion[index_prev][ib];
+			double eigen_curr=dispersion[ikz][ib];
+			double eigen_next=dispersion[index_next][ib];
+			// cross: between curr and next
+			if((eigen_curr-Ekin)*(eigen_next-Ekin)<0){
+				solution_count_cross++;
+			}
+			// local
+			if(eigen_prev<eigen_curr && eigen_curr>eigen_next && Ekin-eigen_curr<PA_FPFS_bulk_tolerance && eigen_curr<Ekin){
+				// mountain shape
+				solution_count_local++;
+			}
+			if(eigen_prev>eigen_curr && eigen_curr<eigen_next && eigen_curr-Ekin<PA_FPFS_bulk_tolerance && eigen_curr>Ekin){
+				// valley shape
+				solution_count_local++;
+			}
+		}	
 	}
-	int solution_count=0;
-	for(int ikz=0; ikz<PA_FPFS_bulk_kz_steps; ikz++){
-		int ikzp1=(ikz+1)%PA_FPFS_bulk_kz_steps;
-		if(det_array[ikz]*det_array[ikzp1]<0){
-			solution_count++;
-		}
-	}
-	sprintf(sprintf_buffer2, "%d solution candidates found", solution_count);
+	int solution_count=solution_count_cross+solution_count_local;
+	sprintf(sprintf_buffer2, "%d solution candidates found (cross: %d, local: %d)", solution_count, solution_count_cross, solution_count_local);
 	write_log(sprintf_buffer2);
+	if(solution_count==0){
+		write_log((char*)"Warning: No bulk solution found");
+		return 0;
+	}
+			
 	double solution_indices[solution_count];
 	double* solution_kz=new double[solution_count];
+	double solution_kz_alt[solution_count];
+	bool solution_kz_alt_use[solution_count];
+	int solution_band_indices[solution_count];
 	double solution_eigen_diff[solution_count];
 	complex<double>** solution=alloc_zmatrix(solution_count, g_count);
 	*final_states_pointer=solution;
 	*kz_pointer=solution_kz;
 	int solution_index=0;
-	for(int ikz=0; ikz<PA_FPFS_bulk_kz_steps; ikz++){
-		int ikzp1=(ikz+1)%PA_FPFS_bulk_kz_steps;
-		if(det_array[ikz]*det_array[ikzp1]<0){
-			solution_indices[solution_index]=ikz;
-			solution_index++;
-		}
+	for(int ib=0; ib<g_count; ib++){
+		for(int ikz=0; ikz<kz_count; ikz++){
+			int index_prev=(ikz-1+kz_count)%kz_count;
+		  int index_next=(ikz+1)%kz_count;
+			double eigen_prev=dispersion[index_prev][ib];
+			double eigen_curr=dispersion[ikz][ib];
+			double eigen_next=dispersion[index_next][ib];
+			// cross: between curr and next
+			if((eigen_curr-Ekin)*(eigen_next-Ekin)<0){
+				// determine kz by interpolation
+				double kz_curr=dispersion_kz[index_prev];
+				double kz_next=dispersion_kz[index_next];
+				if(kz_curr==kz_count-1){
+					kz_next+=gz;
+				}
+				double kz_interp=(kz_curr*abs(eigen_next-Ekin)+kz_next*abs(eigen_curr-Ekin))/abs(eigen_next-eigen_curr);
+
+				double kz_left=kz_curr;
+				double kz_right=kz_next;
+				k_bloch[2]=kz_left;
+				double det_left=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
+				k_bloch[2]=kz_right;
+				double det_right=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
+
+				//printf("kz          %10.5f -- %10.5f\n", kz_left, kz_right);
+				//printf("Determinant %10.3e -- %10.3e\n", det_left, det_right);
+
+				while(kz_right-kz_left>1e-8){
+					double kz_center=(kz_left+kz_right)/2.0;
+					k_bloch[2]=kz_center;
+					double det_center=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
+					if(det_left*det_center<0){
+						kz_right=kz_center;
+						det_right=det_center;
+					}else{
+						kz_left=kz_center;
+						det_left=det_center;
+					}			
+					//printf("kz          %10.5f -- %10.5f\n", kz_left, kz_right);
+					//printf("Determinant %10.3e -- %10.3e\n", det_left, det_right);
+				}
+
+				// eigenvalue calculations
+				solution_kz[solution_index]=(kz_left+kz_right)/2.0;
+				solution_kz_alt[solution_index]=kz_interp;
+				solution_kz_alt_use[solution_index]=true;
+			  
+				solution_band_indices[solution_index]=ib;
+				solution_index++;
+			}
+			// local
+			if(eigen_prev<eigen_curr && eigen_curr>eigen_next && Ekin-eigen_curr<PA_FPFS_bulk_tolerance && eigen_curr<Ekin){
+				// mountain shape
+				solution_kz[solution_index]=dispersion_kz[ikz];
+				solution_band_indices[solution_index]=ib;
+				solution_kz_alt_use[solution_index]=false;
+				solution_index++;
+			}
+			if(eigen_prev>eigen_curr && eigen_curr<eigen_next && eigen_curr-Ekin<PA_FPFS_bulk_tolerance && eigen_curr>Ekin){
+				// valley shape
+				solution_kz[solution_index]=dispersion_kz[ikz];
+				solution_band_indices[solution_index]=ib;
+				solution_kz_alt_use[solution_index]=false;
+				solution_index++;
+			}
+		}	
 	}
 	// for zheev
 	char compute='V';
@@ -2538,41 +2617,8 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 	double w[g_count];
 	complex<double>* work;
 		
-	
+	double eigen_diff_max=0.0;
 	for(int is=0; is<solution_count; is++){
-		int index=solution_indices[is];
-		double kz_left=gz*((1.0*index)/(1.0*PA_FPFS_bulk_kz_steps)-0.5);
-		double kz_right=gz*((1.0*(index+1))/(1.0*PA_FPFS_bulk_kz_steps)-0.5);
-		
-		//double kz_left=gz*((1.0*index)/(1.0*PA_FPFS_bulk_kz_steps)-0.0);
-		//double kz_right=gz*((1.0*(index+1))/(1.0*PA_FPFS_bulk_kz_steps)-0.0);
-
-		k_bloch[2]=kz_left;
-		double det_left=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
-		k_bloch[2]=kz_right;
-		double det_right=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
-
-		//printf("kz          %10.5f -- %10.5f\n", kz_left, kz_right);
-		//printf("Determinant %10.3e -- %10.3e\n", det_left, det_right);
-
-		while(kz_right-kz_left>1e-8){
-			double kz_center=(kz_left+kz_right)/2.0;
-			k_bloch[2]=kz_center;
-			double det_center=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
-			if(det_left*det_center<0){
-				kz_right=kz_center;
-				det_right=det_center;
-			}else{
-				kz_left=kz_center;
-				det_left=det_center;
-			}			
-			//printf("kz          %10.5f -- %10.5f\n", kz_left, kz_right);
-			//printf("Determinant %10.3e -- %10.3e\n", det_left, det_right);
-		}
-
-		// eigenvalue calculations
-		solution_kz[is]=(kz_left+kz_right)/2.0;
-		// printf("solution kz: %10.5f\n", solution_kz[is]);
 		k_bloch[2]=solution_kz[is];
 		prepare_matrix_bulk(g_count, mat, 0.0, k_bloch, g_vec, Vgg);
 
@@ -2591,48 +2637,41 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 			write_log((char*)"zheev failed");
 			return 0;
 		}
-		double min_diff=-1;
-		int min_diff_index=-1;
-		for(i=0; i<g_count; i++){
-			//printf("Eigen[%d] %10.6f\n", i, w[i]*0.5);
-			double diff=abs(w[i]*0.5-Ekin);
-			if(min_diff_index<0 || diff<min_diff){
-				min_diff_index=i;
-				min_diff=diff;
-			}
-		}
-		// eigenvectors (mat) are not transposed !!
-		//printf("Eigen diff: %10.3e\n", min_diff);
-		for(i=0; i<g_count; i++){
-			solution[is][i]=mat[min_diff_index][i];
-		}
-		/*
-			// for test
-		prepare_matrix_bulk(g_count, mat, 0.0, k_bloch, g_vec, Vgg);
-		complex<double> HV[g_count];
-		for(i=0; i<g_count; i++){
-			HV[i]=complex<double>(0.0, 0.0);
-			for(j=0; j<g_count; j++){
-				HV[i]+=mat[j][i]*solution[is][j];
-			}
-			printf("%8.4f %8.4f %8.4f %8.4f\n", HV[i].real(), HV[i].imag(), (HV[i]/solution[is][i]).real(), (HV[i]/solution[is][i]).imag());
-			}*/
-	}
+		double eigen_diff=abs(w[solution_band_indices[is]]*0.5-Ekin);
 
-	/*
-	for(i=0; i<g_count; i++){
-		printf("%8.3f %8.3f %8.3f ", g_vec[i][0], g_vec[i][1], g_vec[i][2]);
-		for(j=0; j<solution_count; j++){
-			printf("%8.3f ", abs(solution[j][i]));
+		if(solution_kz_alt_use[is]){
+			k_bloch[2]=solution_kz_alt[is];
+			
+			prepare_matrix_bulk(g_count, mat, 0.0, k_bloch, g_vec, Vgg);
+			zheev_(&compute, &uplo, &g_count, &mat[0][0], &g_count, &w[0], &work[0], &lwork, &rwork[0], &info);
+			if(info!=0){
+				write_log((char*)"zheev failed");
+				return 0;
+			}
+			double eigen_diff_2=abs(w[solution_band_indices[is]]*0.5-Ekin);
+			if(eigen_diff_2<eigen_diff){
+				eigen_diff=eigen_diff_2;
+				solution_kz[is]=solution_kz_alt[is];
+				//cout << "alt" << endl;
+			}
 		}
-		printf("\n");
-		}*/
+		//printf("Diff: %8.4f\n", eigen_diff);
+		if(eigen_diff>eigen_diff_max){
+			eigen_diff_max=eigen_diff;
+		}
+		for(i=0; i<g_count; i++){
+			solution[is][i]=mat[solution_band_indices[is]][i];
+		}
+	}
+	printf("Diff max: %8.4f\n", eigen_diff_max);
 
 	delete[] work;
 
 	delete[] g_vec;
 	delete[] Vgg;
 	delete[] sprintf_buffer2;
+	delete[] dispersion;
+	delete_zmatrix(mat);
 
 	return solution_count;
 }
@@ -2689,4 +2728,70 @@ double* interpolate_wfn(int wfn_length, double* wfn, double* r, int wfn_length_r
 		}*/
 	
 	return wfn_reduced;
+}
+
+
+void calc_bulk_dispersion(double* k_para, int kz_count, double* kz, int g_count, double* g_vec_buffer, complex<double>* Vgg_buffer, double* eigen_buffer){
+	int i, j;
+	// prepare matrix
+	double** g_vec=new double*[g_count];
+	for(i=0; i<g_count; i++){
+		g_vec[i]=&g_vec_buffer[3*i];
+	}
+	complex<double>** Vgg=new complex<double>*[g_count];
+	for(i=0; i<g_count; i++){
+		Vgg[i]=&Vgg_buffer[i*g_count];
+	}
+	double** eigen=new double*[kz_count];
+	for(i=0; i<kz_count; i++){
+		eigen[i]=&eigen_buffer[i*g_count];
+	}
+	
+	
+	complex<double>** mat=alloc_zmatrix(g_count); // transposed
+
+	double k_bloch[3];
+	k_bloch[0]=k_para[0];
+	k_bloch[1]=k_para[1];
+	
+	// for zheev
+	char nocompute='N';
+	char uplo='U';
+	
+	complex<double> work_dummy;
+	int lwork=-1;
+	double rwork[3*g_count-2];
+	int info;
+	double w[g_count];
+	complex<double>* work;
+
+	for(int ikz=0; ikz<kz_count; ikz++){
+		k_bloch[2]=kz[ikz];
+		
+		prepare_matrix_bulk(g_count, mat, 0.0, k_bloch, g_vec, Vgg);
+		if(lwork==-1){
+			zheev_(&nocompute, &uplo, &g_count, &mat[0][0], &g_count, &w[0], &work_dummy, &lwork, &rwork[0], &info);
+			if(info!=0){
+				write_log((char*)"zheev preparation failed");
+				return;
+			}
+			lwork=round(abs(work_dummy));
+			work=new complex<double>[lwork];
+		}
+		
+		zheev_(&nocompute, &uplo, &g_count, &mat[0][0], &g_count, &w[0], &work[0], &lwork, &rwork[0], &info);
+		if(info!=0){
+			write_log((char*)"zheev failed");
+			return;
+		}
+		for(int ig=0; ig<g_count; ig++){
+			eigen[ikz][ig]=0.5*w[ig];
+		}
+	}
+	delete[] work;
+	delete[] g_vec;
+	delete[] Vgg;
+	delete[] eigen;
+	delete_zmatrix(mat);
+	
 }
