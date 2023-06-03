@@ -18,3 +18,4 @@ int** alloc_imatrix(int m, int n);
 double*** alloc_dcube(int l, int m, int n);
 
 complex<double>*** alloc_zcube(int l, int m, int n);
+void delete_zcube(complex<double>*** cube);

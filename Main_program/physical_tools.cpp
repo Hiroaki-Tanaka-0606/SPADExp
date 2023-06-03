@@ -683,14 +683,15 @@ double calc_norm(int count, double* vector);
 
 // In the Numerov method, the solving direction is downward
 // f_{i-1}=(1+h^2/12 a_{i-1})^-1 * [ 2(1-5h^2/12 a_i)*f_i - (1+h^2/12 a_{i+1})*f_{i+1} ]
-void solve_final_state_Numerov(double Ekin, double* k_para, double kz, int g_count, int z_count, double dz, int z_start, int V00_index, complex<double>** Vgg_buffer, double* g_vec_buffer, complex<double>* FP_loc_buffer){
+void solve_final_state_Numerov(double Ekin, double* k_para, double kz, int g_count, int z_count, double dz, int z_start, int V00_index, complex<double>*** Vgg, double* g_vec_buffer, complex<double>* FP_loc_buffer){
 	// composite matrix
+	/*
 	complex<double>*** Vgg=alloc_zpmatrix(g_count);
 	for(int ig1=0; ig1<g_count; ig1++){
 		for(int ig2=0; ig2<g_count; ig2++){
 			Vgg[ig1][ig2]=Vgg_buffer[ig1*g_count+ig2];
 		}
-	}
+		}*/
 	double g_vec[g_count][3];
 	for(int ig=0; ig<g_count; ig++){
 		for(int ix=0; ix<3; ix++){
@@ -789,23 +790,24 @@ void solve_final_state_Numerov(double Ekin, double* k_para, double kz, int g_cou
 		}
 	}
 	
-	delete_zpmatrix(Vgg);
+	//delete_zpmatrix(Vgg);
 }
 
 // calc_mode:
 // 0: perform the whole calculations, store right vector in loc_edge
 // 1: stop the calculations at zgels, store right vector in loc_edge
 // 2: perform zgesv using the given right vector in loc_edge
-void solve_final_state_Matrix(double Ekin, double* k_para, double kz, int g_count, int z_count, double dz, int z_start, int V00_index, complex<double>** Vgg_buffer, double* g_vec_buffer, complex<double>* FP_loc_buffer, complex<double>** left_matrix, complex<double>** right_matrix, int calc_mode, complex<double>* loc_edge){
+void solve_final_state_Matrix(double Ekin, double* k_para, double kz, int g_count, int z_count, double dz, int z_start, int V00_index, complex<double>*** Vgg, double* g_vec_buffer, complex<double>* FP_loc_buffer, complex<double>** left_matrix, complex<double>** right_matrix, int calc_mode, complex<double>* loc_edge){
   //cout << "Matrix " << endl;
 	char* sprintf_buffer2=new char[Log_length+1];
 	// composite matrix
+	/*
 	complex<double>*** Vgg=alloc_zpmatrix(g_count);
 	for(int ig1=0; ig1<g_count; ig1++){
 		for(int ig2=0; ig2<g_count; ig2++){
 			Vgg[ig1][ig2]=Vgg_buffer[ig1*g_count+ig2];
 		}
-	}
+		}*/
 	double g_vec[g_count][3];
 	for(int ig=0; ig<g_count; ig++){
 		for(int ix=0; ix<3; ix++){
@@ -1256,10 +1258,10 @@ void solve_final_state_Matrix(double Ekin, double* k_para, double kz, int g_coun
 	delete[] right_vector2;
 		
 	delete[] sprintf_buffer2;
-	delete_zpmatrix(Vgg);
+	//delete_zpmatrix(Vgg);
 }
 
-void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_count, int z_count, int bulk_count, double dz, int z_start, int V00_index, complex<double>** Vgg_buffer, double* g_vec_buffer, complex<double>* bulk_z_buffer, complex<double>* FP_loc_buffer, complex<double>** left_matrix, complex<double>** right_matrix, complex<double>* bulk_coefs){
+void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_count, int z_count, int bulk_count, double dz, int z_start, int V00_index, complex<double>*** Vgg, double* g_vec_buffer, complex<double>* bulk_z_buffer, complex<double>* FP_loc_buffer, complex<double>** left_matrix, complex<double>** right_matrix, complex<double>* bulk_coefs){
 	char* sprintf_buffer2=new char[Log_length+1];
 	
 	// composite matrix
@@ -1269,12 +1271,13 @@ void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_c
 			bulk_z[in][ig]=&bulk_z_buffer[in*g_count*z_count+ig*z_count];
 		}
 	}
+	/*
 	complex<double>*** Vgg=alloc_zpmatrix(g_count);
 	for(int ig1=0; ig1<g_count; ig1++){
 		for(int ig2=0; ig2<g_count; ig2++){
 			Vgg[ig1][ig2]=Vgg_buffer[ig1*g_count+ig2];
 		}
-	}
+		}*/
 	double g_vec[g_count][3];
 	for(int ig=0; ig<g_count; ig++){
 		for(int ix=0; ix<3; ix++){
@@ -1611,7 +1614,7 @@ void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_c
 		}*/
 	
 	delete_zpmatrix(bulk_z);
-	delete_zpmatrix(Vgg);
+	//delete_zpmatrix(Vgg);
 	delete_zmatrix(H_RL);
 	delete_zmatrix(H_RR);
 	delete_zmatrix(H_LL);

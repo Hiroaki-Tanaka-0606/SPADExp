@@ -883,7 +883,7 @@ void calculate_PAD(){
 	double** final_states_FP_g_vec_bulk;      // [ig'][3]
 	int final_states_FP_g_size_bulk;          // ig' size
 	complex<double>**** final_states_FP_bulk; // [total_count_ext][FPIndex][in][ig']
-	complex<double>***** final_states_FP_bulk_z; // [total_count_ext][FPIndex][in][ig][iz]
+	//complex<double>***** final_states_FP_bulk_z; // [total_count_ext][FPIndex][in][ig][iz]
 	double*** final_states_FP_bulk_kz;        // [total_count_ext][FPIndex][in]
 	int** final_states_FP_bulk_count;         // [total_count_ext][FPIndex] = in size
 	complex<double>*** final_states_FP_bulk_coefs; // [total_count_ext][FPIndex][in] = linear combination coefficients
@@ -1448,17 +1448,21 @@ void calculate_PAD(){
 		final_states_FP_g_size=new int*[total_count_ext];
 		final_states_FP_g=new int***[total_count_ext];
 		final_states_FP_g_vec=new double***[total_count_ext];
-		final_states_FP_loc_edge=new complex<double>**[total_count_ext];
+		if(!PA_FPFS_bulk_set){
+			final_states_FP_loc_edge=new complex<double>**[total_count_ext];
+		}
 
 		final_states_FP_nonloc=new complex<double>****[total_count_ext];
 		final_states_FP_norm1=new double**[total_count_ext];
 		final_states_FP_norm2=new double**[total_count_ext];
 
-		final_states_FP_bulk=new complex<double>***[total_count_ext];
-		final_states_FP_bulk_count=new int*[total_count_ext];
-		final_states_FP_bulk_z=new complex<double>****[total_count_ext];
-		final_states_FP_bulk_kz=new double**[total_count_ext];
-		final_states_FP_bulk_coefs=new complex<double>**[total_count_ext];
+		if(PA_FPFS_bulk_set){
+			final_states_FP_bulk=new complex<double>***[total_count_ext];
+			final_states_FP_bulk_count=new int*[total_count_ext];
+			//final_states_FP_bulk_z=new complex<double>****[total_count_ext];
+			final_states_FP_bulk_kz=new double**[total_count_ext];
+			final_states_FP_bulk_coefs=new complex<double>**[total_count_ext];
+		}
 		// final_states_FP_bulk_dispersion=new double*[total_count_ext];
 		int digit=(spin_i==2)?2:1;
 		
@@ -1495,8 +1499,8 @@ void calculate_PAD(){
 		complex<double>*** left_matrix_buffer;
 		complex<double>*** right_matrix_buffer;
 	  if(!PA_FPFS_Numerov){
-			double g_test[3];
 			int FP_g_count=0;
+			double g_test[3];
 			for(int n1=-n_range; n1<=n_range; n1++){
 				for(int n2=-n_range; n2<=n_range; n2++){
 					g_test[2]=0.0;
@@ -1741,13 +1745,17 @@ void calculate_PAD(){
 			final_states_FP_g[i]=new int**[FPIndex_size];
 			final_states_FP_g_vec[i]=new double**[FPIndex_size];
 			final_states_FP_g_size[i]=new int[FPIndex_size];
-			final_states_FP_loc_edge[i]=new complex<double>*[FPIndex_size];
+			if(!PA_FPFS_bulk_set){
+				final_states_FP_loc_edge[i]=new complex<double>*[FPIndex_size];
+			}
 
-			final_states_FP_bulk[i]=new complex<double>**[FPIndex_size];
-			final_states_FP_bulk_count[i]=new int[FPIndex_size];
-			final_states_FP_bulk_z[i]=new complex<double>***[FPIndex_size];
-			final_states_FP_bulk_kz[i]=new double*[FPIndex_size];
-			final_states_FP_bulk_coefs[i]=new complex<double>*[FPIndex_size];
+			if(PA_FPFS_bulk_set){
+				final_states_FP_bulk[i]=new complex<double>**[FPIndex_size];
+				final_states_FP_bulk_count[i]=new int[FPIndex_size];
+				//final_states_FP_bulk_z[i]=new complex<double>***[FPIndex_size];
+				final_states_FP_bulk_kz[i]=new double*[FPIndex_size];
+				final_states_FP_bulk_coefs[i]=new complex<double>*[FPIndex_size];
+			}
 
 			for(j=0; j<FPIndex_size; j++){
 				final_states_k[i][j]=new double[3];
@@ -1886,7 +1894,6 @@ void calculate_PAD(){
 				
 				// printf("k=(%.2f, %.2f, %.2f)\n", final_states_k[i][j][0], final_states_k[i][j][1], final_states_k[i][j][2]);
 				// solve the Schroedinger equation using the Fourier expansion in the xy plane
-				double g_test_au[2*n_range+1][2*n_range+1][3];
 				int FP_g_count=0;
 				double g_test[3];
 				double kpg_test[3];
@@ -1909,11 +1916,17 @@ void calculate_PAD(){
 				final_states_FP_g_size[i][j]=FP_g_count;
 				final_states_FP_g[i][j]=alloc_imatrix(FP_g_count, 2);
 				final_states_FP_g_vec[i][j]=alloc_dmatrix(FP_g_count, 3);
-				final_states_FP_loc_edge[i][j]=new complex<double>[FP_g_count];
-				final_states_FP_bulk_z[i][j]=alloc_zcube(FP_bulk_count, FP_g_count, VKS_count[0]);
-				for(int ig=0; ig<FP_g_count; ig++){
-					final_states_FP_loc_edge[i][j][ig]=complex<double>(0.0, 0.0);
+				if(!PA_FPFS_bulk_set){
+					final_states_FP_loc_edge[i][j]=new complex<double>[FP_g_count];
+					for(int ig=0; ig<FP_g_count; ig++){
+						final_states_FP_loc_edge[i][j][ig]=complex<double>(0.0, 0.0);
+					}
 				}
+				complex<double>*** final_states_FP_bulk_z;
+				if(PA_FPFS_bulk_set){
+					final_states_FP_bulk_z=alloc_zcube(FP_bulk_count, FP_g_count, VKS_count[0]);
+				}
+
 				int ig_count=0;
 				for(int n1=-n_range; n1<=n_range; n1++){
 				  for(int n2=-n_range; n2<=n_range; n2++){
@@ -1929,7 +1942,7 @@ void calculate_PAD(){
 				      final_states_FP_g[i][j][ig_count][0]=n1;
 				      final_states_FP_g[i][j][ig_count][1]=n2;
 				      for(int p=0; p<2; p++){
-					final_states_FP_g_vec[i][j][ig_count][p]=g_test[p];
+								final_states_FP_g_vec[i][j][ig_count][p]=g_test[p];
 				      }
 				      final_states_FP_g_vec[i][j][ig_count][2]=0.0;
 				      ig_count++;
@@ -1960,7 +1973,7 @@ void calculate_PAD(){
 							for(int iz=bulk_start; iz<=FPFS_z_start; iz++){
 								double z_bulk=final_states_dz*iz-FPFS_bulk_max;
 								complex<double> phase(cos(kpgz*z_bulk), sin(kpgz*z_bulk));
-								final_states_FP_bulk_z[i][j][in][ig_found][iz]+=phase*final_states_FP_bulk[i][j][in][igb];
+								final_states_FP_bulk_z[in][ig_found][iz]+=phase*final_states_FP_bulk[i][j][in][igb];
 							}
 						}
 						if(FP_g_error){
@@ -2031,19 +2044,21 @@ void calculate_PAD(){
 				if(PA_FPFS_Numerov){
 					// solve the differential equation by the Numerov method
 					solve_final_state_Numerov(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0],
-																		final_states_dz, FPFS_z_start, V00_index, &Vgg_matrix[0][0], &final_states_FP_g_vec[i][j][0][0],
+																		final_states_dz, FPFS_z_start, V00_index, Vgg_matrix, &final_states_FP_g_vec[i][j][0][0],
 																		&final_states_FP_loc[i][j][0][0]);
 				}else{
 					if(!PA_FPFS_bulk_set){
 						solve_final_state_Matrix(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0],
-																		 final_states_dz, FPFS_z_start, V00_index, &Vgg_matrix[0][0], &final_states_FP_g_vec[i][j][0][0],
+																		 final_states_dz, FPFS_z_start, V00_index, Vgg_matrix, &final_states_FP_g_vec[i][j][0][0],
 																		 &final_states_FP_loc[i][j][0][0], left_matrix, right_matrix, PA_FPFS_edge_smoothing?1:0, final_states_FP_loc_edge[i][j]);
 					}else{
 						solve_final_state_from_bulk(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0], FP_bulk_count,
-																				final_states_dz, FPFS_z_start, V00_index, &Vgg_matrix[0][0], &final_states_FP_g_vec[i][j][0][0],
-																				&final_states_FP_bulk_z[i][j][0][0][0], &final_states_FP_loc[i][j][0][0], left_matrix, right_matrix,
+																				final_states_dz, FPFS_z_start, V00_index, Vgg_matrix, &final_states_FP_g_vec[i][j][0][0],
+																				&final_states_FP_bulk_z[0][0][0], &final_states_FP_loc[i][j][0][0], left_matrix, right_matrix,
 																				final_states_FP_bulk_coefs[i][j]);
 																				
+
+						delete_zcube(final_states_FP_bulk_z);
 					}
 				}
 				delete_zpmatrix(Vgg_matrix);
@@ -2223,7 +2238,7 @@ void calculate_PAD(){
 					}
 					
 					solve_final_state_Matrix(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0],
-																	 final_states_dz, FPFS_z_start, V00_index, &Vgg_matrix[0][0], &final_states_FP_g_vec[i][j][0][0],
+																	 final_states_dz, FPFS_z_start, V00_index, Vgg_matrix, &final_states_FP_g_vec[i][j][0][0],
 																	 &final_states_FP_loc[i][j][0][0], left_matrix, right_matrix, 2, final_states_FP_loc_edge[i][j]);
 					delete_zpmatrix(Vgg_matrix);
 				}
@@ -3420,31 +3435,33 @@ void calculate_PAD(){
 		}
 		FP_loc_edge_export_re=new double***[sp_max];
 		FP_loc_edge_export_im=new double***[sp_max];
-		for(int sp=0; sp<sp_max; sp++){
-		  double* buffer_re=new double[g_count*EScale_count*total_count_ext];
-			FP_loc_edge_export_re[sp]=new double**[g_count];
-		  double* buffer_im=new double[g_count*EScale_count*total_count_ext];
-			FP_loc_edge_export_im[sp]=new double**[g_count];
-			for(int ig=0; ig<g_count; ig++){
-				FP_loc_edge_export_re[sp][ig]=new double*[EScale_count];
-				FP_loc_edge_export_im[sp][ig]=new double*[EScale_count];
-				for(int ie=0; ie<EScale_count; ie++){
-					FP_loc_edge_export_re[sp][ig][ie]=&buffer_re[ig*EScale_count*total_count_ext+ie*total_count_ext];
-					FP_loc_edge_export_im[sp][ig][ie]=&buffer_im[ig*EScale_count*total_count_ext+ie*total_count_ext];
-					for(int ik=0; ik<total_count_ext; ik++){
-						FP_loc_edge_export_re[sp][ig][ie][ik]=0.0;
-						FP_loc_edge_export_im[sp][ig][ie][ik]=0.0;
+		if(!PA_FPFS_bulk_set){
+			for(int sp=0; sp<sp_max; sp++){
+				double* buffer_re=new double[g_count*EScale_count*total_count_ext];
+				FP_loc_edge_export_re[sp]=new double**[g_count];
+				double* buffer_im=new double[g_count*EScale_count*total_count_ext];
+				FP_loc_edge_export_im[sp]=new double**[g_count];
+				for(int ig=0; ig<g_count; ig++){
+					FP_loc_edge_export_re[sp][ig]=new double*[EScale_count];
+					FP_loc_edge_export_im[sp][ig]=new double*[EScale_count];
+					for(int ie=0; ie<EScale_count; ie++){
+						FP_loc_edge_export_re[sp][ig][ie]=&buffer_re[ig*EScale_count*total_count_ext+ie*total_count_ext];
+						FP_loc_edge_export_im[sp][ig][ie]=&buffer_im[ig*EScale_count*total_count_ext+ie*total_count_ext];
+						for(int ik=0; ik<total_count_ext; ik++){
+							FP_loc_edge_export_re[sp][ig][ie][ik]=0.0;
+							FP_loc_edge_export_im[sp][ig][ie][ik]=0.0;
+						}
 					}
 				}
 			}
-		}
-		for(int ik=0; ik<total_count_ext; ik++){
-			for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
-				int ie=final_states_EScale[ik][ifp]-E_min_scale;
-				int sp=final_states_spin[ik][ifp];
-				for(int ig=0; ig<g_count; ig++){
-					FP_loc_edge_export_re[sp][ig][ie][ik]=final_states_FP_loc_edge[ik][ifp][ig].real();
-					FP_loc_edge_export_im[sp][ig][ie][ik]=final_states_FP_loc_edge[ik][ifp][ig].imag();
+			for(int ik=0; ik<total_count_ext; ik++){
+				for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
+					int ie=final_states_EScale[ik][ifp]-E_min_scale;
+					int sp=final_states_spin[ik][ifp];
+					for(int ig=0; ig<g_count; ig++){
+						FP_loc_edge_export_re[sp][ig][ie][ik]=final_states_FP_loc_edge[ik][ifp][ig].real();
+						FP_loc_edge_export_im[sp][ig][ie][ik]=final_states_FP_loc_edge[ik][ifp][ig].imag();
+					}
 				}
 			}
 		}

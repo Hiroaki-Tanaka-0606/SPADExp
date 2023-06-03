@@ -94,12 +94,19 @@ complex<double>*** alloc_zcube(int l, int m, int n){
 	for(int i=0; i<l*m*n; i++){
 		buffer[i]=complex<double>(0.0, 0.0);
 	}
+	complex<double>** pbuffer=new complex<double>*[l*m];
 	complex<double>*** ret=new complex<double>**[l];
 	for(int i=0; i<l; i++){
-		ret[i]=new complex<double>*[m];
+		ret[i]=&pbuffer[i*m];
 		for(int j=0; j<m; j++){
 			ret[i][j]=&buffer[i*m*n+j*n];
 		}
 	}
 	return ret;
+}
+
+void delete_zcube(complex<double>*** cube){
+	delete[] cube[0][0];
+	delete[] cube[0];
+	delete[] cube;
 }
