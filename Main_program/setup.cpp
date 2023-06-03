@@ -191,7 +191,7 @@ void initialize(){
 	PA_FPFS_bulk_kz_steps=200;
 	PA_interpolate_wfn=true;
 	PA_interpolate_wfn_coef=0.5;
-	PA_FPFS_bulk_tolerance=0.002;
+	PA_FPFS_bulk_tolerance=0.000;
 }
 
 void finalize(){

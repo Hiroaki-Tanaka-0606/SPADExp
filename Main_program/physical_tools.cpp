@@ -1505,6 +1505,14 @@ void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_c
 		}
 		printf("\n");
 		}*/
+
+	// put high weight
+	for(int ig=0; ig<g_count; ig++){
+		for(int in=0; in<bulk_count; in++){
+			left_matrix_all[in][ig+g_count]*=100;
+		}
+		right_vector[ig+g_count]*=100;
+	}
 	
 	int lwork=-1;
 	complex<double> work_dummy;
