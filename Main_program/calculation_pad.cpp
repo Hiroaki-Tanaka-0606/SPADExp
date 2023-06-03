@@ -1498,9 +1498,7 @@ void calculate_PAD(){
 			double g_test[3];
 			int FP_g_count=0;
 			for(int n1=-n_range; n1<=n_range; n1++){
-				int n1p=n1+n_range;
 				for(int n2=-n_range; n2<=n_range; n2++){
-					int n2p=n2+n_range;
 					g_test[2]=0.0;
 					for(int p=0; p<=1; p++){
 						g_test[p]=rec_cell[1][p]*n1+rec_cell[2][p]*n2;
@@ -1522,6 +1520,8 @@ void calculate_PAD(){
 				left_matrix_buffer[it]=&alloc_zmatrix(eq_dim)[0];
 				right_matrix_buffer[it]=&alloc_zmatrix(nrhs, eq_dim)[0];
 			}
+			cout << "Left " << eq_dim << endl;
+			cout << "Right " << nrhs << " " << eq_dim << endl;
 		}
 
 		complex<double>** Vgg0_matrix_bulk;
@@ -1888,26 +1888,22 @@ void calculate_PAD(){
 				// solve the Schroedinger equation using the Fourier expansion in the xy plane
 				double g_test_au[2*n_range+1][2*n_range+1][3];
 				int FP_g_count=0;
+				double g_test[3];
+				double kpg_test[3];
 				for(int n1=-n_range; n1<=n_range; n1++){
-					int n1p=n1+n_range;
-					for(int n2=-n_range; n2<=n_range; n2++){
-						int n2p=n2+n_range;
-						g_test_au[n1p][n2p][2]=0.0;
-						double kpg_test[3];
-						kpg_test[2]=0.0;
-						for(int p=0; p<=1; p++){
-							g_test_au[n1p][n2p][p]=rec_cell[1][p]*n1+rec_cell[2][p]*n2;
-							kpg_test[p]=g_test_au[n1p][n2p][p]+k_au[p];
-						}
-						double kpg_length=sqrt(inner_product(kpg_test, kpg_test));
-						double g_length=sqrt(inner_product(g_test_au[n1p][n2p], g_test_au[n1p][n2p]));
-						if((PA_FPFS_Numerov && kpg_length<k_length_au) || (!PA_FPFS_Numerov && g_length<khn_approx*PA_FPFS_kRange)){
-							FP_g_count++;
-							g_test_au[n1p][n2p][2]=1.0;
-						}else{
-							g_test_au[n1p][n2p][2]=-1.0;
-						}
-					}
+				  for(int n2=-n_range; n2<=n_range; n2++){
+				    g_test[2]=0.0;
+				    kpg_test[2]=0.0;
+				    for(int p=0; p<=1; p++){
+				      g_test[p]=rec_cell[1][p]*n1+rec_cell[2][p]*n2;
+				      kpg_test[p]=g_test[p]+k_au[p];
+				    }
+				    double kpg_length=sqrt(inner_product(kpg_test, kpg_test));
+				    double g_length=sqrt(inner_product(g_test, g_test));
+				    if((PA_FPFS_Numerov && kpg_length<k_length_au) || (!PA_FPFS_Numerov && g_length<khn_approx*PA_FPFS_kRange)){
+				      FP_g_count++;
+				    }
+				  }
 				}
 				// composite list
 				final_states_FP_g_size[i][j]=FP_g_count;
@@ -1920,20 +1916,27 @@ void calculate_PAD(){
 				}
 				int ig_count=0;
 				for(int n1=-n_range; n1<=n_range; n1++){
-					int n1p=n1+n_range;
-					for(int n2=-n_range; n2<=n_range; n2++){
-						int n2p=n2+n_range;
-						if(g_test_au[n1p][n2p][2]>0){
-							final_states_FP_g[i][j][ig_count][0]=n1;
-							final_states_FP_g[i][j][ig_count][1]=n2;
-							for(int p=0; p<2; p++){
-								final_states_FP_g_vec[i][j][ig_count][p]=g_test_au[n1p][n2p][p];
-							}
-							final_states_FP_g_vec[i][j][ig_count][2]=0.0;
-							ig_count++;
-						}
-					}
+				  for(int n2=-n_range; n2<=n_range; n2++){
+				    g_test[2]=0.0;
+				    kpg_test[2]=0.0;
+				    for(int p=0; p<=1; p++){
+				      g_test[p]=rec_cell[1][p]*n1+rec_cell[2][p]*n2;
+				      kpg_test[p]=g_test[p]+k_au[p];
+				    }
+				    double kpg_length=sqrt(inner_product(kpg_test, kpg_test));
+				    double g_length=sqrt(inner_product(g_test, g_test));
+				    if((PA_FPFS_Numerov && kpg_length<k_length_au) || (!PA_FPFS_Numerov && g_length<khn_approx*PA_FPFS_kRange)){
+				      final_states_FP_g[i][j][ig_count][0]=n1;
+				      final_states_FP_g[i][j][ig_count][1]=n2;
+				      for(int p=0; p<2; p++){
+					final_states_FP_g_vec[i][j][ig_count][p]=g_test[p];
+				      }
+				      final_states_FP_g_vec[i][j][ig_count][2]=0.0;
+				      ig_count++;
+				    }
+				  }
 				}
+				
 				if(PA_FPFS_bulk_set){
 					// fill final_states_FP_bulk_z
 					int bulk_start=ceil(FPFS_bulk_min/final_states_dz);
@@ -1987,7 +1990,7 @@ void calculate_PAD(){
 					}*/
 				
 				// prapare the Vgg matrix
-				complex<double>* Vgg_matrix[FP_g_count][FP_g_count];
+				complex<double>*** Vgg_matrix=alloc_zpmatrix(FP_g_count);
 				int V00_index=-1;
 				bool Vgg_error=false;
 				for(int ig1=0; ig1<FP_g_count; ig1++){
@@ -2043,6 +2046,7 @@ void calculate_PAD(){
 																				
 					}
 				}
+				delete_zpmatrix(Vgg_matrix);
 				// printf("k=%4d, FPIndex=%3d, nonlocal part\n", i, j);
 			} // for(FPIndex_size)
 			delete[] sprintf_buffer2;
@@ -2182,7 +2186,7 @@ void calculate_PAD(){
 					double kz=final_states_k[i][j][2];
 					int FP_g_count=final_states_FP_g_size[i][j];
 
-					complex<double>* Vgg_matrix[FP_g_count][FP_g_count];
+					complex<double>*** Vgg_matrix=alloc_zpmatrix(FP_g_count);
 					int V00_index=-1;
 					bool Vgg_error=false;
 					for(int ig1=0; ig1<FP_g_count; ig1++){
@@ -2221,6 +2225,7 @@ void calculate_PAD(){
 					solve_final_state_Matrix(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0],
 																	 final_states_dz, FPFS_z_start, V00_index, &Vgg_matrix[0][0], &final_states_FP_g_vec[i][j][0][0],
 																	 &final_states_FP_loc[i][j][0][0], left_matrix, right_matrix, 2, final_states_FP_loc_edge[i][j]);
+					delete_zpmatrix(Vgg_matrix);
 				}
 			}
 		}

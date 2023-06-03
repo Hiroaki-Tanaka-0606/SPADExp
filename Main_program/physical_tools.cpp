@@ -797,6 +797,7 @@ void solve_final_state_Numerov(double Ekin, double* k_para, double kz, int g_cou
 // 1: stop the calculations at zgels, store right vector in loc_edge
 // 2: perform zgesv using the given right vector in loc_edge
 void solve_final_state_Matrix(double Ekin, double* k_para, double kz, int g_count, int z_count, double dz, int z_start, int V00_index, complex<double>** Vgg_buffer, double* g_vec_buffer, complex<double>* FP_loc_buffer, complex<double>** left_matrix, complex<double>** right_matrix, int calc_mode, complex<double>* loc_edge){
+  //cout << "Matrix " << endl;
 	char* sprintf_buffer2=new char[Log_length+1];
 	// composite matrix
 	complex<double>*** Vgg=alloc_zpmatrix(g_count);
@@ -864,7 +865,7 @@ void solve_final_state_Matrix(double Ekin, double* k_para, double kz, int g_coun
 			}
 		}
 	}
-
+	//cout << "Matrix preparation " << endl;
 	/*
 	// LU decomposition
 	int info;
