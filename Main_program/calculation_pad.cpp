@@ -1526,6 +1526,7 @@ void calculate_PAD(){
 
 		complex<double>** Vgg0_matrix_bulk;
 		complex<double>** Vgg1_matrix_bulk;
+		complex<double>*** bulk_matrix_buffer;
 		if(PA_FPFS_bulk_set){
 			int FP_g_count_bulk=0;
 			double g123[3];
@@ -1602,7 +1603,13 @@ void calculate_PAD(){
 						return;
 					}
 				}
-			}			
+			}
+			
+			int num_threads=omp_get_max_threads();
+			bulk_matrix_buffer=new complex<double>**[num_threads];
+			for(int it=0; it<num_threads; it++){
+				bulk_matrix_buffer[it]=&alloc_zmatrix(FP_g_count_bulk)[0];
+			}
 		} // end of if(PA_FPFS_bulk_set)
 
 		// Note: n_range are determined in the Fourier expansion of VKS
@@ -1612,10 +1619,15 @@ void calculate_PAD(){
 			char* sprintf_buffer2=new char[Log_length+1];
 			complex<double>** left_matrix;
 			complex<double>** right_matrix;
+			complex<double>** bulk_matrix;
 			if(!PA_FPFS_Numerov){
 				int threadId=omp_get_thread_num();
 				left_matrix=left_matrix_buffer[threadId];
 				right_matrix=right_matrix_buffer[threadId];
+			}
+			if(PA_FPFS_bulk_set){
+				int threadId=omp_get_thread_num();
+				bulk_matrix=bulk_matrix_buffer[threadId];
 			}
 			
 			// cout << i << endl;
@@ -1646,7 +1658,7 @@ void calculate_PAD(){
 						dispersion_use=&FP_bulk_dispersion_dn[i][0][0];
 					}
 					calc_bulk_dispersion(k_point, PA_FPFS_bulk_kz_steps, FP_bulk_dispersion_kz, final_states_FP_g_size_bulk,
-															 &final_states_FP_g_vec_bulk[0][0], Vgg_use, dispersion_use);
+															 &final_states_FP_g_vec_bulk[0][0], Vgg_use, dispersion_use, bulk_matrix);
 					/*
 					for(int ig=0; ig<final_states_FP_g_size_bulk; ig++){
 						for(int ikz=0; ikz<PA_FPFS_bulk_kz_steps; ikz++){
@@ -1865,7 +1877,8 @@ void calculate_PAD(){
 					}
 					FP_bulk_count=solve_final_states_bulk(kinetic_energy_Eh, k_au, FPFS_gz_length, final_states_FP_g_size_bulk,
 																								&final_states_FP_g_vec_bulk[0][0], Vgg_use, PA_FPFS_bulk_kz_steps, FP_bulk_dispersion_kz,
-																								dispersion_use, &final_states_FP_bulk[i][j], &final_states_FP_bulk_kz[i][j]);
+																								dispersion_use, &final_states_FP_bulk[i][j], &final_states_FP_bulk_kz[i][j],
+																								bulk_matrix);
 					final_states_FP_bulk_count[i][j]=FP_bulk_count;
 					final_states_FP_bulk_coefs[i][j]=new complex<double>[FP_bulk_count];
 					// continue;
@@ -2217,6 +2230,12 @@ void calculate_PAD(){
 			for(int it=0; it<num_threads; it++){
 				delete_zmatrix(left_matrix_buffer[it]);
 				delete_zmatrix(right_matrix_buffer[it]);
+			}
+		}
+		if(PA_FPFS_bulk_set){
+			int num_threads=omp_get_max_threads();
+			for(int it=0; it<num_threads; it++){
+				delete_zmatrix(bulk_matrix_buffer[it]);
 			}
 		}
 
@@ -3380,7 +3399,7 @@ void calculate_PAD(){
 
 	double**** FP_loc_edge_export_re; // [sp][ig][ie][ik]
   double**** FP_loc_edge_export_im; // [sp][ig][ie][ik]
-	int** FP_bulk_count_export_up; // [sp][ie][ik];
+	int** FP_bulk_count_export_up; // [ie][ik];
 	int** FP_bulk_count_export_dn;
 	
 	int EScale_count=E_max_scale-E_min_scale+1;

@@ -2474,7 +2474,7 @@ double determinant_sign(int g_count, complex<double>** mat, double Ekin, double*
 	return zdet.real();
 }
 
-int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, double* g_vec_buffer, complex<double>* Vgg_buffer, int kz_count, double* dispersion_kz, double* dispersion_buffer, complex<double>*** final_states_pointer, double** kz_pointer){
+int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, double* g_vec_buffer, complex<double>* Vgg_buffer, int kz_count, double* dispersion_kz, double* dispersion_buffer, complex<double>*** final_states_pointer, double** kz_pointer, complex<double>** mat){
 	// printf("Ekin %10.6f\n", Ekin);
 	char* sprintf_buffer2=new char[Log_length+1];
 	int i, j;
@@ -2492,7 +2492,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		dispersion[i]=&dispersion_buffer[i*g_count];
 	}
 	
-	complex<double>** mat=alloc_zmatrix(g_count); // transposed
+	//complex<double>** mat=alloc_zmatrix(g_count); // transposed
 
 	double k_bloch[3];
 	k_bloch[0]=k_para[0];
@@ -2672,7 +2672,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 	delete[] Vgg;
 	delete[] sprintf_buffer2;
 	delete[] dispersion;
-	delete_zmatrix(mat);
+	//delete_zmatrix(mat);
 
 	return solution_count;
 }
@@ -2732,7 +2732,7 @@ double* interpolate_wfn(int wfn_length, double* wfn, double* r, int wfn_length_r
 }
 
 
-void calc_bulk_dispersion(double* k_para, int kz_count, double* kz, int g_count, double* g_vec_buffer, complex<double>* Vgg_buffer, double* eigen_buffer){
+void calc_bulk_dispersion(double* k_para, int kz_count, double* kz, int g_count, double* g_vec_buffer, complex<double>* Vgg_buffer, double* eigen_buffer, complex<double>** mat){
 	int i, j;
 	// prepare matrix
 	double** g_vec=new double*[g_count];
@@ -2749,7 +2749,7 @@ void calc_bulk_dispersion(double* k_para, int kz_count, double* kz, int g_count,
 	}
 	
 	
-	complex<double>** mat=alloc_zmatrix(g_count); // transposed
+	//complex<double>** mat=alloc_zmatrix(g_count); // transposed
 
 	double k_bloch[3];
 	k_bloch[0]=k_para[0];
@@ -2793,6 +2793,6 @@ void calc_bulk_dispersion(double* k_para, int kz_count, double* kz, int g_count,
 	delete[] g_vec;
 	delete[] Vgg;
 	delete[] eigen;
-	delete_zmatrix(mat);
+	//delete_zmatrix(mat);
 	
 }

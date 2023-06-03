@@ -188,10 +188,10 @@ void initialize(){
 	PA_FPFS_bulk_min_ang=0.0;
 	PA_FPFS_bulk_max_ang=0.0;
 	PA_FPFS_bulk_count=0;
-	PA_FPFS_bulk_kz_steps=100;
+	PA_FPFS_bulk_kz_steps=200;
 	PA_interpolate_wfn=true;
 	PA_interpolate_wfn_coef=0.5;
-	PA_FPFS_bulk_tolerance=0.01;
+	PA_FPFS_bulk_tolerance=0.002;
 }
 
 void finalize(){
