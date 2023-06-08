@@ -188,7 +188,7 @@ void initialize(){
 	PA_FPFS_bulk_min_ang=0.0;
 	PA_FPFS_bulk_max_ang=0.0;
 	PA_FPFS_bulk_count=0;
-	PA_FPFS_bulk_kz_steps=200;
+	PA_FPFS_bulk_kz_steps=99;
 	PA_interpolate_wfn=true;
 	PA_interpolate_wfn_coef=0.5;
 	PA_FPFS_bulk_tolerance=0.000;

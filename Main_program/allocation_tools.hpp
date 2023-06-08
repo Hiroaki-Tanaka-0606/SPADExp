@@ -16,6 +16,10 @@ void delete_dmatrix(double** mat);
 int** alloc_imatrix(int m, int n);
 
 double*** alloc_dcube(int l, int m, int n);
+void delete_dcube(double*** cube);
 
 complex<double>*** alloc_zcube(int l, int m, int n);
 void delete_zcube(complex<double>*** cube);
+
+bool** alloc_bmatrix(int m, int n);
+void delete_bmatrix(bool** mat);

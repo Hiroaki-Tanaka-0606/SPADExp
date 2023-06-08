@@ -79,14 +79,21 @@ double*** alloc_dcube(int l, int m, int n){
 	for(int i=0; i<l*m*n; i++){
 		buffer[i]=0.0;
 	}
+	double** pbuffer=new double*[l*m];
 	double*** ret=new double**[l];
 	for(int i=0; i<l; i++){
-		ret[i]=new double*[m];
+		ret[i]=&pbuffer[i*m];
 		for(int j=0; j<m; j++){
 			ret[i][j]=&buffer[i*m*n+j*n];
 		}
 	}
 	return ret;
+}
+
+void delete_dcube(double*** cube){
+	delete[] cube[0][0];
+	delete[] cube[0];
+	delete[] cube;
 }
 
 complex<double>*** alloc_zcube(int l, int m, int n){
@@ -109,4 +116,21 @@ void delete_zcube(complex<double>*** cube){
 	delete[] cube[0][0];
 	delete[] cube[0];
 	delete[] cube;
+}
+
+bool** alloc_bmatrix(int m, int n){
+	bool* buffer=new bool[m*n];
+	for(int i=0; i<m*n; i++){
+		buffer[i]=false;
+	}
+	bool** ret=new bool*[m];
+	for(int i=0; i<m; i++){
+		ret[i]=&buffer[i*n];
+	}
+	return ret;
+}
+
+void delete_bmatrix(bool** mat){
+	delete[] mat[0];
+	delete[] mat;
 }
