@@ -2806,6 +2806,9 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 	for(int ikz=0; ikz<kz_count; ikz++){
 		for(int ikappaz=0; ikappaz<kappaz_count; ikappaz++){
 			if(isSolution[ikz][ikappaz]){
+				for(int ig=0; ig<g_count; ig++){
+					det_abs_array[ig]=-1;
+				}
 				int ikz_next=(ikz+1)%kz_count;
 				int ikappaz_next=ikappaz+1;
 				complex<double> kz_lb(dispersion_kz[ikz], -dispersion_kappaz[ikappaz]);
@@ -2825,7 +2828,7 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 					write_log((char*)"Error: origin not found in the first trial");
 					break;
 				}
-
+				int trial_count=1;
 				while(abs(kz_lt-kz_lb)>1e-8){
 					complex<double> kz_lc=(kz_lb+kz_lt)*0.5;
 					complex<double> kz_cb=(kz_lb+kz_rb)*0.5;
@@ -2855,9 +2858,11 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 						kz_lt=kz_ct;
 						kz_rb=kz_rc;
 					}else{
-						write_log((char*)"Error: origin not found during a bisection trial");
+					  sprintf(sprintf_buffer2, "Error: origin not found during a bisection trial #%d", trial_count);
+					  write_log(sprintf_buffer2);
 						break;
 					}
+					trial_count++;
 				}
 				complex<double> kz_sol=(kz_lb+kz_rt)*0.5;
 				solution_kz[solution_index]=kz_sol.real();
