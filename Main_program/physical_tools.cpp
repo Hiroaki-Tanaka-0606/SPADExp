@@ -2709,14 +2709,16 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 		return 0;
 	}
 			
-	double solution_indices[solution_count];
+	double* solution_indices=new double[solution_count];
 	double* solution_kz=new double[solution_count];
 	double* solution_kappaz=new double[solution_count];
 	
-	double solution_kz_alt[solution_count];
-	bool solution_kz_alt_use[solution_count];
-	int solution_band_indices[solution_count];
-	double solution_eigen_diff[solution_count];
+	double* solution_kz_alt=new double[solution_count];
+	bool* solution_kz_alt_use=new bool[solution_count];
+	for(int is=0; is<solution_count; is++){
+		solution_kz_alt_use[is]=false;
+	}
+	int* solution_band_indices=new int[solution_count];
 	complex<double>** solution=alloc_zmatrix(solution_count, g_count);
 	*final_states_pointer=solution;
 	*kz_pointer=solution_kz;
@@ -2881,11 +2883,11 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 	
 	complex<double> work_dummy;
 	int lwork=-1;
-	double rwork[3*g_count-2];
+	double* rwork=new double[3*g_count-2];
 	int info;
-	double w[g_count];
-	double rwork2[2*g_count];
-	complex<double> wc[g_count];
+	double* w=new double[g_count];
+	double* rwork2=new double[2*g_count];
+	complex<double>* wc=new complex<double>[g_count];
 	complex<double>* work;
 		
 	double eigen_diff_max=0.0;
@@ -2995,6 +2997,15 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 	//delete[] dispersion;
 	//delete_zmatrix(mat);
 	//delete_bmatrix(isSolution);
+	delete[] solution_indices;
+	delete[] solution_kz_alt;
+	delete[] solution_kz_alt_use;
+	delete[] solution_band_indices;
+	delete[] rwork;
+	delete[] w;
+	delete[] rwork2;
+	delete[] wc;
+	delete[] work;
 	return solution_count;
 }
 
