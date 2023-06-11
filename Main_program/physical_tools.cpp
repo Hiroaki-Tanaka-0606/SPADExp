@@ -2546,12 +2546,18 @@ complex<double> determinant_complex(int g_count, complex<double>** mat, double E
 }
 
 bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, complex<double> rb){
+	/*
 	complex<double> lblt=lt/lb;
 	complex<double> ltrt=rt/lt;
 	complex<double> rtrb=rb/rt;
 	complex<double> rblb=lb/rb;
 	return (lblt.imag()>0 && ltrt.imag()>0 && rtrb.imag()>0 && rblb.imag()>0) ||
-		(lblt.imag()<0 && ltrt.imag()<0 && rtrb.imag()<0 && rblb.imag()<0);
+	(lblt.imag()<0 && ltrt.imag()<0 && rtrb.imag()<0 && rblb.imag()<0);*/
+
+	return !((lb.real()>0 && lt.real()>0 && rt.real()>0 && rb.real()>0) ||
+					 (lb.real()<0 && lt.real()<0 && rt.real()<0 && rb.real()<0) ||
+					 (lb.imag()>0 && lt.imag()>0 && rt.imag()>0 && rb.imag()>0) ||
+					 (lb.imag()<0 && lt.imag()<0 && rt.imag()<0 && rb.imag()<0));
 }
 
 	int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, double** g_vec, complex<double>** Vgg, int kz_count, double* dispersion_kz, int kappaz_count, double* dispersion_kappaz, double** dispersion_r, complex<double>*** dispersion_c, complex<double>*** final_states_pointer, double** kz_pointer, double** kappaz_pointer, complex<double>** mat, bool** isSolution, complex<double>** vr){
@@ -2665,7 +2671,7 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 			}
 			int crossing=min(crossing2_real/2, crossing2_imag/2);
 			// printf("%d ", crossing);
-			if(crossing>0){
+			if(/*true || */crossing>0){
 				kz=complex<double>(dispersion_kz[ikz], -dispersion_kappaz[ikappaz]);
 				complex<double> det_lb=determinant_complex(g_count, mat, Ekin, k_bloch, kz, g_vec, Vgg);
 				kz=complex<double>(dispersion_kz[ikz], -dispersion_kappaz[ikappaz+1]);
@@ -2705,8 +2711,8 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 	//int solution_count=solution_count_cross+solution_count_local;
 	int solution_count=solution_count_real+solution_count_complex;
 	//sprintf(sprintf_buffer2, "%d solution candidates found (cross: %d, local: %d)", solution_count, solution_count_cross, solution_count_local);
-	sprintf(sprintf_buffer2, "%3d solution candidates found (real: %3d, complex: %3d)", solution_count, solution_count_real, solution_count_complex);
-	write_log(sprintf_buffer2);
+	//sprintf(sprintf_buffer2, "%3d solution candidates found (real: %3d, complex: %3d)", solution_count, solution_count_real, solution_count_complex);
+	//write_log(sprintf_buffer2);
 	if(solution_count==0){
 		write_log((char*)"Warning: No bulk solution found");
 		return 0;
@@ -2727,7 +2733,7 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 	*kz_pointer=solution_kz;
 	*kappaz_pointer=solution_kappaz;
 	int solution_index=0;
-
+	
 	// solution (real)
 	for(int ib=0; ib<g_count; ib++){
 		for(int ikz=0; ikz<kz_count; ikz++){
@@ -2818,10 +2824,11 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 				complex<double> det_rt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rt, g_vec, Vgg);
 				complex<double> det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rb, g_vec, Vgg);
 				if(!encloseOrigin(det_lb, det_lt, det_rt, det_rb)){
-					write_log((char*)"Error: origin not found in the first trial");
-					break;
+					//write_log((char*)"Error: origin not found in the first trial");
+					continue;
 				}
 				int trial_count=1;
+				bool failed=false;
 				while(abs(kz_lt-kz_lb)>1e-8){
 					complex<double> kz_lc=(kz_lb+kz_lt)*0.5;
 					complex<double> kz_cb=(kz_lb+kz_rb)*0.5;
@@ -2851,13 +2858,14 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 						kz_lt=kz_ct;
 						kz_rb=kz_rc;
 					}else{
-					  sprintf(sprintf_buffer2, "Error: origin not found during a bisection trial #%d", trial_count);
-					  write_log(sprintf_buffer2);
+					  //sprintf(sprintf_buffer2, "Error: Origin not found during a bisection trial #%d", trial_count);
+					  //write_log(sprintf_buffer2);
 
 						//printf("(%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f)\n", det_lb.real(), det_lb.imag(), det_lc.real(), det_lc.imag(), det_cc.real(), det_cc.imag(), det_cb.real(), det_cb.imag());
 						//printf("(%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f)\n", det_lc.real(), det_lc.imag(), det_lt.real(), det_lt.imag(), det_ct.real(), det_ct.imag(), det_cc.real(), det_cc.imag());
 						//printf("(%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f)\n", det_cb.real(), det_cb.imag(), det_cc.real(), det_cc.imag(), det_rc.real(), det_rc.imag(), det_rb.real(), det_rb.imag());
 						//printf("(%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f)\n", det_cc.real(), det_cc.imag(), det_ct.real(), det_ct.imag(), det_rt.real(), det_rt.imag(), det_rc.real(), det_rc.imag());
+						failed=true;
 						break;
 					}
 					trial_count++;
@@ -2866,13 +2874,21 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 				  det_rt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rt, g_vec, Vgg);
 				  det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rb, g_vec, Vgg);
 				}
-				complex<double> kz_sol=(kz_lb+kz_rt)*0.5;
-				solution_kz[solution_index]=kz_sol.real();
-				solution_kappaz[solution_index]=-kz_sol.imag();
-				solution_index++;
+				if(!failed){
+					complex<double> kz_sol=(kz_lb+kz_rt)*0.5;
+					solution_kz[solution_index]=kz_sol.real();
+					solution_kappaz[solution_index]=-kz_sol.imag();
+					solution_index++;
+				}else{
+					//write_log((char*)"A solution candidate is removed");
+				}
 			}
 		}
 	}
+	solution_count=solution_index;
+	solution_count_complex=solution_count-solution_count_real;
+	sprintf(sprintf_buffer2, "%3d solutions are found (real: %3d, complex: %3d)", solution_count, solution_count_real, solution_count_complex);
+	write_log(sprintf_buffer2);
 
 	//for(int is=0; is<solution_count; is++){
 	//	printf("%8.4f %8.4f\n", solution_kz[is], solution_kappaz[is]);
