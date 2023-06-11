@@ -2483,7 +2483,7 @@ void prepare_matrix_bulk_complex(int g_count, complex<double>** mat, double Ekin
 }
 double determinant(int g_count, complex<double>** mat, double Ekin, double* k, double** g_vec, complex<double>** Vgg){
 	prepare_matrix_bulk(g_count, mat, Ekin, k, g_vec, Vgg);
-	int ipiv[g_count];
+	int* ipiv=new int[g_count];
 	int info;
 	zgetrf_(&g_count, &g_count, &mat[0][0], &g_count, &ipiv[0], &info);
 	if(info!=0){
@@ -2499,12 +2499,13 @@ double determinant(int g_count, complex<double>** mat, double Ekin, double* k, d
 		}
 	}
 	//printf("%8.4f\n", zdet.imag());
+	delete[] ipiv;
 	return zdet.real();
 }
 
 double determinant_sign(int g_count, complex<double>** mat, double Ekin, double* k, double** g_vec, complex<double>** Vgg){
 	prepare_matrix_bulk(g_count, mat, Ekin, k, g_vec, Vgg);
-	int ipiv[g_count];
+	int* ipiv=new int[g_count];
 	int info;
 	zgetrf_(&g_count, &g_count, &mat[0][0], &g_count, &ipiv[0], &info);
 	if(info!=0){
@@ -2519,12 +2520,13 @@ double determinant_sign(int g_count, complex<double>** mat, double Ekin, double*
 			zdet*=-1;
 		}
 	}
+	delete[] ipiv;
 	return zdet.real();
 }
 
 complex<double> determinant_complex(int g_count, complex<double>** mat, double Ekin, double* k, complex<double> kz, double** g_vec, complex<double>** Vgg){
 	prepare_matrix_bulk_complex(g_count, mat, Ekin, k, kz, g_vec, Vgg);
-	int ipiv[g_count];
+	int* ipiv=new int[g_count];
 	int info;
 	zgetrf_(&g_count, &g_count, &mat[0][0], &g_count, &ipiv[0], &info);
 	if(info!=0){
@@ -2539,6 +2541,7 @@ complex<double> determinant_complex(int g_count, complex<double>** mat, double E
 			zdet*=-1;
 		}
 	}
+	delete[] ipiv;
 	return zdet;
 }
 
