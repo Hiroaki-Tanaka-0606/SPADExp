@@ -2522,7 +2522,7 @@ double determinant_sign(int g_count, complex<double>** mat, double Ekin, double*
 	return zdet.real();
 }
 
-complex<double> determinant_complex(int g_count, complex<double>** mat, double Ekin, double* k, complex<double> kz, double** g_vec, complex<double>** Vgg, double* det_abs_array){
+complex<double> determinant_complex(int g_count, complex<double>** mat, double Ekin, double* k, complex<double> kz, double** g_vec, complex<double>** Vgg){
 	prepare_matrix_bulk_complex(g_count, mat, Ekin, k, kz, g_vec, Vgg);
 	int ipiv[g_count];
 	int info;
@@ -2534,12 +2534,7 @@ complex<double> determinant_complex(int g_count, complex<double>** mat, double E
 	complex<double> zdet=1.0;
 	int i;
 	for(i=0; i<g_count; i++){
-		double div=det_abs_array[i];
-		if(div<0){
-			div=abs(mat[i][i]);
-			det_abs_array[i]=div;
-		}
-		zdet*=mat[i][i]/div;
+		zdet*=mat[i][i]/abs(mat[i][i]);
 		if(ipiv[i]!=i+1){
 			zdet*=-1;
 		}
@@ -2611,7 +2606,6 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 	// complex region: use dispersion_c
 	int solution_count_complex=0;
 	complex<double> kz;
-	double* det_abs_array=new double[g_count];
 	//bool** isSolution=alloc_bmatrix(kz_count, kappaz_count);
 	for(int ikz=0; ikz<kz_count; ikz++){
 		for(int ikappaz=1; ikappaz<kappaz_count-1; ikappaz++){
@@ -2669,23 +2663,20 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 			int crossing=min(crossing2_real/2, crossing2_imag/2);
 			// printf("%d ", crossing);
 			if(crossing>0){
-				for(int ig=0; ig<g_count; ig++){
-					det_abs_array[ig]=-1;
-				}
 				kz=complex<double>(dispersion_kz[ikz], -dispersion_kappaz[ikappaz]);
-				complex<double> det_lb=determinant_complex(g_count, mat, Ekin, k_bloch, kz, g_vec, Vgg, det_abs_array);
+				complex<double> det_lb=determinant_complex(g_count, mat, Ekin, k_bloch, kz, g_vec, Vgg);
 				kz=complex<double>(dispersion_kz[ikz], -dispersion_kappaz[ikappaz+1]);
-				complex<double> det_lt=determinant_complex(g_count, mat, Ekin, k_bloch, kz, g_vec, Vgg, det_abs_array);
+				complex<double> det_lt=determinant_complex(g_count, mat, Ekin, k_bloch, kz, g_vec, Vgg);
 				kz=complex<double>(dispersion_kz[ikz_next], -dispersion_kappaz[ikappaz+1]);
 				if(ikz==kz_count-1){
 					kz+=gz;
 				}
-				complex<double> det_rt=determinant_complex(g_count, mat, Ekin, k_bloch, kz, g_vec, Vgg, det_abs_array);
+				complex<double> det_rt=determinant_complex(g_count, mat, Ekin, k_bloch, kz, g_vec, Vgg);
 				kz=complex<double>(dispersion_kz[ikz_next], -dispersion_kappaz[ikappaz]);
 				if(ikz==kz_count-1){
 					kz+=gz;
 				}
-				complex<double> det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz, g_vec, Vgg, det_abs_array);
+				complex<double> det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz, g_vec, Vgg);
 
 				if(encloseOrigin(det_lb, det_lt, det_rt, det_rb)){
 					isSolution[ikz][ikappaz]=true;
@@ -2806,9 +2797,6 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 	for(int ikz=0; ikz<kz_count; ikz++){
 		for(int ikappaz=0; ikappaz<kappaz_count; ikappaz++){
 			if(isSolution[ikz][ikappaz]){
-				for(int ig=0; ig<g_count; ig++){
-					det_abs_array[ig]=-1;
-				}
 				int ikz_next=(ikz+1)%kz_count;
 				int ikappaz_next=ikappaz+1;
 				complex<double> kz_lb(dispersion_kz[ikz], -dispersion_kappaz[ikappaz]);
@@ -2820,10 +2808,10 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 					kz_rb+=gz;
 				}
 				
-				complex<double> det_lb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lb, g_vec, Vgg, det_abs_array);
-				complex<double> det_lt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lt, g_vec, Vgg, det_abs_array);
-				complex<double> det_rt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rt, g_vec, Vgg, det_abs_array);
-				complex<double> det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rb, g_vec, Vgg, det_abs_array);
+				complex<double> det_lb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lb, g_vec, Vgg);
+				complex<double> det_lt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lt, g_vec, Vgg);
+				complex<double> det_rt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rt, g_vec, Vgg);
+				complex<double> det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rb, g_vec, Vgg);
 				if(!encloseOrigin(det_lb, det_lt, det_rt, det_rb)){
 					write_log((char*)"Error: origin not found in the first trial");
 					break;
@@ -2835,11 +2823,11 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 					complex<double> kz_cc=(kz_lb+kz_rt)*0.5;
 					complex<double> kz_ct=(kz_lt+kz_rt)*0.5;
 					complex<double> kz_rc=(kz_rb+kz_rt)*0.5;
-					complex<double> det_lc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lc, g_vec, Vgg, det_abs_array);
-					complex<double> det_cb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_cb, g_vec, Vgg, det_abs_array);
-					complex<double> det_cc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_cc, g_vec, Vgg, det_abs_array);
-					complex<double> det_ct=determinant_complex(g_count, mat, Ekin, k_bloch, kz_ct, g_vec, Vgg, det_abs_array);
-					complex<double> det_rc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rc, g_vec, Vgg, det_abs_array);
+					complex<double> det_lc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lc, g_vec, Vgg);
+					complex<double> det_cb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_cb, g_vec, Vgg);
+					complex<double> det_cc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_cc, g_vec, Vgg);
+					complex<double> det_ct=determinant_complex(g_count, mat, Ekin, k_bloch, kz_ct, g_vec, Vgg);
+					complex<double> det_rc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rc, g_vec, Vgg);
 
 					if(encloseOrigin(det_lb, det_lc, det_cc, det_cb)){
 						kz_lt=kz_lc;
@@ -2860,9 +2848,18 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 					}else{
 					  sprintf(sprintf_buffer2, "Error: origin not found during a bisection trial #%d", trial_count);
 					  write_log(sprintf_buffer2);
+
+						//printf("(%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f)\n", det_lb.real(), det_lb.imag(), det_lc.real(), det_lc.imag(), det_cc.real(), det_cc.imag(), det_cb.real(), det_cb.imag());
+						//printf("(%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f)\n", det_lc.real(), det_lc.imag(), det_lt.real(), det_lt.imag(), det_ct.real(), det_ct.imag(), det_cc.real(), det_cc.imag());
+						//printf("(%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f)\n", det_cb.real(), det_cb.imag(), det_cc.real(), det_cc.imag(), det_rc.real(), det_rc.imag(), det_rb.real(), det_rb.imag());
+						//printf("(%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f)\n", det_cc.real(), det_cc.imag(), det_ct.real(), det_ct.imag(), det_rt.real(), det_rt.imag(), det_rc.real(), det_rc.imag());
 						break;
 					}
 					trial_count++;
+				  det_lb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lb, g_vec, Vgg);
+				  det_lt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lt, g_vec, Vgg);
+				  det_rt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rt, g_vec, Vgg);
+				  det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rb, g_vec, Vgg);
 				}
 				complex<double> kz_sol=(kz_lb+kz_rt)*0.5;
 				solution_kz[solution_index]=kz_sol.real();
