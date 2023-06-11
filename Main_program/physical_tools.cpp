@@ -2949,8 +2949,10 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 			solution[is][i]=mat[solution_band_indices[is]][i];
 		}
 	}
-	lwork=-1;
-	delete[] work;
+	if(lwork>0){
+	  lwork=-1;
+	  delete[] work;
+	}
 	
 	// solution (complex)
 	for(int is=solution_count_real; is<solution_count; is++){
@@ -3008,7 +3010,9 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 	delete[] w;
 	delete[] rwork2;
 	delete[] wc;
-	delete[] work;
+	if(lwork>0){
+	  delete[] work;
+	}
 	return solution_count;
 }
 
