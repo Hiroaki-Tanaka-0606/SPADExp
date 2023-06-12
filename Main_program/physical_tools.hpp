@@ -38,7 +38,7 @@ void calc_bulk_potential(complex<double>* Vgg, double dz_slab, int slab_count, d
 
 complex<double> Fourier_expansion_1D(complex<double>* Vgg_bulk, double g, double dz, int count);
 
-int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, double** g_vec, complex<double>** Vgg, int kz_count, double* dispersion_kz, int kappaz_count, double* dispersion_kappaz, double** dispersion_r, complex<double>*** dispersion_c, complex<double>*** final_states_pointer, double** kz_pointer, double** kappaz_pointer, complex<double>** mat, bool** isSolution, complex<double>** vr);
+int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, double** g_vec, complex<double>** Vgg, int kz_count, double* dispersion_kz, int kappaz_count, double* dispersion_kappaz, double** dispersion_r, complex<double>*** dispersion_c, complex<double>*** final_states_pointer, double** kz_pointer, double** kappaz_pointer, complex<double>** mat, complex<double>** vr);
 
 double* interpolate_wfn(int wfn_length, double* wfn, double* r, int wfn_length_reduced, double dr);
 

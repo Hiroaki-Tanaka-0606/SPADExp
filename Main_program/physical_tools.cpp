@@ -2561,7 +2561,7 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 					 (lb.imag()<0 && lt.imag()<0 && rt.imag()<0 && rb.imag()<0));
 }
 
-	int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, double** g_vec, complex<double>** Vgg, int kz_count, double* dispersion_kz, int kappaz_count, double* dispersion_kappaz, double** dispersion_r, complex<double>*** dispersion_c, complex<double>*** final_states_pointer, double** kz_pointer, double** kappaz_pointer, complex<double>** mat, bool** isSolution, complex<double>** vr){
+	int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, double** g_vec, complex<double>** Vgg, int kz_count, double* dispersion_kz, int kappaz_count, double* dispersion_kappaz, double** dispersion_r, complex<double>*** dispersion_c, complex<double>*** final_states_pointer, double** kz_pointer, double** kappaz_pointer, complex<double>** mat, complex<double>** vr){
 	// printf("Ekin %10.6f\n", Ekin);
 	char* sprintf_buffer2=new char[Log_length+1];
 	int i, j;
@@ -2660,7 +2660,7 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 	// complex region: use dispersion_c
 	complex<double> kz;
 	complex<double>** kz_corner1=alloc_zmatrix(buffer_size, 4);
-	complex<double>** kz_corner2=alloc_zmatrix(buffer_size, 4);
+	complex<double>** kz_corner2;
 	int kz_corner_index=0;
 	double dkz=dispersion_kz[1]-dispersion_kz[0];
 	for(int ikz=0; ikz<kz_count; ikz++){
@@ -2743,77 +2743,86 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 		}
 	}
 	int kz_corner_count=kz_corner_index;
-	while(dkz>1e-8){
-		int is1, is2;
-		is2=0;
-		for(is1=0; is1<kz_corner_count; is1++){
-			// find kz by bisection
-			complex<double> kz_lb=kz_corner1[is1][0];
-			complex<double> kz_lt=kz_corner1[is1][1];
-			complex<double> kz_rt=kz_corner1[is1][2];
-			complex<double> kz_rb=kz_corner1[is1][3];
+	if(kz_corner_count>0){
+		kz_corner2=alloc_zmatrix(kz_corner_count*4, 4);
+		while(dkz>1e-8){
+			int is1, is2;
+			is2=0;
+			for(is1=0; is1<kz_corner_count; is1++){
+				// find kz by bisection
+				complex<double> kz_lb=kz_corner1[is1][0];
+				complex<double> kz_lt=kz_corner1[is1][1];
+				complex<double> kz_rt=kz_corner1[is1][2];
+				complex<double> kz_rb=kz_corner1[is1][3];
 			
-			complex<double> det_lb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lb, g_vec, Vgg);
-			complex<double> det_lt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lt, g_vec, Vgg);
-			complex<double> det_rt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rt, g_vec, Vgg);
-			complex<double> det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rb, g_vec, Vgg);
+				complex<double> det_lb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lb, g_vec, Vgg);
+				complex<double> det_lt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lt, g_vec, Vgg);
+				complex<double> det_rt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rt, g_vec, Vgg);
+				complex<double> det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rb, g_vec, Vgg);
 			
-			complex<double> kz_lc=(kz_lb+kz_lt)*0.5;
-			complex<double> kz_cb=(kz_lb+kz_rb)*0.5;
-			complex<double> kz_cc=(kz_lb+kz_rt)*0.5;
-			complex<double> kz_ct=(kz_lt+kz_rt)*0.5;
-			complex<double> kz_rc=(kz_rb+kz_rt)*0.5;
-			complex<double> det_lc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lc, g_vec, Vgg);
-			complex<double> det_cb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_cb, g_vec, Vgg);
-			complex<double> det_cc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_cc, g_vec, Vgg);
-			complex<double> det_ct=determinant_complex(g_count, mat, Ekin, k_bloch, kz_ct, g_vec, Vgg);
-			complex<double> det_rc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rc, g_vec, Vgg);
+				complex<double> kz_lc=(kz_lb+kz_lt)*0.5;
+				complex<double> kz_cb=(kz_lb+kz_rb)*0.5;
+				complex<double> kz_cc=(kz_lb+kz_rt)*0.5;
+				complex<double> kz_ct=(kz_lt+kz_rt)*0.5;
+				complex<double> kz_rc=(kz_rb+kz_rt)*0.5;
+				complex<double> det_lc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lc, g_vec, Vgg);
+				complex<double> det_cb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_cb, g_vec, Vgg);
+				complex<double> det_cc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_cc, g_vec, Vgg);
+				complex<double> det_ct=determinant_complex(g_count, mat, Ekin, k_bloch, kz_ct, g_vec, Vgg);
+				complex<double> det_rc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rc, g_vec, Vgg);
 
-			if(encloseOrigin(det_lb, det_lc, det_cc, det_cb)){
-				kz_corner2[is2][0]=kz_lb;			
-				kz_corner2[is2][1]=kz_lc;
-				kz_corner2[is2][2]=kz_cc;
-				kz_corner2[is2][3]=kz_cb;
-				is2++;
+				if(encloseOrigin(det_lb, det_lc, det_cc, det_cb)){
+					kz_corner2[is2][0]=kz_lb;			
+					kz_corner2[is2][1]=kz_lc;
+					kz_corner2[is2][2]=kz_cc;
+					kz_corner2[is2][3]=kz_cb;
+					is2++;
+				}
+				if(encloseOrigin(det_lc, det_lt, det_ct, det_cc)){
+					kz_corner2[is2][0]=kz_lc;
+					kz_corner2[is2][1]=kz_lt;
+					kz_corner2[is2][2]=kz_ct;
+					kz_corner2[is2][3]=kz_cc;
+					is2++;
+				}
+				if(encloseOrigin(det_cb, det_cc, det_rc, det_rb)){
+					kz_corner2[is2][0]=kz_cb;
+					kz_corner2[is2][1]=kz_cc;
+					kz_corner2[is2][2]=kz_rc;
+					kz_corner2[is2][3]=kz_rb;
+					is2++;
+				}
+				if(encloseOrigin(det_cc, det_ct, det_rt, det_rc)){
+					kz_corner2[is2][0]=kz_cc;
+					kz_corner2[is2][1]=kz_ct;
+					kz_corner2[is2][2]=kz_rt;
+					kz_corner2[is2][3]=kz_rc;
+					is2++;
+				}
 			}
-			if(encloseOrigin(det_lc, det_lt, det_ct, det_cc)){
-				kz_corner2[is2][0]=kz_lc;
-				kz_corner2[is2][1]=kz_lt;
-				kz_corner2[is2][2]=kz_ct;
-				kz_corner2[is2][3]=kz_cc;
-				is2++;
+			kz_corner_count=is2;
+			delete_zmatrix(kz_corner1);
+			kz_corner1=kz_corner2;
+			if(kz_corner_count>0){
+				kz_corner2=alloc_zmatrix(kz_corner_count*4, 4);
+			}else{
+				break;
 			}
-			if(encloseOrigin(det_cb, det_cc, det_rc, det_rb)){
-				kz_corner2[is2][0]=kz_cb;
-				kz_corner2[is2][1]=kz_cc;
-				kz_corner2[is2][2]=kz_rc;
-				kz_corner2[is2][3]=kz_rb;
-				is2++;
-			}
-			if(encloseOrigin(det_cc, det_ct, det_rt, det_rc)){
-				kz_corner2[is2][0]=kz_cc;
-				kz_corner2[is2][1]=kz_ct;
-				kz_corner2[is2][2]=kz_rt;
-				kz_corner2[is2][3]=kz_rc;
-				is2++;
-			}
+			dkz*=0.5;
 		}
-		kz_corner_count=is2;
-		delete_zmatrix(kz_corner1);
-		kz_corner1=kz_corner2;
-		kz_corner2=alloc_zmatrix(buffer_size, 4);
-		dkz*=0.5;
-	}
 
-	for(int is=0; is<kz_corner_count; is++){
-		complex<double> kz_sol=(kz_corner1[is][0]+kz_corner1[is][2])*0.5;
-		solution_kz[solution_index]=kz_sol.real();
-		solution_kappaz[solution_index]=-kz_sol.imag();
-		solution_count_complex++;
-		solution_index++;
+		for(int is=0; is<kz_corner_count; is++){
+			complex<double> kz_sol=(kz_corner1[is][0]+kz_corner1[is][2])*0.5;
+			solution_kz[solution_index]=kz_sol.real();
+			solution_kappaz[solution_index]=-kz_sol.imag();
+			solution_count_complex++;
+			solution_index++;
+		}
+		if(kz_corner_count>0){
+			delete_zmatrix(kz_corner2);
+		}
 	}
 	delete_zmatrix(kz_corner1);
-	delete_zmatrix(kz_corner2);
 
 	//int solution_count=solution_count_cross+solution_count_local;
 	int solution_count=solution_count_real+solution_count_complex;

@@ -1529,8 +1529,8 @@ void calculate_PAD(){
 				left_matrix_buffer[it]=&alloc_zmatrix(eq_dim)[0];
 				right_matrix_buffer[it]=&alloc_zmatrix(nrhs, eq_dim)[0];
 			}
-			cout << "Left " << eq_dim << endl;
-			cout << "Right " << nrhs << " " << eq_dim << endl;
+			
+			printf("FP_g_count: %d\n", FP_g_count);
 		}
 
 		complex<double>** Vgg0_matrix_bulk;
@@ -1539,7 +1539,6 @@ void calculate_PAD(){
 		complex<double>*** bulk_VR_buffer;
 		complex<double>**** dispersion_c_up_buffer;
 		complex<double>**** dispersion_c_dn_buffer;
-		bool*** bulk_isSolution_buffer;
 		if(PA_FPFS_bulk_set){
 			int FP_g_count_bulk=0;
 			double g123[3];
@@ -1633,7 +1632,6 @@ void calculate_PAD(){
 				dispersion_c_dn_buffer=new complex<double>***[num_threads];
 			}
 			bulk_VR_buffer=new complex<double>**[num_threads];
-			bulk_isSolution_buffer=new bool**[num_threads];
 			for(int it=0; it<num_threads; it++){
 				bulk_matrix_buffer[it]=alloc_zmatrix(FP_g_count_bulk);
 				dispersion_c_up_buffer[it]=alloc_zcube(PA_FPFS_bulk_kz_steps, FP_bulk_kappaz_count, FP_g_count_bulk);
@@ -1641,7 +1639,6 @@ void calculate_PAD(){
 					dispersion_c_dn_buffer[it]=alloc_zcube(PA_FPFS_bulk_kz_steps, FP_bulk_kappaz_count, FP_g_count_bulk);
 				}
 				bulk_VR_buffer[it]=alloc_zmatrix(FP_g_count_bulk);
-				bulk_isSolution_buffer[it]=alloc_bmatrix(PA_FPFS_bulk_kz_steps, FP_bulk_kappaz_count);
 			}
 		} // end of if(PA_FPFS_bulk_set)
 
@@ -1655,7 +1652,6 @@ void calculate_PAD(){
 			complex<double>** bulk_matrix;
 			complex<double>*** dispersion_c_up;
 			complex<double>*** dispersion_c_dn;
-			bool** bulk_isSolution;
 			complex<double>** bulk_VR;
 			if(!PA_FPFS_Numerov){
 				int threadId=omp_get_thread_num();
@@ -1669,7 +1665,6 @@ void calculate_PAD(){
 				if(spin_i>0){
 					dispersion_c_dn=dispersion_c_dn_buffer[threadId];
 				}
-				bulk_isSolution=bulk_isSolution_buffer[threadId];
 				bulk_VR=bulk_VR_buffer[threadId];
 			}
 			
@@ -1950,7 +1945,7 @@ void calculate_PAD(){
 																								final_states_FP_g_vec_bulk, Vgg_use, PA_FPFS_bulk_kz_steps, FP_bulk_dispersion_kz,
 																								FP_bulk_kappaz_count, FP_bulk_dispersion_kappaz, 
 																								dispersion_use, dispersion_c_use, &final_states_FP_bulk[i][j], &final_states_FP_bulk_kz[i][j], &final_states_FP_bulk_kappaz[i][j],
-																								bulk_matrix, bulk_isSolution, bulk_VR);
+																								bulk_matrix, bulk_VR);
 					final_states_FP_bulk_count[i][j]=FP_bulk_count;
 					final_states_FP_bulk_coefs[i][j]=new complex<double>[FP_bulk_count];
 					// continue;
@@ -2326,7 +2321,6 @@ void calculate_PAD(){
 					delete_zcube(dispersion_c_dn_buffer[it]);
 				}
 				delete_zmatrix(bulk_VR_buffer[it]);
-				delete_bmatrix(bulk_isSolution_buffer[it]);
 			}
 		}
 
