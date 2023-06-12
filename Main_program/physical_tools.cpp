@@ -698,7 +698,7 @@ double calc_norm(int count, double* vector);
 
 // In the Numerov method, the solving direction is downward
 // f_{i-1}=(1+h^2/12 a_{i-1})^-1 * [ 2(1-5h^2/12 a_i)*f_i - (1+h^2/12 a_{i+1})*f_{i+1} ]
-void solve_final_state_Numerov(double Ekin, double* k_para, double kz, int g_count, int z_count, double dz, int z_start, int V00_index, complex<double>*** Vgg, double* g_vec_buffer, complex<double>* FP_loc_buffer){
+void solve_final_state_Numerov(double Ekin, double* k_para, double kz, int g_count, int z_count, double dz, int z_start, int V00_index, complex<double>*** Vgg, double** g_vec, complex<double>** FP_loc){
 	// composite matrix
 	/*
 	complex<double>*** Vgg=alloc_zpmatrix(g_count);
@@ -707,22 +707,22 @@ void solve_final_state_Numerov(double Ekin, double* k_para, double kz, int g_cou
 			Vgg[ig1][ig2]=Vgg_buffer[ig1*g_count+ig2];
 		}
 		}*/
-	double g_vec[g_count][3];
-	for(int ig=0; ig<g_count; ig++){
-		for(int ix=0; ix<3; ix++){
-			g_vec[ig][ix]=g_vec_buffer[ig*3+ix];
-		}
-	}
+	//double g_vec[g_count][3];
+	//for(int ig=0; ig<g_count; ig++){
+	//	for(int ix=0; ix<3; ix++){
+	//		g_vec[ig][ix]=g_vec_buffer[ig*3+ix];
+	//	}
+	//}
 
 	
 	double kzz0=kz*dz*(z_count-1);
 	double kzz0h=kz*dz*z_count;
 
 	// Numerov and Euler
-	complex<double>* FP_loc[g_count];
-	for(int ig=0; ig<g_count; ig++){
-		FP_loc[ig]=&FP_loc_buffer[ig*z_count];
-	}
+	//complex<double>* FP_loc[g_count];
+	//for(int ig=0; ig<g_count; ig++){
+	//	FP_loc[ig]=&FP_loc_buffer[ig*z_count];
+	//}
 
 	// i=z_count-1 (boundary condition)
 	for(int ig=0; ig<g_count; ig++){
@@ -743,7 +743,7 @@ void solve_final_state_Numerov(double Ekin, double* k_para, double kz, int g_cou
 	}
 
 	// i=z_count-3 ~ 0 (Numerov)
-	double diagonal_part[g_count];
+	double* diagonal_part=new double[g_count];
 	for(int ig=0; ig<g_count; ig++){
 		double kpg[3];
 		for(int p=0; p<3; p++){
@@ -754,7 +754,7 @@ void solve_final_state_Numerov(double Ekin, double* k_para, double kz, int g_cou
 		diagonal_part[ig]=2*Ekin-inner_product(kpg, kpg);
 		//printf("diag[%3d] = %f\n", ig, diagonal_part[ig]);
 	}
-	complex<double> a_matrix[z_count][g_count][g_count];
+	complex<double>*** a_matrix=alloc_zcube(z_count, g_count, g_count);
 	for(int iz=0; iz<z_count; iz++){
 		for(int ig1=0; ig1<g_count; ig1++){
 			for(int ig2=0; ig2<g_count; ig2++){
@@ -770,11 +770,11 @@ void solve_final_state_Numerov(double Ekin, double* k_para, double kz, int g_cou
 			}
 		}
 	}
-	complex<double> left_matrix[g_count][g_count]; // transposed!!
-	complex<double> right_vector[g_count];
+	complex<double>** left_matrix=alloc_zmatrix(g_count); // transposed!!
+	complex<double>* right_vector=new complex<double>[g_count];
 	int INFO=0;
 	int NRHS=1;
-	int IPIV[g_count];
+	int* IPIV=new int[g_count];
 	for(int im1=z_count-3; im1>=z_start; im1--){
 		int i=im1+1;
 		int ip1=i+1;
@@ -806,13 +806,18 @@ void solve_final_state_Numerov(double Ekin, double* k_para, double kz, int g_cou
 	}
 	
 	//delete_zpmatrix(Vgg);
+	delete_zcube(a_matrix);
+	delete_zmatrix(left_matrix);
+	delete[] diagonal_part;
+	delete[] right_vector;
+	delete[] IPIV;
 }
 
 // calc_mode:
 // 0: perform the whole calculations, store right vector in loc_edge
 // 1: stop the calculations at zgels, store right vector in loc_edge
 // 2: perform zgesv using the given right vector in loc_edge
-void solve_final_state_Matrix(double Ekin, double* k_para, double kz, int g_count, int z_count, double dz, int z_start, int V00_index, complex<double>*** Vgg, double* g_vec_buffer, complex<double>* FP_loc_buffer, complex<double>** left_matrix, complex<double>** right_matrix, int calc_mode, complex<double>* loc_edge){
+void solve_final_state_Matrix(double Ekin, double* k_para, double kz, int g_count, int z_count, double dz, int z_start, int V00_index, complex<double>*** Vgg, double** g_vec, complex<double>** FP_loc, complex<double>** left_matrix, complex<double>** right_matrix, int calc_mode, complex<double>* loc_edge){
   //cout << "Matrix " << endl;
 	char* sprintf_buffer2=new char[Log_length+1];
 	// composite matrix
@@ -823,12 +828,12 @@ void solve_final_state_Matrix(double Ekin, double* k_para, double kz, int g_coun
 			Vgg[ig1][ig2]=Vgg_buffer[ig1*g_count+ig2];
 		}
 		}*/
-	double g_vec[g_count][3];
-	for(int ig=0; ig<g_count; ig++){
-		for(int ix=0; ix<3; ix++){
-			g_vec[ig][ix]=g_vec_buffer[ig*3+ix];
-		}
-	}
+	//double g_vec[g_count][3];
+	//for(int ig=0; ig<g_count; ig++){
+	//	for(int ix=0; ix<3; ix++){
+	//		g_vec[ig][ix]=g_vec_buffer[ig*3+ix];
+	//	}
+	//}
 
 	
 	double kzz0=kz*dz*(z_count-1);
@@ -1250,9 +1255,8 @@ void solve_final_state_Matrix(double Ekin, double* k_para, double kz, int g_coun
 
 		for(int ig=0; ig<g_count; ig++){
 			for(int iz=z_start; iz<z_count; iz++){
-				int index_FP=ig*z_count+iz;
 				int index_sol=ig*z_count_new+iz-z_start;
-				FP_loc_buffer[index_FP]=right_vector_all[index_sol];
+				FP_loc[ig][iz]=right_vector_all[index_sol];
 			}
 		}
 		
@@ -1641,8 +1645,6 @@ void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_c
 	delete[] right_vector;
 	delete[] right_vector2;
 	delete[] right_vector_sol;
-
-	write_log((char*)"from_bulk finished");
 }
 
 // calculate res=Ax-B
@@ -2579,45 +2581,90 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 	
 	//complex<double>** mat=alloc_zmatrix(g_count); // transposed
 
+	int buffer_size=PA_FPFS_bulk_buffer_size;
+	double* solution_kz=new double[buffer_size];
+	double* solution_kappaz=new double[buffer_size];
+	
+	double* solution_kz_alt=new double[buffer_size];
+	bool* solution_kz_alt_use=new bool[buffer_size];
+	for(int is=0; is<buffer_size; is++){
+		solution_kz_alt_use[is]=false;
+	}
+	int* solution_band_indices=new int[buffer_size];
+	complex<double>** solution=alloc_zmatrix(buffer_size, g_count);
+	*final_states_pointer=solution;
+	*kz_pointer=solution_kz;
+	*kappaz_pointer=solution_kappaz;
+
 	double k_bloch[3];
 	k_bloch[0]=k_para[0];
 	k_bloch[1]=k_para[1];
 	
-	// real region: use dispersion_r
-	//int solution_count_cross=0;
-	//int solution_count_local=0;
 	int solution_count_real=0;
+	int solution_count_complex=0;
+	int solution_index=0;
+	// real region: use dispersion_r
 	for(int ib=0; ib<g_count; ib++){
 		for(int ikz=0; ikz<kz_count; ikz++){
-			int index_prev=(ikz-1+kz_count)%kz_count;
 			int index_next=(ikz+1)%kz_count;
-			double eigen_prev=dispersion_r[index_prev][ib];
 			double eigen_curr=dispersion_r[ikz][ib];
 			double eigen_next=dispersion_r[index_next][ib];
-			// cross: between curr and next
 			if((eigen_curr-Ekin)*(eigen_next-Ekin)<0){
-				//solution_count_cross++;
+				// determine kz by interpolation
+				double kz_curr=dispersion_kz[ikz];
+				double kz_next=dispersion_kz[index_next];
+				if(kz_curr==kz_count-1){
+					kz_next+=gz;
+				}
+				double kz_interp=(kz_curr*abs(eigen_next-Ekin)+kz_next*abs(eigen_curr-Ekin))/abs(eigen_next-eigen_curr);
+
+				// determine kz by the bisection
+				double kz_left=kz_curr;
+				double kz_right=kz_next;
+				k_bloch[2]=kz_left;
+				double det_left=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
+				k_bloch[2]=kz_right;
+				double det_right=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
+
+				//printf("kz          %10.5f -- %10.5f\n", kz_left, kz_right);
+				//printf("Determinant %10.3e -- %10.3e\n", det_left, det_right);
+
+				while(kz_right-kz_left>1e-8){
+					double kz_center=(kz_left+kz_right)/2.0;
+					k_bloch[2]=kz_center;
+					double det_center=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
+					if(det_left*det_center<0){
+						kz_right=kz_center;
+						det_right=det_center;
+					}else{
+						kz_left=kz_center;
+						det_left=det_center;
+					}			
+					//printf("kz          %10.5f -- %10.5f\n", kz_left, kz_right);
+					//printf("Determinant %10.3e -- %10.3e\n", det_left, det_right);
+				}
+
+				// eigenvalue calculations
+				solution_kz[solution_index]=(kz_left+kz_right)/2.0;
+				solution_kappaz[solution_index]=0.0;
+				solution_kz_alt[solution_index]=kz_interp;
+				solution_kz_alt_use[solution_index]=true;
+			  
+				solution_band_indices[solution_index]=ib;
+				solution_index++;
 				solution_count_real++;
 			}
-			// local
-			//if(eigen_prev<eigen_curr && eigen_curr>eigen_next && Ekin-eigen_curr<PA_FPFS_bulk_tolerance && eigen_curr<Ekin){
-				// mountain shape
-			//	solution_count_local++;
-			//}
-			//if(eigen_prev>eigen_curr && eigen_curr<eigen_next && eigen_curr-Ekin<PA_FPFS_bulk_tolerance && eigen_curr>Ekin){
-				// valley shape
-			//	solution_count_local++;
-			//}
 		}	
 	}
 
 	// complex region: use dispersion_c
-	int solution_count_complex=0;
 	complex<double> kz;
-	//bool** isSolution=alloc_bmatrix(kz_count, kappaz_count);
+	complex<double>** kz_corner1=alloc_zmatrix(buffer_size, 4);
+	complex<double>** kz_corner2=alloc_zmatrix(buffer_size, 4);
+	int kz_corner_index=0;
+	double dkz=dispersion_kz[1]-dispersion_kz[0];
 	for(int ikz=0; ikz<kz_count; ikz++){
 		for(int ikappaz=1; ikappaz<kappaz_count-1; ikappaz++){
-			isSolution[ikz][ikappaz]=false;
 			// printf("%d %d\n", ikz, ikappaz);
 			int ikz_next=(ikz+1)%kz_count;
 			int real_count_lb=0;
@@ -2671,146 +2718,9 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 			int crossing=min(crossing2_real/2, crossing2_imag/2);
 			// printf("%d ", crossing);
 			if(/*true || */crossing>0){
-				kz=complex<double>(dispersion_kz[ikz], -dispersion_kappaz[ikappaz]);
-				complex<double> det_lb=determinant_complex(g_count, mat, Ekin, k_bloch, kz, g_vec, Vgg);
-				kz=complex<double>(dispersion_kz[ikz], -dispersion_kappaz[ikappaz+1]);
-				complex<double> det_lt=determinant_complex(g_count, mat, Ekin, k_bloch, kz, g_vec, Vgg);
-				kz=complex<double>(dispersion_kz[ikz_next], -dispersion_kappaz[ikappaz+1]);
-				if(ikz==kz_count-1){
-					kz+=gz;
-				}
-				complex<double> det_rt=determinant_complex(g_count, mat, Ekin, k_bloch, kz, g_vec, Vgg);
-				kz=complex<double>(dispersion_kz[ikz_next], -dispersion_kappaz[ikappaz]);
-				if(ikz==kz_count-1){
-					kz+=gz;
-				}
-				complex<double> det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz, g_vec, Vgg);
-
-				if(encloseOrigin(det_lb, det_lt, det_rt, det_rb)){
-					isSolution[ikz][ikappaz]=true;
-					solution_count_complex++;
-					/*
-					printf("#%d %d\n", ikz, ikappaz);
-					printf("%8.4f %8.4f\n", det_lb.real(), det_lb.imag());
-					printf("%8.4f %8.4f\n", det_lt.real(), det_lt.imag());
-					printf("%8.4f %8.4f\n", det_rt.real(), det_rt.imag());
-					printf("%8.4f %8.4f\n", det_rb.real(), det_rb.imag());
-					printf("%8.4f %8.4f\n", det_lb.real(), det_lb.imag());
-					printf("\n");*/
-				}
-			}
-		}
-		//printf("\n");
-	}
-
-
-
-
-	
-	//int solution_count=solution_count_cross+solution_count_local;
-	int solution_count=solution_count_real+solution_count_complex;
-	//sprintf(sprintf_buffer2, "%d solution candidates found (cross: %d, local: %d)", solution_count, solution_count_cross, solution_count_local);
-	//sprintf(sprintf_buffer2, "%3d solution candidates found (real: %3d, complex: %3d)", solution_count, solution_count_real, solution_count_complex);
-	//write_log(sprintf_buffer2);
-	if(solution_count==0){
-		write_log((char*)"Warning: No bulk solution found");
-		return 0;
-	}
-			
-	double* solution_kz=new double[solution_count];
-	double* solution_kappaz=new double[solution_count];
-	
-	double* solution_kz_alt=new double[solution_count];
-	bool* solution_kz_alt_use=new bool[solution_count];
-	for(int is=0; is<solution_count; is++){
-		solution_kz_alt_use[is]=false;
-	}
-	int* solution_band_indices=new int[solution_count];
-	complex<double>** solution=alloc_zmatrix(solution_count, g_count);
-	*final_states_pointer=solution;
-	*kz_pointer=solution_kz;
-	*kappaz_pointer=solution_kappaz;
-	int solution_index=0;
-	
-	// solution (real)
-	for(int ib=0; ib<g_count; ib++){
-		for(int ikz=0; ikz<kz_count; ikz++){
-			int index_prev=(ikz-1+kz_count)%kz_count;
-		  int index_next=(ikz+1)%kz_count;
-			double eigen_prev=dispersion_r[index_prev][ib];
-			double eigen_curr=dispersion_r[ikz][ib];
-			double eigen_next=dispersion_r[index_next][ib];
-			// cross: between curr and next
-			if((eigen_curr-Ekin)*(eigen_next-Ekin)<0){
-				// determine kz by interpolation
-				double kz_curr=dispersion_kz[index_prev];
-				double kz_next=dispersion_kz[index_next];
-				if(kz_curr==kz_count-1){
-					kz_next+=gz;
-				}
-				double kz_interp=(kz_curr*abs(eigen_next-Ekin)+kz_next*abs(eigen_curr-Ekin))/abs(eigen_next-eigen_curr);
-
-				double kz_left=kz_curr;
-				double kz_right=kz_next;
-				k_bloch[2]=kz_left;
-				double det_left=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
-				k_bloch[2]=kz_right;
-				double det_right=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
-
-				//printf("kz          %10.5f -- %10.5f\n", kz_left, kz_right);
-				//printf("Determinant %10.3e -- %10.3e\n", det_left, det_right);
-
-				while(kz_right-kz_left>1e-8){
-					double kz_center=(kz_left+kz_right)/2.0;
-					k_bloch[2]=kz_center;
-					double det_center=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
-					if(det_left*det_center<0){
-						kz_right=kz_center;
-						det_right=det_center;
-					}else{
-						kz_left=kz_center;
-						det_left=det_center;
-					}			
-					//printf("kz          %10.5f -- %10.5f\n", kz_left, kz_right);
-					//printf("Determinant %10.3e -- %10.3e\n", det_left, det_right);
-				}
-
-				// eigenvalue calculations
-				solution_kz[solution_index]=(kz_left+kz_right)/2.0;
-				solution_kappaz[solution_index]=0.0;
-				solution_kz_alt[solution_index]=kz_interp;
-				solution_kz_alt_use[solution_index]=true;
-			  
-				solution_band_indices[solution_index]=ib;
-				solution_index++;
-			}
-			// local
-			//if(eigen_prev<eigen_curr && eigen_curr>eigen_next && Ekin-eigen_curr<PA_FPFS_bulk_tolerance && eigen_curr<Ekin){
-				// mountain shape
-			//	solution_kz[solution_index]=dispersion_kz[ikz];
-			//	solution_band_indices[solution_index]=ib;
-			//	solution_kz_alt_use[solution_index]=false;
-			//	solution_index++;
-			//}
-			//if(eigen_prev>eigen_curr && eigen_curr<eigen_next && eigen_curr-Ekin<PA_FPFS_bulk_tolerance && eigen_curr>Ekin){
-				// valley shape
-			//	solution_kz[solution_index]=dispersion_kz[ikz];
-			//	solution_band_indices[solution_index]=ib;
-			//	solution_kz_alt_use[solution_index]=false;
-			//	solution_index++;
-			//}
-		}	
-	}
-
-	// solution (complex)
-	for(int ikz=0; ikz<kz_count; ikz++){
-		for(int ikappaz=0; ikappaz<kappaz_count; ikappaz++){
-			if(isSolution[ikz][ikappaz]){
-				int ikz_next=(ikz+1)%kz_count;
-				int ikappaz_next=ikappaz+1;
 				complex<double> kz_lb(dispersion_kz[ikz], -dispersion_kappaz[ikappaz]);
-				complex<double> kz_lt(dispersion_kz[ikz], -dispersion_kappaz[ikappaz_next]);
-				complex<double> kz_rt(dispersion_kz[ikz_next], -dispersion_kappaz[ikappaz_next]);
+				complex<double> kz_lt(dispersion_kz[ikz], -dispersion_kappaz[ikappaz+1]);
+				complex<double> kz_rt(dispersion_kz[ikz_next], -dispersion_kappaz[ikappaz+1]);				
 				complex<double> kz_rb(dispersion_kz[ikz_next], -dispersion_kappaz[ikappaz]);
 				if(ikz==kz_count-1){
 					kz_rt+=gz;
@@ -2821,76 +2731,99 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 				complex<double> det_lt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lt, g_vec, Vgg);
 				complex<double> det_rt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rt, g_vec, Vgg);
 				complex<double> det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rb, g_vec, Vgg);
-				if(!encloseOrigin(det_lb, det_lt, det_rt, det_rb)){
-					//write_log((char*)"Error: origin not found in the first trial");
-					continue;
-				}
-				int trial_count=1;
-				bool failed=false;
-				while(abs(kz_lt-kz_lb)>1e-8){
-					complex<double> kz_lc=(kz_lb+kz_lt)*0.5;
-					complex<double> kz_cb=(kz_lb+kz_rb)*0.5;
-					complex<double> kz_cc=(kz_lb+kz_rt)*0.5;
-					complex<double> kz_ct=(kz_lt+kz_rt)*0.5;
-					complex<double> kz_rc=(kz_rb+kz_rt)*0.5;
-					complex<double> det_lc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lc, g_vec, Vgg);
-					complex<double> det_cb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_cb, g_vec, Vgg);
-					complex<double> det_cc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_cc, g_vec, Vgg);
-					complex<double> det_ct=determinant_complex(g_count, mat, Ekin, k_bloch, kz_ct, g_vec, Vgg);
-					complex<double> det_rc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rc, g_vec, Vgg);
 
-					if(encloseOrigin(det_lb, det_lc, det_cc, det_cb)){
-						kz_lt=kz_lc;
-						kz_rt=kz_cc;
-						kz_rb=kz_cb;
-					}else if(encloseOrigin(det_lc, det_lt, det_ct, det_cc)){
-						kz_lb=kz_lc;
-						kz_rt=kz_ct;
-						kz_rb=kz_cc;
-					}else if(encloseOrigin(det_cb, det_cc, det_rc, det_rb)){
-						kz_lb=kz_cb;
-						kz_lt=kz_cc;
-						kz_rt=kz_rc;
-					}else if(encloseOrigin(det_cc, det_ct, det_rt, det_rc)){
-						kz_lb=kz_cc;
-						kz_lt=kz_ct;
-						kz_rb=kz_rc;
-					}else{
-					  //sprintf(sprintf_buffer2, "Error: Origin not found during a bisection trial #%d", trial_count);
-					  //write_log(sprintf_buffer2);
-
-						//printf("(%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f)\n", det_lb.real(), det_lb.imag(), det_lc.real(), det_lc.imag(), det_cc.real(), det_cc.imag(), det_cb.real(), det_cb.imag());
-						//printf("(%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f)\n", det_lc.real(), det_lc.imag(), det_lt.real(), det_lt.imag(), det_ct.real(), det_ct.imag(), det_cc.real(), det_cc.imag());
-						//printf("(%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f)\n", det_cb.real(), det_cb.imag(), det_cc.real(), det_cc.imag(), det_rc.real(), det_rc.imag(), det_rb.real(), det_rb.imag());
-						//printf("(%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f) (%6.2f %6.2f)\n", det_cc.real(), det_cc.imag(), det_ct.real(), det_ct.imag(), det_rt.real(), det_rt.imag(), det_rc.real(), det_rc.imag());
-						failed=true;
-						break;
-					}
-					trial_count++;
-				  det_lb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lb, g_vec, Vgg);
-				  det_lt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lt, g_vec, Vgg);
-				  det_rt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rt, g_vec, Vgg);
-				  det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rb, g_vec, Vgg);
-				}
-				if(!failed){
-					complex<double> kz_sol=(kz_lb+kz_rt)*0.5;
-					solution_kz[solution_index]=kz_sol.real();
-					solution_kappaz[solution_index]=-kz_sol.imag();
-					solution_index++;
-				}else{
-					//write_log((char*)"A solution candidate is removed");
+				if(encloseOrigin(det_lb, det_lt, det_rt, det_rb)){
+					kz_corner1[kz_corner_index][0]=kz_lb;
+					kz_corner1[kz_corner_index][1]=kz_lt;
+					kz_corner1[kz_corner_index][2]=kz_rt;
+					kz_corner1[kz_corner_index][3]=kz_rb;
+					kz_corner_index++;
 				}
 			}
 		}
 	}
-	solution_count=solution_index;
-	solution_count_complex=solution_count-solution_count_real;
+	int kz_corner_count=kz_corner_index;
+	while(dkz>1e-8){
+		int is1, is2;
+		is2=0;
+		for(is1=0; is1<kz_corner_count; is1++){
+			// find kz by bisection
+			complex<double> kz_lb=kz_corner1[is1][0];
+			complex<double> kz_lt=kz_corner1[is1][1];
+			complex<double> kz_rt=kz_corner1[is1][2];
+			complex<double> kz_rb=kz_corner1[is1][3];
+			
+			complex<double> det_lb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lb, g_vec, Vgg);
+			complex<double> det_lt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lt, g_vec, Vgg);
+			complex<double> det_rt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rt, g_vec, Vgg);
+			complex<double> det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rb, g_vec, Vgg);
+			
+			complex<double> kz_lc=(kz_lb+kz_lt)*0.5;
+			complex<double> kz_cb=(kz_lb+kz_rb)*0.5;
+			complex<double> kz_cc=(kz_lb+kz_rt)*0.5;
+			complex<double> kz_ct=(kz_lt+kz_rt)*0.5;
+			complex<double> kz_rc=(kz_rb+kz_rt)*0.5;
+			complex<double> det_lc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lc, g_vec, Vgg);
+			complex<double> det_cb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_cb, g_vec, Vgg);
+			complex<double> det_cc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_cc, g_vec, Vgg);
+			complex<double> det_ct=determinant_complex(g_count, mat, Ekin, k_bloch, kz_ct, g_vec, Vgg);
+			complex<double> det_rc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rc, g_vec, Vgg);
+
+			if(encloseOrigin(det_lb, det_lc, det_cc, det_cb)){
+				kz_corner2[is2][0]=kz_lb;			
+				kz_corner2[is2][1]=kz_lc;
+				kz_corner2[is2][2]=kz_cc;
+				kz_corner2[is2][3]=kz_cb;
+				is2++;
+			}
+			if(encloseOrigin(det_lc, det_lt, det_ct, det_cc)){
+				kz_corner2[is2][0]=kz_lc;
+				kz_corner2[is2][1]=kz_lt;
+				kz_corner2[is2][2]=kz_ct;
+				kz_corner2[is2][3]=kz_cc;
+				is2++;
+			}
+			if(encloseOrigin(det_cb, det_cc, det_rc, det_rb)){
+				kz_corner2[is2][0]=kz_cb;
+				kz_corner2[is2][1]=kz_cc;
+				kz_corner2[is2][2]=kz_rc;
+				kz_corner2[is2][3]=kz_rb;
+				is2++;
+			}
+			if(encloseOrigin(det_cc, det_ct, det_rt, det_rc)){
+				kz_corner2[is2][0]=kz_cc;
+				kz_corner2[is2][1]=kz_ct;
+				kz_corner2[is2][2]=kz_rt;
+				kz_corner2[is2][3]=kz_rc;
+				is2++;
+			}
+		}
+		kz_corner_count=is2;
+		delete_zmatrix(kz_corner1);
+		kz_corner1=kz_corner2;
+		kz_corner2=alloc_zmatrix(buffer_size, 4);
+		dkz*=0.5;
+	}
+
+	for(int is=0; is<kz_corner_count; is++){
+		complex<double> kz_sol=(kz_corner1[is][0]+kz_corner1[is][2])*0.5;
+		solution_kz[solution_index]=kz_sol.real();
+		solution_kappaz[solution_index]=-kz_sol.imag();
+		solution_count_complex++;
+		solution_index++;
+	}
+	delete_zmatrix(kz_corner1);
+	delete_zmatrix(kz_corner2);
+
+	//int solution_count=solution_count_cross+solution_count_local;
+	int solution_count=solution_count_real+solution_count_complex;
 	sprintf(sprintf_buffer2, "%3d solutions are found (real: %3d, complex: %3d)", solution_count, solution_count_real, solution_count_complex);
 	write_log(sprintf_buffer2);
 
-	//for(int is=0; is<solution_count; is++){
-	//	printf("%8.4f %8.4f\n", solution_kz[is], solution_kappaz[is]);
-	//}
+	if(solution_count==0){
+		write_log((char*)"Warning: No bulk solution found");
+		return 0;
+	}
 	
 	// for zheev and zgeev
 	char compute='V';

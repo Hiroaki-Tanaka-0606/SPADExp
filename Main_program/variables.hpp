@@ -231,7 +231,8 @@ bool PA_interpolate_wfn; // reduce the number of points in radial wave functions
 bool PA_interpolate_wfn_set;
 double PA_interpolate_wfn_coef;
 bool PA_interpolate_wfn_coef_set;
-double PA_FPFS_bulk_tolerance; 
+double PA_FPFS_bulk_tolerance;
+int PA_FPFS_bulk_buffer_size;
 /// files
 FILE* Log_file_obj;            // log file object
 FILE* Output_file_obj;         // data file object
