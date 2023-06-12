@@ -1276,16 +1276,16 @@ void solve_final_state_Matrix(double Ekin, double* k_para, double kz, int g_coun
 	//delete_zpmatrix(Vgg);
 }
 
-void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_count, int z_count, int bulk_count, double dz, int z_start, int V00_index, complex<double>*** Vgg, double* g_vec_buffer, complex<double>* bulk_z_buffer, complex<double>* FP_loc_buffer, complex<double>** left_matrix, complex<double>** right_matrix, complex<double>* bulk_coefs){
+void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_count, int z_count, int bulk_count, double dz, int z_start, int V00_index, complex<double>*** Vgg, double** g_vec, complex<double>*** bulk_z, complex<double>** FP_loc, complex<double>** left_matrix, complex<double>** right_matrix, complex<double>* bulk_coefs){
 	char* sprintf_buffer2=new char[Log_length+1];
 	
 	// composite matrix
-	complex<double>*** bulk_z=alloc_zpmatrix(bulk_count, g_count);
-	for(int in=0; in<bulk_count; in++){
-		for(int ig=0; ig<g_count; ig++){
-			bulk_z[in][ig]=&bulk_z_buffer[in*g_count*z_count+ig*z_count];
-		}
-	}
+	//complex<double>*** bulk_z=alloc_zpmatrix(bulk_count, g_count);
+	//for(int in=0; in<bulk_count; in++){
+	//	for(int ig=0; ig<g_count; ig++){
+	//		bulk_z[in][ig]=&bulk_z_buffer[in*g_count*z_count+ig*z_count];
+	//	}
+	//}
 	/*
 	complex<double>*** Vgg=alloc_zpmatrix(g_count);
 	for(int ig1=0; ig1<g_count; ig1++){
@@ -1293,12 +1293,12 @@ void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_c
 			Vgg[ig1][ig2]=Vgg_buffer[ig1*g_count+ig2];
 		}
 		}*/
-	double g_vec[g_count][3];
-	for(int ig=0; ig<g_count; ig++){
-		for(int ix=0; ix<3; ix++){
-			g_vec[ig][ix]=g_vec_buffer[ig*3+ix];
-		}
-	}
+	//double g_vec[g_count][3];
+	//for(int ig=0; ig<g_count; ig++){
+	//	for(int ix=0; ix<3; ix++){
+	//g_vec[ig][ix]=g_vec_buffer[ig*3+ix];
+	//	}
+	//}
 
 	double kzz0=kz*dz*z_start;
 	double kzz0mh=kz*dz*(z_start-1);
@@ -1605,16 +1605,14 @@ void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_c
 	
 	for(int ig=0; ig<g_count; ig++){
 		for(int iz=0; iz<=z_start; iz++){
-			int index_FP=ig*z_count+iz;
 			for(int in=0; in<bulk_count; in++){
-				FP_loc_buffer[index_FP]+=bulk_coefs[in]*bulk_z[in][ig][iz];
+				FP_loc[ig][iz]+=bulk_coefs[in]*bulk_z[in][ig][iz];
 			}
 		}
 		//printf("%8.4f %8.4f\n", FP_loc_buffer[ig*z_count+z_start].real(), FP_loc_buffer[ig*z_count+z_start].imag());
 		for(int iz=z_start; iz<z_count; iz++){
-			int index_FP=ig*z_count+iz;
 			int index_sol=ig*z_count_new+iz-z_start;
-			FP_loc_buffer[index_FP]=right_vector_sol[index_sol];
+			FP_loc[ig][iz]=right_vector_sol[index_sol];
 		}
 		//printf("%8.4f %8.4f\n", FP_loc_buffer[ig*z_count+z_start].real(), FP_loc_buffer[ig*z_count+z_start].imag());
 		//printf("\n");
@@ -1629,7 +1627,7 @@ void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_c
 		printf("\n");
 		}*/
 	
-	delete_zpmatrix(bulk_z);
+	//delete_zpmatrix(bulk_z);
 	//delete_zpmatrix(Vgg);
 	delete_zmatrix(H_RL);
 	delete_zmatrix(H_RR);
@@ -1643,7 +1641,8 @@ void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_c
 	delete[] right_vector;
 	delete[] right_vector2;
 	delete[] right_vector_sol;
-	
+
+	write_log((char*)"from_bulk finished");
 }
 
 // calculate res=Ax-B
@@ -2718,7 +2717,6 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 		return 0;
 	}
 			
-	double* solution_indices=new double[solution_count];
 	double* solution_kz=new double[solution_count];
 	double* solution_kappaz=new double[solution_count];
 	
@@ -3018,7 +3016,6 @@ bool encloseOrigin(complex<double> lb, complex<double> lt, complex<double> rt, c
 	//delete[] dispersion;
 	//delete_zmatrix(mat);
 	//delete_bmatrix(isSolution);
-	delete[] solution_indices;
 	delete[] solution_kz_alt;
 	delete[] solution_kz_alt_use;
 	delete[] solution_band_indices;

@@ -2118,8 +2118,8 @@ void calculate_PAD(){
 																		 &final_states_FP_loc[i][j][0][0], left_matrix, right_matrix, PA_FPFS_edge_smoothing?1:0, final_states_FP_loc_edge[i][j]);
 					}else{
 						solve_final_state_from_bulk(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0], FP_bulk_count,
-																				final_states_dz, FPFS_z_start, V00_index, Vgg_matrix, &final_states_FP_g_vec[i][j][0][0],
-																				&final_states_FP_bulk_z[0][0][0], &final_states_FP_loc[i][j][0][0], left_matrix, right_matrix,
+																				final_states_dz, FPFS_z_start, V00_index, Vgg_matrix, final_states_FP_g_vec[i][j],
+																				final_states_FP_bulk_z, final_states_FP_loc[i][j], left_matrix, right_matrix,
 																				final_states_FP_bulk_coefs[i][j]);
 																				
 
