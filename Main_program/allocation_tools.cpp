@@ -61,6 +61,10 @@ void delete_dmatrix(double** mat){
 	delete[] mat[0];
 	delete[] mat;
 }
+void delete_imatrix(int** mat){
+	delete[] mat[0];
+	delete[] mat;
+}
 
 int** alloc_imatrix(int m, int n){
 	int* buffer=new int[m*n];

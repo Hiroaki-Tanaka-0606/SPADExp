@@ -38,9 +38,9 @@ void calc_bulk_potential(complex<double>* Vgg, double dz_slab, int slab_count, d
 
 complex<double> Fourier_expansion_1D(complex<double>* Vgg_bulk, double g, double dz, int count);
 
-int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, double** g_vec, complex<double>** Vgg, int kz_count, double* dispersion_kz, int kappaz_count, double* dispersion_kappaz, double** dispersion_r, complex<double>*** dispersion_c, complex<double>*** final_states_pointer, double** kz_pointer, double** kappaz_pointer, complex<double>** mat, complex<double>** vr);
+int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, double** g_vec, complex<double>** Vgg, int kz_count, double* dispersion_kz, int kappaz_count, int g_para_count, double* dispersion_kappaz, double** dispersion_r, complex<double>*** dispersion_c, int** dispersion_c_count, int** dispersion_negimag, complex<double>*** final_states_pointer, double** kz_pointer, double** kappaz_pointer, complex<double>** mat, complex<double>** vr);
 
 double* interpolate_wfn(int wfn_length, double* wfn, double* r, int wfn_length_reduced, double dr);
 
 void calc_bulk_dispersion(double* k_para, int kz_count, double* kz, int g_count, double** g_vec, complex<double>** Vgg, double** eigen, complex<double>** mat);
-void calc_bulk_dispersion_complex(double* k_para, int kz_count, double* kz_list, int kappaz_count, double* kappaz_list, int g_count, double** g_vec, complex<double>** Vgg, complex<double>*** eigen, complex<double>** mat);
+void calc_bulk_dispersion_complex(double* k_para, int kz_count, double* kz_list, int kappaz_count, double* kappaz_list, int g_count, double** g_vec, complex<double>** Vgg, complex<double>*** eigen, int** eigen_count, int** negimag, double E_max, complex<double>** mat);
