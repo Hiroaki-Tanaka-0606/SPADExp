@@ -1530,7 +1530,8 @@ void calculate_PAD(){
 				right_matrix_buffer[it]=&alloc_zmatrix(nrhs, eq_dim)[0];
 			}
 			
-			printf("FP_g_count: %d\n", FP_g_count);
+			sprintf(sprintf_buffer, "FP_g_count: %d\n", FP_g_count);
+			write_log(sprintf_buffer);
 		}
 
 		complex<double>** Vgg0_matrix_bulk;
@@ -1563,7 +1564,8 @@ void calculate_PAD(){
 					}
 				}
 			}
-			printf("FP_g_count_bulk: %d\n", FP_g_count_bulk);
+			sprintf(sprintf_buffer, "FP_g_count_bulk: %d\n", FP_g_count_bulk);
+			write_log(sprintf_buffer);
 			final_states_FP_g_size_bulk=FP_g_count_bulk;
 			final_states_FP_g_bulk=alloc_imatrix(FP_g_count_bulk, 3);
 			final_states_FP_g_vec_bulk=alloc_dmatrix(FP_g_count_bulk, 3);
