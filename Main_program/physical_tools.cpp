@@ -1560,8 +1560,8 @@ void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_c
 	delete[] work;
 	
 	double zgels_norm=0.0;
-	// for(int iv=bulk_count; iv<numRows; iv++){
-	for(int iv=bulk_count+g_count; iv<numRows; iv++){
+	for(int iv=bulk_count; iv<numRows; iv++){
+	//for(int iv=bulk_count+g_count; iv<numRows; iv++){
 		zgels_norm+=norm(right_vector[iv]);
 	}
 	sprintf(sprintf_buffer2, "zgels norm: %10.2e", zgels_norm);
@@ -2827,7 +2827,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		write_log((char*)"Warning: too many real bulk solutions, which will cause zgels=0");
 	}
 	
-	int solution_count_reduced=min(max(solution_count_real, g_para_count-1), solution_count);
+	int solution_count_reduced=min(max(solution_count_real, g_para_count*2-1), solution_count);
 	
 	complex<double>** solution=alloc_zmatrix(solution_count_reduced, g_count);
 	*final_states_pointer=solution;
