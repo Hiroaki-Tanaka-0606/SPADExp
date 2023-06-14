@@ -1425,7 +1425,7 @@ void calculate_PAD(){
 				}
 				Vgg0_bulk[igb]=Fourier_expansion_1D(Vgg0_average[ig_found], Vgg_vector_bulk[igb][2], dz_bulk, z_count_bulk);
 				Vgg0_abs_bulk[igb]=abs(Vgg0_bulk[igb]);
-				//printf("%8.4f %8.4f %8.4f %8.4f\n", Vgg_vector_bulk[igb][0], Vgg_vector_bulk[igb][1], Vgg_vector_bulk[igb][2], Vgg0_abs_bulk[igb]);
+				// printf("%8.4f %8.4f %8.4f %8.4f\n", Vgg_vector_bulk[igb][0], Vgg_vector_bulk[igb][1], Vgg_vector_bulk[igb][2], Vgg0_abs_bulk[igb]);
 				if(spin_i==1 || spin_i==2){
 					Vgg1_bulk[igb]=Fourier_expansion_1D(Vgg1_average[ig_found], Vgg_vector_bulk[igb][2], dz_bulk, z_count_bulk);
 					Vgg1_abs_bulk[igb]=abs(Vgg1_bulk[igb]);
@@ -1905,9 +1905,11 @@ void calculate_PAD(){
 					double Excitation_max=(E_max_tail+PA_excitation_energy)/Eh+EF_Eh;
 					calc_bulk_dispersion(k_point, PA_FPFS_bulk_kz_steps, FP_bulk_dispersion_kz, final_states_FP_g_size_bulk,
 															 final_states_FP_g_vec_bulk, Vgg_use, dispersion_use, bulk_matrix);
-					calc_bulk_dispersion_complex(k_point, PA_FPFS_bulk_kz_steps, FP_bulk_dispersion_kz, FP_bulk_kappaz_count, FP_bulk_dispersion_kappaz,
-																			 final_states_FP_g_size_bulk, final_states_FP_g_vec_bulk, Vgg_use,
-																			 dispersion_c_use, dispersion_c_count_use, dispersion_negimag_use, Excitation_max, bulk_matrix);
+					if(PA_calc_complex_dispersion){
+						calc_bulk_dispersion_complex(k_point, PA_FPFS_bulk_kz_steps, FP_bulk_dispersion_kz, FP_bulk_kappaz_count, FP_bulk_dispersion_kappaz,
+																				 final_states_FP_g_size_bulk, final_states_FP_g_vec_bulk, Vgg_use,
+																				 dispersion_c_use, dispersion_c_count_use, dispersion_negimag_use, Excitation_max, bulk_matrix);
+					}
 					//write_log((char*)"Bulk complex band calculation finished");
 					
 					/*
@@ -2150,10 +2152,17 @@ void calculate_PAD(){
 																		 final_states_dz, FPFS_z_start, V00_index, Vgg_matrix, final_states_FP_g_vec[i][j],
 																		 final_states_FP_loc[i][j], left_matrix, right_matrix, PA_FPFS_edge_smoothing?1:0, final_states_FP_loc_edge[i][j]);
 					}else{
-						solve_final_state_from_bulk(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0], FP_bulk_count,
-																				final_states_dz, FPFS_z_start, V00_index, Vgg_matrix, final_states_FP_g_vec[i][j],
-																				final_states_FP_bulk_z, final_states_FP_loc[i][j], left_matrix, right_matrix,
-																				final_states_FP_bulk_coefs[i][j]);
+						if(!PA_FPFS_perturbation){
+							solve_final_state_from_bulk(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0], FP_bulk_count,
+																					final_states_dz, FPFS_z_start, V00_index, Vgg_matrix, final_states_FP_g_vec[i][j],
+																					final_states_FP_bulk_z, final_states_FP_loc[i][j], left_matrix, right_matrix,
+																					final_states_FP_bulk_coefs[i][j]);
+						}else{
+							solve_final_state_from_bulk_perturbation(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0], FP_bulk_count,
+																											 final_states_dz, FPFS_z_start, V00_index, Vgg_matrix, final_states_FP_g_vec[i][j],
+																											 final_states_FP_bulk_z, final_states_FP_loc[i][j],
+																											 final_states_FP_bulk_coefs[i][j]);
+						}
 																				
 
 						delete_zcube(final_states_FP_bulk_z);

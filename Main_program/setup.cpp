@@ -188,11 +188,15 @@ void initialize(){
 	PA_FPFS_bulk_min_ang=0.0;
 	PA_FPFS_bulk_max_ang=0.0;
 	PA_FPFS_bulk_count=0;
-	PA_FPFS_bulk_kz_steps=99;
+	PA_FPFS_bulk_kz_steps=98;
 	PA_interpolate_wfn=true;
 	PA_interpolate_wfn_coef=0.5;
 	PA_FPFS_bulk_tolerance=0.000;
 	PA_FPFS_bulk_buffer_size=128;
+	PA_FPFS_perturbation=false;
+	PA_FPFS_perturbation_set=false;
+	PA_calc_complex_dispersion=true;
+	PA_calc_complex_dispersion_set=false;
 }
 
 void finalize(){

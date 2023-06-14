@@ -26,6 +26,8 @@ void solve_final_state_Matrix(double Ekin, double* k_para, double kz, int g_coun
 
 void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_count, int z_count, int bulk_count, double dz, int z_start, int V00_index, complex<double>*** Vgg, double** g_vec, complex<double>*** bulk_z, complex<double>** FP_loc, complex<double>** left_matrix, complex<double>** right_matrix, complex<double>* bulk_coefs);
 
+void solve_final_state_from_bulk_perturbation(double Ekin, double* k_para, double kz, int g_count, int z_count, int bulk_count, double dz, int z_start, int V00_index, complex<double>*** Vgg, double** g_vec, complex<double>*** bulk_z, complex<double>** FP_loc, complex<double>* bulk_coefs);
+
 void solve_final_state_real_space(double Ekin, double* k_para, double kz, double* atom_cell_buffer, int* VKS_count, double* VKS_buffer, complex<double>* FP_loc_buffer);
 
 complex<double> interpolate_fgz(double z, complex<double>* fgz, double dz, int z_count);

@@ -232,6 +232,11 @@ extern double PA_interpolate_wfn_coef;
 extern bool PA_interpolate_wfn_coef_set;
 extern double PA_FPFS_bulk_tolerance;
 extern int PA_FPFS_bulk_buffer_size;
+extern bool PA_FPFS_perturbation;
+extern bool PA_FPFS_perturbation_set;
+extern bool PA_calc_complex_dispersion;
+extern bool PA_calc_complex_dispersion_set;
+
 /// files
 extern FILE* Log_file_obj;
 extern FILE* Output_file_obj;

@@ -1647,6 +1647,74 @@ void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_c
 	delete[] right_vector_sol;
 }
 
+
+// downward Numerov:
+// f_{i-1}=(1+h^2/12 a_{i-1})^-1 * [ 2(1-5h^2/12 a_i)*f_i - (1+h^2/12 a_{i+1})*f_{i+1} ]
+void solve_final_state_from_bulk_perturbation(double Ekin, double* k_para, double kz, int g_count, int z_count, int bulk_count, double dz, int z_start, int V00_index, complex<double>*** Vgg, double** g_vec, complex<double>*** bulk_z, complex<double>** FP_loc, complex<double>* bulk_coefs){
+	char* sprintf_buffer2=new char[Log_length+1];
+
+	// step 1: g0 component (Numerov)	
+	double kzz1=kz*dz*(z_count-1);
+	double kzz1mh=kz*dz*(z_count-2);
+	FP_loc[V00_index][z_count-1]=complex<double>(cos(kzz1), sin(kzz1));
+	FP_loc[V00_index][z_count-2]=complex<double>(cos(kzz1mh), sin(kzz1mh));
+
+	complex<double>* pot_vector=new complex<double>[z_count];
+	for(int iz=0; iz<z_count; iz++){
+		pot_vector[iz]=2.0*Ekin-inner_product(k_para, k_para)-2.0*Vgg[V00_index][V00_index][iz];
+	}
+	for(int iz=z_count-2; iz>=z_start; iz--){
+		int izm1=iz-1;
+		int izp1=iz+1;
+		FP_loc[V00_index][izm1]=(2.0*(1.0-5.0/12.0*dz*dz*pot_vector[iz])*FP_loc[V00_index][iz]-(1.0+1.0/12.0*dz*dz*pot_vector[izp1])*FP_loc[V00_index][izp1])
+			/(1.0+1.0/12.0*dz*dz*pot_vector[izm1]);
+	}
+
+	//for(int iz=0; iz<z_count; iz++){
+	//	printf("%8.4f %8.4f\n", FP_loc[V00_index][iz].real(), FP_loc[V00_index][iz].imag());
+	//}
+	//printf("\n");
+
+	// step 2: other than g0 (Euler)
+	// fG(z)''=-pot(z)fG(z)+rhs(z)
+	complex<double>* rhs_vector=new complex<double>[z_count];
+	complex<double>* diff_vector=new complex<double>[z_count];
+	double kpg[3];
+	for(int ig=0; ig<g_count; ig++){
+		if(ig==V00_index){
+			continue;
+		}
+		for(int p=0; p<3; p++){
+			kpg[p]=k_para[p]+g_vec[ig][p];
+		}
+		for(int iz=0; iz<z_count; iz++){
+			pot_vector[iz]=2.0*Ekin-inner_product(kpg, kpg)-2.0*Vgg[V00_index][V00_index][iz];
+			rhs_vector[iz]=2.0*Vgg[ig][V00_index][iz]*FP_loc[V00_index][iz];
+		}
+		FP_loc[ig][z_count-1]=0.0;
+		diff_vector[z_count-1]=0.0;
+		for(int iz=z_count-2; iz>=z_start-1; iz--){
+			FP_loc[ig][iz]=FP_loc[ig][iz+1]-diff_vector[iz+1]*dz;
+			diff_vector[iz]=diff_vector[iz+1]-(-pot_vector[iz+1]*FP_loc[ig][iz+1]+rhs_vector[iz+1])*dz;
+		}
+	}
+
+	for(int ig=0; ig<g_count; ig++){
+		printf("#%d\n", ig);
+		for(int iz=0; iz<z_count; iz++){
+			printf("%8.4f %8.4f\n", FP_loc[ig][iz].real(), FP_loc[ig][iz].imag());
+		}
+		printf("\n");
+	}
+	
+	
+	
+	delete[] pot_vector;
+	delete[] rhs_vector;
+	delete[] diff_vector;
+	delete[] sprintf_buffer2;
+}
+	
 // calculate res=Ax-B
 void calc_residual_vector(int g_count, int v_count, double* A, double* B, double* x, double* res){
 	char notrans='N';
@@ -2662,52 +2730,56 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 	for(int ikz=0; ikz<kz_count; ikz++){
 		for(int ikappaz=1; ikappaz<kappaz_count-1; ikappaz++){
 			// printf("%d %d\n", ikz, ikappaz);
+			bool okFlag=true;
 			int ikz_next=(ikz+1)%kz_count;
-			int real_count_lb=0;
-			int real_count_lt=0;
-			int real_count_rb=0;
-			int real_count_rt=0;
-			int imag_count_lb=dispersion_negimag[ikz][ikappaz];
-			int imag_count_lt=dispersion_negimag[ikz][ikappaz+1];
-			int imag_count_rb=dispersion_negimag[ikz_next][ikappaz];
-			int imag_count_rt=dispersion_negimag[ikz_next][ikappaz+1];
-			for(int ib=0; ib<dispersion_c_count[ikz][ikappaz]; ib++){
-				if(dispersion_c[ikz][ikappaz][ib].real()<Ekin){
-					real_count_lb++;
+			if(PA_calc_complex_dispersion){
+				int real_count_lb=0;
+				int real_count_lt=0;
+				int real_count_rb=0;
+				int real_count_rt=0;
+				int imag_count_lb=dispersion_negimag[ikz][ikappaz];
+				int imag_count_lt=dispersion_negimag[ikz][ikappaz+1];
+				int imag_count_rb=dispersion_negimag[ikz_next][ikappaz];
+				int imag_count_rt=dispersion_negimag[ikz_next][ikappaz+1];
+				for(int ib=0; ib<dispersion_c_count[ikz][ikappaz]; ib++){
+					if(dispersion_c[ikz][ikappaz][ib].real()<Ekin){
+						real_count_lb++;
+					}
 				}
-			}
-			for(int ib=0; ib<dispersion_c_count[ikz][ikappaz+1]; ib++){
-				if(dispersion_c[ikz][ikappaz+1][ib].real()<Ekin){
-					real_count_lt++;
+				for(int ib=0; ib<dispersion_c_count[ikz][ikappaz+1]; ib++){
+					if(dispersion_c[ikz][ikappaz+1][ib].real()<Ekin){
+						real_count_lt++;
+					}
 				}
-			}
-			for(int ib=0; ib<dispersion_c_count[ikz_next][ikappaz]; ib++){
-				if(dispersion_c[ikz_next][ikappaz][ib].real()<Ekin){
-					real_count_rb++;
+				for(int ib=0; ib<dispersion_c_count[ikz_next][ikappaz]; ib++){
+					if(dispersion_c[ikz_next][ikappaz][ib].real()<Ekin){
+						real_count_rb++;
+					}
 				}
-			}
-			for(int ib=0; ib<dispersion_c_count[ikz_next][ikappaz+1]; ib++){
-				if(dispersion_c[ikz_next][ikappaz+1][ib].real()<Ekin){
-					real_count_rt++;
+				for(int ib=0; ib<dispersion_c_count[ikz_next][ikappaz+1]; ib++){
+					if(dispersion_c[ikz_next][ikappaz+1][ib].real()<Ekin){
+						real_count_rt++;
+					}
 				}
-			}
-			// printf("%d %d %d %d\n", eigen_count_lb, eigen_count_lt, eigen_count_rt, eigen_count_rb);
+				// printf("%d %d %d %d\n", eigen_count_lb, eigen_count_lt, eigen_count_rt, eigen_count_rb);
 						 
-			int crossing2_real=abs(real_count_lb-real_count_lt)+
-				abs(real_count_lt-real_count_rt)+
-				abs(real_count_rt-real_count_rb)+
-				abs(real_count_rb-real_count_lb);
-			int crossing2_imag=abs(imag_count_lb-imag_count_lt)+
-				abs(imag_count_lt-imag_count_rt)+
-				abs(imag_count_rt-imag_count_rb)+
-				abs(imag_count_rb-imag_count_lb);
-			if(crossing2_real%2!=0 || crossing2_imag%2!=0){
-				write_log((char*)"Error: odd number of crossings");
-				continue;
+				int crossing2_real=abs(real_count_lb-real_count_lt)+
+					abs(real_count_lt-real_count_rt)+
+					abs(real_count_rt-real_count_rb)+
+					abs(real_count_rb-real_count_lb);
+				int crossing2_imag=abs(imag_count_lb-imag_count_lt)+
+					abs(imag_count_lt-imag_count_rt)+
+					abs(imag_count_rt-imag_count_rb)+
+					abs(imag_count_rb-imag_count_lb);
+				if(crossing2_real%2!=0 || crossing2_imag%2!=0){
+					write_log((char*)"Error: odd number of crossings");
+					continue;
+				}
+				int crossing=min(crossing2_real/2, crossing2_imag/2);
+				okFlag=crossing>0;
 			}
-			int crossing=min(crossing2_real/2, crossing2_imag/2);
 			// printf("%d ", crossing);
-			if(/*true || */crossing>0){
+			if(okFlag){
 				complex<double> kz_lb(dispersion_kz[ikz], -dispersion_kappaz[ikappaz]);
 				complex<double> kz_lt(dispersion_kz[ikz], -dispersion_kappaz[ikappaz+1]);
 				complex<double> kz_rt(dispersion_kz[ikz_next], -dispersion_kappaz[ikappaz+1]);				
@@ -3194,10 +3266,15 @@ void calc_bulk_dispersion_complex(double* k_para, int kz_count, double* kz_list,
 				write_log((char*)"zgeev failed");
 				return;
 			}
-			//for(int ig=0; ig<g_count; ig++){
-			//	eigen[ikz][ikappaz][ig]=0.5*w[ig];
-			//	printf("%8.4f %8.4f %8.4f\n", eigen[ikz][ikappaz][ig].real(), eigen[ikz][ikappaz][ig].imag(), abs(eigen[ikz][ikappaz][ig]));
-			//}
+			/*
+			if(ikz==kz_count/2){
+				for(int ig=0; ig<g_count; ig++){
+					if(abs(w[ig].imag())<0.1){
+						printf("%d %8.4f %8.4f\n", ikappaz, 0.5*(w[ig].real()), 0.5*(w[ig].imag()));
+					}
+				}
+				printf("\n");
+				}*/
 			eigen_count[ikz][ikappaz]=0;
 			negimag[ikz][ikappaz]=0;
 			for(int ig=0; ig<g_count; ig++){

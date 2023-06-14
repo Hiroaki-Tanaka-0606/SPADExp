@@ -177,6 +177,8 @@ int validation_PAD(){
 					PA_calc_all_loc=false;
 					write_log((char*)"Note: FPFS_calc_all_loc is set to false");
 				}
+				sprintf(sprintf_buffer, "%32s = %s", "FPFS_perturbation", PA_FPFS_perturbation?"true":"false");
+				write_log(sprintf_buffer);
 			}
 			/// FPFS_kRange
 			sprintf(sprintf_buffer, "%32s = %.3f", "FPFS_kRange", PA_FPFS_kRange);

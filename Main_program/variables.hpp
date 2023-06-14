@@ -233,6 +233,11 @@ double PA_interpolate_wfn_coef;
 bool PA_interpolate_wfn_coef_set;
 double PA_FPFS_bulk_tolerance;
 int PA_FPFS_bulk_buffer_size;
+bool PA_FPFS_perturbation; // Apply perturbation method in surface calculations
+bool PA_FPFS_perturbation_set;
+bool PA_calc_complex_dispersion;
+bool PA_calc_complex_dispersion_set;
+
 /// files
 FILE* Log_file_obj;            // log file object
 FILE* Output_file_obj;         // data file object

@@ -1085,6 +1085,28 @@ int load_input(){
 				}
 				PA_FPFS_bulk_set=true; continue;
 			}
+			/// FPFS_perturbation: bool
+			if(strcmp(keyword_buffer, "FPFS_perturbation")==0){
+				if(PA_FPFS_perturbation_set){
+					output_error(line_number, (char*)"keyword FPFS_perturbation already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_bool(input_line_c, &PA_FPFS_perturbation, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of FPFS_perturbation"); status=0; goto FINALIZATION;
+				}
+			  PA_FPFS_perturbation_set=true; continue;
+			}
+			/// Calc_complex_dispersion: bool
+			if(strcmp(keyword_buffer, "Calc_complex_dispersion")==0){
+				if(PA_calc_complex_dispersion_set){
+					output_error(line_number, (char*)"keyword Calc_complex_dispersion already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_bool(input_line_c, &PA_calc_complex_dispersion, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of Calc_complex_dispersion"); status=0; goto FINALIZATION;
+				}
+			  PA_calc_complex_dispersion_set=true; continue;
+			}
 			/// interpolate_wfn: bool
 			if(strcmp(keyword_buffer, "Interpolate_wfn")==0){
 				if(PA_interpolate_wfn_set){
