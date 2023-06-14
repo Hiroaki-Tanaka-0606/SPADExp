@@ -2895,7 +2895,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		write_log((char*)"Warning: No bulk solution found");
 		return 0;
 	}
-	if(solution_count_real>g_para_count){
+	if(solution_count_real>g_para_count*2-1){
 		write_log((char*)"Warning: too many real bulk solutions, which will cause zgels=0");
 	}
 	
