@@ -55,13 +55,14 @@ void resolve_connection(int l_count, complex<double>* eigen_l, int r_count, comp
 	if(l_count>r_count){
 		offset=r_count-l_count;
 	}else{
-		write_log((char*)"Warning: resolve_connection encountered increasing eigenstates");
+	  sprintf(sprintf_buffer2, "Warning: resolve_connection encountered increasing eigenstates around E=%8.4f", eigen_l[0].real());
+	  write_log(sprintf_buffer2);
 		delete[] sprintf_buffer2;
 		return;
 	}
 
 	if(l_count>=10){
-		sprintf(sprintf_buffer2, "Warning: permutation size = %d is quite large", l_count);
+	  sprintf(sprintf_buffer2, "Warning: permutation size = %d is quite large around E=%8.4f", l_count, eigen_l[0].real());
 		write_log(sprintf_buffer2);
 		// printf("%8.4f\n", eigen_l[0].real());
 		delete[] sprintf_buffer2;
