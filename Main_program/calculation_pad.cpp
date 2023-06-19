@@ -1934,7 +1934,7 @@ void calculate_PAD(){
 																				 final_states_FP_g_size_bulk, final_states_FP_g_bulk, final_states_FP_g_vec_bulk, Vgg_use,
 																				 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix);
 					}
-					
+					/*
 					for(int ikappaz=0; ikappaz<FP_bulk_kappaz_count-1; ikappaz++){
 						for(int ib=0; ib<dispersion_c_count_pointer[ikappaz]; ib++){
 							printf("%10.6f %10.6f %10.6f\n", FP_bulk_dispersion_kappaz[ikappaz], (*dispersion_c_pointer)[ikappaz][ib].real(), (*dispersion_c_pointer)[ikappaz][ib].imag());
@@ -1944,7 +1944,7 @@ void calculate_PAD(){
 							printf("\n");
 						}
 						printf("\n");
-						}
+						}*/
 					if(PA_calc_complex_dispersion){
 						if(sp==0){
 							Vgg_use=Vgg0_matrix_bulk;
