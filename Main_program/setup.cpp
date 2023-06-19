@@ -200,7 +200,7 @@ void initialize(){
 	PA_calc_complex_dispersion_set=false;
 	PA_FPFS_complex_dispersion_criterion=0.02;
 	PA_FPFS_dispersion_group_criterion_left=0.01;
-	PA_FPFS_dispersion_group_criterion_right=0.03;
+	PA_FPFS_dispersion_group_criterion_right=0.04;
 	PA_FPFS_gap_coefficient=0.3;
 	
 }
