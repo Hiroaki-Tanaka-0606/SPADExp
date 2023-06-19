@@ -188,7 +188,8 @@ void initialize(){
 	PA_FPFS_bulk_min_ang=0.0;
 	PA_FPFS_bulk_max_ang=0.0;
 	PA_FPFS_bulk_count=0;
-	PA_FPFS_bulk_kz_steps=98;
+	PA_FPFS_bulk_kz_steps=100;
+	PA_FPFS_bulk_kappaz_steps=200;
 	PA_interpolate_wfn=true;
 	PA_interpolate_wfn_coef=0.5;
 	PA_FPFS_bulk_tolerance=0.000;
@@ -197,6 +198,11 @@ void initialize(){
 	PA_FPFS_perturbation_set=false;
 	PA_calc_complex_dispersion=true;
 	PA_calc_complex_dispersion_set=false;
+	PA_FPFS_complex_dispersion_criterion=0.02;
+	PA_FPFS_dispersion_group_criterion_left=0.01;
+	PA_FPFS_dispersion_group_criterion_right=0.03;
+	PA_FPFS_gap_coefficient=0.3;
+	
 }
 
 void finalize(){

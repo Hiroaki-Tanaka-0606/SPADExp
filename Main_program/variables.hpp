@@ -227,6 +227,7 @@ double PA_FPFS_bulk_max_ang; //
 int PA_FPFS_bulk_count;  // number of bulk layers in the bulk range
 bool PA_FPFS_bulk_set;
 int PA_FPFS_bulk_kz_steps;
+int PA_FPFS_bulk_kappaz_steps;
 bool PA_interpolate_wfn; // reduce the number of points in radial wave functions
 bool PA_interpolate_wfn_set;
 double PA_interpolate_wfn_coef;
@@ -237,6 +238,10 @@ bool PA_FPFS_perturbation; // Apply perturbation method in surface calculations
 bool PA_FPFS_perturbation_set;
 bool PA_calc_complex_dispersion;
 bool PA_calc_complex_dispersion_set;
+double PA_FPFS_complex_dispersion_criterion;
+double PA_FPFS_dispersion_group_criterion_left;
+double PA_FPFS_dispersion_group_criterion_right;
+double PA_FPFS_gap_coefficient;
 
 /// files
 FILE* Log_file_obj;            // log file object

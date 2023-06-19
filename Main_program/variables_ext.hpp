@@ -226,6 +226,7 @@ extern double PA_FPFS_bulk_max_ang;
 extern int PA_FPFS_bulk_count;
 extern bool PA_FPFS_bulk_set;
 extern int PA_FPFS_bulk_kz_steps;
+extern int PA_FPFS_bulk_kappaz_steps;
 extern bool PA_interpolate_wfn;
 extern bool PA_interpolate_wfn_set;
 extern double PA_interpolate_wfn_coef;
@@ -236,6 +237,10 @@ extern bool PA_FPFS_perturbation;
 extern bool PA_FPFS_perturbation_set;
 extern bool PA_calc_complex_dispersion;
 extern bool PA_calc_complex_dispersion_set;
+extern double PA_FPFS_complex_dispersion_criterion;
+extern double PA_FPFS_dispersion_group_criterion_left;
+extern double PA_FPFS_dispersion_group_criterion_right;
+extern double PA_FPFS_gap_coefficient;
 
 /// files
 extern FILE* Log_file_obj;

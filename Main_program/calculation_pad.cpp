@@ -1431,6 +1431,24 @@ void calculate_PAD(){
 					Vgg1_abs_bulk[igb]=abs(Vgg1_bulk[igb]);
 				}
 			}
+			/*
+			for(int igb=0; igb<Vgg_count_bulk; igb++){
+				int igb_found=-1;
+				for(int igb2=0; igb2<Vgg_count_bulk; igb2++){
+					if(Vgg_list_bulk[igb][0]==-Vgg_list_bulk[igb2][0] &&
+						 Vgg_list_bulk[igb][1]==-Vgg_list_bulk[igb2][1] &&
+						 Vgg_list_bulk[igb][2]==-Vgg_list_bulk[igb2][2]){
+						igb_found=igb2;
+						break;
+					}
+				}
+				complex<double> Vg1g2=Vgg0_bulk[igb];
+				complex<double> Vg2g1=Vgg0_bulk[igb_found];
+				double re_ave=(Vg1g2.real()+Vg2g1.real())*0.5;
+				double im_ave=(Vg1g2.imag()-Vg2g1.imag())*0.5;
+				Vgg0_bulk[igb]=complex<double>(re_ave, im_ave);
+				Vgg0_bulk[igb_found]=complex<double>(re_ave, -im_ave);
+				}*/
 
 		} // end of if(PA_FPFS_bulk_set)
 		
@@ -1544,6 +1562,8 @@ void calculate_PAD(){
 		int*** dispersion_negimag_dn_buffer;
 		int*** dispersion_c_count_up_buffer;
 		int*** dispersion_c_count_dn_buffer;
+		double kappaz_border;
+		int kappaz_border_index;
 		if(PA_FPFS_bulk_set){
 			int FP_g_count_bulk=0;
 			double g123[3];
@@ -1578,13 +1598,30 @@ void calculate_PAD(){
 				FP_bulk_dispersion_kz[ikz]=dkz*(ikz-PA_FPFS_bulk_kz_steps*0.5);
 				//FP_bulk_dispersion_kz[ikz]=FPFS_gz_length*((ikz*1.0)/(PA_FPFS_bulk_kz_steps*1.0)-0.5);
 			}
-			FP_bulk_kappaz_count=round(khn_approx*PA_FPFS_kRange/dkz);
+
+			// kappaz
+			kappaz_border=PA_FPFS_gap_coefficient/khn_approx;
+			double dkappaz1=kappaz_border/(PA_FPFS_bulk_kappaz_steps*1.0);
+			int kappaz_count1=PA_FPFS_bulk_kappaz_steps;
+			double dkappaz2=dkz;
+			int kappaz_count2=ceil((khn_approx*PA_FPFS_kRange-kappaz_border)/dkappaz2);
+			
+			FP_bulk_kappaz_count=kappaz_count1+kappaz_count2;
+			kappaz_border_index=kappaz_count1;
 			sprintf(sprintf_buffer, "kappaz count: %d", FP_bulk_kappaz_count);
 			write_log(sprintf_buffer);
 			FP_bulk_dispersion_kappaz=new double[FP_bulk_kappaz_count];
-			for(int ikz=0; ikz<FP_bulk_kappaz_count; ikz++){
-				FP_bulk_dispersion_kappaz[ikz]=dkz*(ikz*1.0);
+			for(int ikz=0; ikz<kappaz_count1; ikz++){
+				FP_bulk_dispersion_kappaz[ikz]=dkappaz1*(ikz+1.0);
 			}
+			for(int ikz=0; ikz<kappaz_count2; ikz++){
+				FP_bulk_dispersion_kappaz[ikz+kappaz_count1]=kappaz_border+dkappaz2*(ikz+1.0);
+			}
+
+			//for(int ikz=0; ikz<FP_bulk_kappaz_count; ikz++){
+			//	printf("%8.4f\n", FP_bulk_dispersion_kappaz[ikz]);
+			//}
+			
 			int ig_count=0;
 			for(int n1=-n_range; n1<=n_range; n1++){
 				for(int n2=-n_range; n2<=n_range; n2++){
@@ -1633,25 +1670,9 @@ void calculate_PAD(){
 			
 			int num_threads=omp_get_max_threads();
 			bulk_matrix_buffer=new complex<double>**[num_threads];
-			dispersion_c_up_buffer=new complex<double>***[num_threads];
-			dispersion_negimag_up_buffer=new int**[num_threads];
-			dispersion_c_count_up_buffer=new int**[num_threads];
-			if(spin_i>0){
-				dispersion_c_dn_buffer=new complex<double>***[num_threads];
-				dispersion_negimag_dn_buffer=new int**[num_threads];
-				dispersion_c_count_dn_buffer=new int**[num_threads];
-			}
 			bulk_VR_buffer=new complex<double>**[num_threads];
 			for(int it=0; it<num_threads; it++){
 				bulk_matrix_buffer[it]=alloc_zmatrix(FP_g_count_bulk);
-				dispersion_c_up_buffer[it]=alloc_zpmatrix(PA_FPFS_bulk_kz_steps, FP_bulk_kappaz_count);
-				dispersion_negimag_up_buffer[it]=alloc_imatrix(PA_FPFS_bulk_kz_steps, FP_bulk_kappaz_count);
-				dispersion_c_count_up_buffer[it]=alloc_imatrix(PA_FPFS_bulk_kz_steps, FP_bulk_kappaz_count);
-				if(spin_i>0){
-					dispersion_c_dn_buffer[it]=alloc_zpmatrix(PA_FPFS_bulk_kz_steps, FP_bulk_kappaz_count);
-					dispersion_negimag_dn_buffer[it]=alloc_imatrix(PA_FPFS_bulk_kz_steps, FP_bulk_kappaz_count);
-					dispersion_c_count_dn_buffer[it]=alloc_imatrix(PA_FPFS_bulk_kz_steps, FP_bulk_kappaz_count);
-				}
 				bulk_VR_buffer[it]=alloc_zmatrix(FP_g_count_bulk);
 			}
 		} // end of if(PA_FPFS_bulk_set)
@@ -1664,12 +1685,6 @@ void calculate_PAD(){
 			complex<double>** left_matrix;
 			complex<double>** right_matrix;
 			complex<double>** bulk_matrix;
-			complex<double>*** dispersion_c_up;
-			complex<double>*** dispersion_c_dn;
-			int** dispersion_negimag_up;
-			int** dispersion_negimag_dn;
-			int** dispersion_c_count_up;
-			int** dispersion_c_count_dn;
 			complex<double>** bulk_VR;
 			if(!PA_FPFS_Numerov){
 				int threadId=omp_get_thread_num();
@@ -1679,18 +1694,9 @@ void calculate_PAD(){
 			if(PA_FPFS_bulk_set){
 				int threadId=omp_get_thread_num();
 				bulk_matrix=bulk_matrix_buffer[threadId];
-				dispersion_c_up=dispersion_c_up_buffer[threadId];
-				dispersion_negimag_up=dispersion_negimag_up_buffer[threadId];
-				dispersion_c_count_up=dispersion_c_count_up_buffer[threadId];
-				if(spin_i>0){
-					dispersion_c_dn=dispersion_c_dn_buffer[threadId];
-					dispersion_negimag_dn=dispersion_negimag_dn_buffer[threadId];
-					dispersion_c_count_dn=dispersion_c_count_up_buffer[threadId];
-				}
 				bulk_VR=bulk_VR_buffer[threadId];
 			}
-			
-			// cout << i << endl;
+		  
 			int count, count_up, count_dn;
 			bool band_exists[scale_width];
 			bool band_exists_up[scale_width];
@@ -1884,33 +1890,76 @@ void calculate_PAD(){
 			sprintf(sprintf_buffer2, "k=%4d, count=%3d", i, FPIndex_size);
 			write_log(sprintf_buffer2);
 			// bulk band calculations
+			complex<double>** dispersion_c_up;
+		  complex<double>** dispersion_c_dn;
+			int** connection_c_up;
+			int** connection_c_dn;
+			int* dispersion_c_count_up;
+			int* dispersion_c_count_dn;
+			
+			complex<double>** dispersion_c_BZ_up;
+		  complex<double>** dispersion_c_BZ_dn;
+			int** connection_c_BZ_up;
+			int** connection_c_BZ_dn;
+			int* dispersion_c_BZ_count_up;
+			int* dispersion_c_BZ_count_dn;
 			if(PA_FPFS_bulk_set && FPIndex_size>0){
+				dispersion_c_count_up=new int[FP_bulk_kappaz_count];
+				dispersion_c_count_dn=new int[FP_bulk_kappaz_count];
+				dispersion_c_BZ_count_up=new int[FP_bulk_kappaz_count];
+				dispersion_c_BZ_count_dn=new int[FP_bulk_kappaz_count];
 				for(sp=0; sp<sp_max; sp++){
 					complex<double>** Vgg_use;
 					double** dispersion_use;
-					complex<double>*** dispersion_c_use;
-					int** dispersion_negimag_use;
-					int** dispersion_c_count_use;
+					complex<double>*** dispersion_c_pointer;
+					int* dispersion_c_count_pointer;
+					int*** connection_c_pointer;
 					if(sp==0){
 						Vgg_use=Vgg0_matrix_bulk;
 						dispersion_use=FP_bulk_dispersion_up[i];
-						dispersion_c_use=dispersion_c_up;
-						dispersion_negimag_use=dispersion_negimag_up;
-						dispersion_c_count_use=dispersion_c_count_up;
+						dispersion_c_pointer=&dispersion_c_up;
+						dispersion_c_count_pointer=dispersion_c_count_up;
+						connection_c_pointer=&connection_c_up;
 					}else{
 						Vgg_use=Vgg1_matrix_bulk;
 						dispersion_use=FP_bulk_dispersion_dn[i];
-						dispersion_c_use=dispersion_c_dn;
-						dispersion_negimag_use=dispersion_negimag_dn;
-						dispersion_c_count_use=dispersion_c_count_dn;
+						dispersion_c_pointer=&dispersion_c_dn;
+						dispersion_c_count_pointer=dispersion_c_count_dn;
+						connection_c_pointer=&connection_c_dn;
 					}
-					double Excitation_max=(E_max_tail+PA_excitation_energy)/Eh+EF_Eh;
 					calc_bulk_dispersion(k_point, PA_FPFS_bulk_kz_steps, FP_bulk_dispersion_kz, final_states_FP_g_size_bulk,
 															 final_states_FP_g_vec_bulk, Vgg_use, dispersion_use, bulk_matrix);
 					if(PA_calc_complex_dispersion){
-						calc_bulk_dispersion_complex(k_point, PA_FPFS_bulk_kz_steps, FP_bulk_dispersion_kz, FP_bulk_kappaz_count, FP_bulk_dispersion_kappaz,
-																				 final_states_FP_g_size_bulk, final_states_FP_g_vec_bulk, Vgg_use,
-																				 dispersion_c_use, dispersion_c_count_use, dispersion_negimag_use, Excitation_max, bulk_matrix);
+						calc_bulk_dispersion_complex(k_point, 0.0, FP_bulk_kappaz_count, kappaz_border_index, FP_bulk_dispersion_kappaz, 
+																				 final_states_FP_g_size_bulk, final_states_FP_g_bulk, final_states_FP_g_vec_bulk, Vgg_use,
+																				 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix);
+					}
+					/*
+					for(int ikappaz=0; ikappaz<FP_bulk_kappaz_count-1; ikappaz++){
+						for(int ib=0; ib<dispersion_c_count_pointer[ikappaz]; ib++){
+							printf("%10.6f %10.6f %10.6f\n", FP_bulk_dispersion_kappaz[ikappaz], (*dispersion_c_pointer)[ikappaz][ib].real(), (*dispersion_c_pointer)[ikappaz][ib].imag());
+							if((*connection_c_pointer)[ikappaz][ib]>=0){
+								printf("%10.6f %10.6f %10.6f\n", FP_bulk_dispersion_kappaz[ikappaz+1], (*dispersion_c_pointer)[ikappaz+1][(*connection_c_pointer)[ikappaz][ib]].real(), (*dispersion_c_pointer)[ikappaz+1][(*connection_c_pointer)[ikappaz][ib]].imag());
+							}
+							printf("\n");
+						}
+						printf("\n");
+						}*/
+					if(PA_calc_complex_dispersion){
+						if(sp==0){
+							Vgg_use=Vgg0_matrix_bulk;
+							dispersion_c_pointer=&dispersion_c_BZ_up;
+							dispersion_c_count_pointer=dispersion_c_BZ_count_up;
+							connection_c_pointer=&connection_c_BZ_up;
+						}else{
+							Vgg_use=Vgg1_matrix_bulk;
+							dispersion_c_pointer=&dispersion_c_BZ_dn;
+							dispersion_c_count_pointer=dispersion_c_BZ_count_dn;
+							connection_c_pointer=&connection_c_BZ_dn;
+						}
+						calc_bulk_dispersion_complex(k_point, FPFS_gz_length*0.5, FP_bulk_kappaz_count, kappaz_border_index, FP_bulk_dispersion_kappaz, 
+																				 final_states_FP_g_size_bulk, final_states_FP_g_bulk, final_states_FP_g_vec_bulk, Vgg_use,
+																				 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix);
 					}
 					//write_log((char*)"Bulk complex band calculation finished");
 					
@@ -1921,16 +1970,20 @@ void calculate_PAD(){
 						}
 						printf("\n");
 						}*/
+
 					/*
-					for(int ikz=0; ikz<PA_FPFS_bulk_kz_steps; ikz++){
-						for(int ikappaz=0; ikappaz<FP_bulk_kappaz_count; ikappaz++){
-								
-							printf("%8.4f %8.4f %8.4f %8.4f\n", FP_bulk_dispersion_kz[ikz], FP_bulk_dispersion_kappaz[ikappaz], bulk_dispersion[ikz][ikappaz][0].real(), bulk_dispersion[ikz][ikappaz][0].imag());
+					for(int ikappaz=0; ikappaz<FP_bulk_kappaz_count-1; ikappaz++){
+						for(int ib=0; ib<dispersion_c_count_pointer[ikappaz]; ib++){
+							printf("%10.6f %10.6f %10.6f\n", FP_bulk_dispersion_kappaz[ikappaz], (*dispersion_c_pointer)[ikappaz][ib].real(), (*dispersion_c_pointer)[ikappaz][ib].imag());
+							if((*connection_c_pointer)[ikappaz][ib]>=0){
+								printf("%10.6f %10.6f %10.6f\n", FP_bulk_dispersion_kappaz[ikappaz+1], (*dispersion_c_pointer)[ikappaz+1][(*connection_c_pointer)[ikappaz][ib]].real(), (*dispersion_c_pointer)[ikappaz+1][(*connection_c_pointer)[ikappaz][ib]].imag());
+							}
+							printf("\n");
 						}
 						printf("\n");
 						}*/
-				}
-			}
+				} // end of for(sp)
+			} // end of if(PA_FPFS_bulk && FPIndex_size>0)
 			/*
 				for(j=0; j<FPIndex_size; j++){
 				printf("Scale=%4d, Energy=%7.3f eV, spin=%d\n",
@@ -1983,26 +2036,36 @@ void calculate_PAD(){
 				if(PA_FPFS_bulk_set){
 					complex<double>** Vgg_use;
 					double** dispersion_use;
-					complex<double>*** dispersion_c_use;
-					int** dispersion_c_count_use;
-					int** dispersion_negimag_use;
+					complex<double>** dispersion_c_use;
+					complex<double>** dispersion_c_BZ_use;
+					int** connection_c_use;
+					int** connection_c_BZ_use;
+					int* dispersion_c_count_use;
+					int* dispersion_c_BZ_count_use;
 					if(final_states_spin[i][j]==0){
 						Vgg_use=Vgg0_matrix_bulk;
 						dispersion_use=FP_bulk_dispersion_up[i];
 						dispersion_c_use=dispersion_c_up;
 						dispersion_c_count_use=dispersion_c_count_up;
-						dispersion_negimag_use=dispersion_negimag_up;
+						connection_c_use=connection_c_up;
+						dispersion_c_BZ_use=dispersion_c_BZ_up;
+						dispersion_c_BZ_count_use=dispersion_c_BZ_count_up;
+						connection_c_BZ_use=connection_c_BZ_up;
 					}else{
 						Vgg_use=Vgg1_matrix_bulk;
 						dispersion_use=FP_bulk_dispersion_dn[i];
 						dispersion_c_use=dispersion_c_dn;
 						dispersion_c_count_use=dispersion_c_count_dn;
-						dispersion_negimag_use=dispersion_negimag_up;
+						connection_c_use=connection_c_dn;
+						dispersion_c_BZ_use=dispersion_c_BZ_dn;
+						dispersion_c_BZ_count_use=dispersion_c_BZ_count_dn;
+						connection_c_BZ_use=connection_c_BZ_up;
 					}
-					FP_bulk_count=solve_final_states_bulk(kinetic_energy_Eh, k_au, FPFS_gz_length, final_states_FP_g_size_bulk,
+					FP_bulk_count=solve_final_states_bulk(kinetic_energy_Eh, k_au, FPFS_gz_length, final_states_FP_g_size_bulk, final_states_FP_g_bulk,
 																								final_states_FP_g_vec_bulk, Vgg_use, PA_FPFS_bulk_kz_steps, FP_bulk_dispersion_kz,
-																								FP_bulk_kappaz_count, FP_g_count, FP_bulk_dispersion_kappaz, 
-																								dispersion_use, dispersion_c_use, dispersion_c_count_use, dispersion_negimag_use,
+																								FP_bulk_kappaz_count, kappaz_border_index, FP_g_count, FP_bulk_dispersion_kappaz, 
+																								dispersion_use, dispersion_c_use, dispersion_c_count_use, connection_c_use,
+																								dispersion_c_BZ_use, dispersion_c_BZ_count_use, connection_c_BZ_use,
 																								&final_states_FP_bulk[i][j], &final_states_FP_bulk_kz[i][j], &final_states_FP_bulk_kappaz[i][j],
 																								bulk_matrix, bulk_VR);
 					final_states_FP_bulk_count[i][j]=FP_bulk_count;
@@ -2173,17 +2236,23 @@ void calculate_PAD(){
 				delete_zpmatrix(Vgg_matrix);
 				// printf("k=%4d, FPIndex=%3d, nonlocal part\n", i, j);
 			} // for(FPIndex_size)
-			if(FPIndex_size>0){
-				for(int ikz=0; ikz<PA_FPFS_bulk_kz_steps; ikz++){
-					for(int ikappaz=0; ikappaz<FP_bulk_kappaz_count; ikappaz++){
-						if(dispersion_c_count_up[ikz][ikappaz]>0){
-							delete[] dispersion_c_up[ikz][ikappaz];
-						}
-						if(spin_i>0 && dispersion_c_count_dn[ikz][ikappaz]>0){
-							delete[] dispersion_c_dn[ikz][ikappaz];
-						}
+			if(PA_FPFS_bulk_set){
+				if(FPIndex_size>0){
+					delete_zmatrix(dispersion_c_up);
+					delete_imatrix(connection_c_up);
+					delete_zmatrix(dispersion_c_BZ_up);
+					delete_imatrix(connection_c_BZ_up);
+					if(spin_i>0){
+						delete_zmatrix(dispersion_c_dn);
+						delete_imatrix(connection_c_dn);
+						delete_zmatrix(dispersion_c_BZ_dn);
+						delete_imatrix(connection_c_BZ_dn);
 					}
 				}
+				delete[] dispersion_c_count_up;
+				delete[] dispersion_c_count_dn;
+				delete[] dispersion_c_BZ_count_up;
+				delete[] dispersion_c_BZ_count_dn;
 			}
 			delete[] sprintf_buffer2;
 		} // for(total_count_ext)
@@ -2377,14 +2446,6 @@ void calculate_PAD(){
 			int num_threads=omp_get_max_threads();
 			for(int it=0; it<num_threads; it++){
 				delete_zmatrix(bulk_matrix_buffer[it]);
-				delete_zpmatrix(dispersion_c_up_buffer[it]);
-				delete_imatrix(dispersion_negimag_up_buffer[it]);
-				delete_imatrix(dispersion_c_count_up_buffer[it]);
-				if(spin_i>0){
-					delete_zpmatrix(dispersion_c_dn_buffer[it]);
-					delete_imatrix(dispersion_negimag_dn_buffer[it]);
-					delete_imatrix(dispersion_c_count_dn_buffer[it]);
-				}
 				delete_zmatrix(bulk_VR_buffer[it]);
 			}
 		}
@@ -3833,25 +3894,27 @@ void calculate_PAD(){
 					}
 					w_data_3d(FPFSG_ke, "FP_local", g_size, z_size, 2, (double***)&final_states_FP_loc_export[0][0][0]);
 				}
-				int FP_size_bulk=final_states_FP_bulk_count[i][j];
-				int g_size_bulk=final_states_FP_g_size_bulk;
-				w_att_int(FPFSG_ke, "bulk_count", FP_size_bulk);
-				if(FP_size_bulk>0){
-					double final_states_FP_bulk_export[FP_size_bulk][g_size_bulk][2];
-					for(int in=0; in<FP_size_bulk; in++){
-						for(int ig=0; ig<g_size_bulk; ig++){
-							final_states_FP_bulk_export[in][ig][0]=final_states_FP_bulk[i][j][in][ig].real();
-							final_states_FP_bulk_export[in][ig][1]=final_states_FP_bulk[i][j][in][ig].imag();
+				if(PA_FPFS_bulk_set){
+					int FP_size_bulk=final_states_FP_bulk_count[i][j];
+					int g_size_bulk=final_states_FP_g_size_bulk;
+					w_att_int(FPFSG_ke, "bulk_count", FP_size_bulk);
+					if(FP_size_bulk>0){
+						double final_states_FP_bulk_export[FP_size_bulk][g_size_bulk][2];
+						for(int in=0; in<FP_size_bulk; in++){
+							for(int ig=0; ig<g_size_bulk; ig++){
+								final_states_FP_bulk_export[in][ig][0]=final_states_FP_bulk[i][j][in][ig].real();
+								final_states_FP_bulk_export[in][ig][1]=final_states_FP_bulk[i][j][in][ig].imag();
+							}
 						}
+						w_data_3d(FPFSG_ke, "FP_bulk", FP_size_bulk, g_size_bulk, 2, (double***)&final_states_FP_bulk_export[0][0][0]);
+						double final_states_FP_bulk_coefs_export[FP_size_bulk];
+						for(int in=0; in<FP_size_bulk; in++){
+							final_states_FP_bulk_coefs_export[in]=abs(final_states_FP_bulk_coefs[i][j][in]);
+						}
+						w_data_1d(FPFSG_ke, "FP_bulk_coefs_abs", FP_size_bulk, &final_states_FP_bulk_coefs_export[0]);
+						w_data_1d(FPFSG_ke, "FP_bulk_kz", FP_size_bulk, &final_states_FP_bulk_kz[i][j][0]);
+						w_data_1d(FPFSG_ke, "FP_bulk_kappaz", FP_size_bulk, &final_states_FP_bulk_kappaz[i][j][0]);
 					}
-					w_data_3d(FPFSG_ke, "FP_bulk", FP_size_bulk, g_size_bulk, 2, (double***)&final_states_FP_bulk_export[0][0][0]);
-					double final_states_FP_bulk_coefs_export[FP_size_bulk];
-					for(int in=0; in<FP_size_bulk; in++){
-						final_states_FP_bulk_coefs_export[in]=abs(final_states_FP_bulk_coefs[i][j][in]);
-					}
-					w_data_1d(FPFSG_ke, "FP_bulk_coefs_abs", FP_size_bulk, &final_states_FP_bulk_coefs_export[0]);
-					w_data_1d(FPFSG_ke, "FP_bulk_kz", FP_size_bulk, &final_states_FP_bulk_kz[i][j][0]);
-					w_data_1d(FPFSG_ke, "FP_bulk_kappaz", FP_size_bulk, &final_states_FP_bulk_kappaz[i][j][0]);
 				}
 				/*
 					for(ia=0; ia<atom_length; ia++){
