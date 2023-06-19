@@ -3528,7 +3528,7 @@ void calc_bulk_dispersion_complex(double* k_para, double kz_r, int kappaz_count,
 					eigen_r[ib]=(*eigen_pointer)[ik_r][offset_r+ib];
 				}
 
-				if(eigen_l[0].real()<PA_excitation_energy/Eh*2){
+				if(eigen_l[0].real()<PA_excitation_energy/Eh+1){
 					resolve_connection(count_l, eigen_l, count_r, eigen_r, connection);
 					for(int ib=0; ib<count_l; ib++){
 						if(connection[ib]>=0){
