@@ -2933,6 +2933,10 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 			complex<double> det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rb, g_vec, Vgg);
 
 			if(encloseOrigin(det_lb, det_lt, det_rt, det_rb)){
+				if(kz_corner_index>=buffer_size){
+					write_log((char*)"Candidates are more than buffer size");
+					break;
+				}
 				kz_corner1[kz_corner_index][0]=kz_lb;
 				kz_corner1[kz_corner_index][1]=kz_lt;
 				kz_corner1[kz_corner_index][2]=kz_rt;

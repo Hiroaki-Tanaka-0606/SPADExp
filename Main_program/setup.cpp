@@ -193,7 +193,7 @@ void initialize(){
 	PA_interpolate_wfn=true;
 	PA_interpolate_wfn_coef=0.5;
 	PA_FPFS_bulk_tolerance=0.000;
-	PA_FPFS_bulk_buffer_size=128;
+	PA_FPFS_bulk_buffer_size=256;
 	PA_FPFS_perturbation=false;
 	PA_FPFS_perturbation_set=false;
 	PA_calc_complex_dispersion=true;
