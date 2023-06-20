@@ -2708,13 +2708,17 @@ int find_eigenstate(int g_count, int band_index, int band_index2, double Ekin, c
 	int nearest_index=-1;
 	double nearest_distance=-1;
 	for(i=0; i<g_count; i++){
-		if(band_index<=band_order[i] && band_order[i]<=band_index2){
+	  if((band_index>=band_order[i] && band_order[i]>=band_index2) ||
+	     (band_index<=band_order[i] && band_order[i]<=band_index2)){
 			double distance=abs(0.5*w[i]-Ekin);
 			if(nearest_index<0 || nearest_distance>distance){
 				nearest_index=i;
 				nearest_distance=distance;
 			}
 		}
+	}
+	if(nearest_index<0){
+	  write_log((char*)"Error eigenstate not found");
 	}
 	return nearest_index;
 }
