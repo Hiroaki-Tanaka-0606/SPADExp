@@ -3284,6 +3284,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 	if(lwork>0){
 	  delete[] work;
 	}
+	delete[] cspace_search_flag;
 	return solution_count;
 }
 
