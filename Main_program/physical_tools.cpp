@@ -2772,57 +2772,59 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 	// real region: use dispersion_r
 	for(int ib=0; ib<g_count; ib++){
 		for(int ikz=0; ikz<kz_count; ikz++){
-			// find local maxima just below EKin
-			if(ib<g_count-1 && dispersion_r[ikz][ib]<Ekin && Ekin<dispersion_r[ikz][ib+1]){
-				int index_next=(ikz+1)%kz_count;
-				int index_prev=(ikz+kz_count-1)%kz_count;
-				double eigen_prev=dispersion_r[index_prev][ib];
-				double eigen_curr=dispersion_r[ikz][ib];
-				double eigen_next=dispersion_r[index_next][ib];
-				if(eigen_prev < eigen_curr && eigen_curr > eigen_next){
-					sprintf(sprintf_buffer2, "Local maxima just below Ekin at kz=%8.4f", dispersion_kz[ikz]);
-					write_log(sprintf_buffer2);
-					if(abs(eigen_curr-Ekin)<PA_FPFS_bulk_tolerance){
-						solution_kz[solution_index]=dispersion_kz[ikz];
-						solution_kappaz[solution_index]=0.0;
-						solution_band_indices[solution_index]=ib;
-						solution_index++;
-						solution_count_real++;
-					}else{
-						for(int ikz2=ikz-PA_FPFS_cspace_offset; ikz2<=ikz+PA_FPFS_cspace_offset; ikz2++){
-							if(ikz2>=0 && ikz2<kz_count){
-								cspace_search_flag[ikz2]=true;
-							}
-						}
-					}
-				}
+		  if(ikz==0 || (kz_count%2==0 && ikz==kz_count/2)){
+		  }else{
+		    // find local maxima just below EKin
+		    if(ib<g_count-1 && dispersion_r[ikz][ib]<Ekin && Ekin<dispersion_r[ikz][ib+1]){
+		      int index_next=(ikz+1)%kz_count;
+		      int index_prev=(ikz+kz_count-1)%kz_count;
+		      double eigen_prev=dispersion_r[index_prev][ib];
+		      double eigen_curr=dispersion_r[ikz][ib];
+		      double eigen_next=dispersion_r[index_next][ib];
+		      if(eigen_prev < eigen_curr && eigen_curr > eigen_next){
+			sprintf(sprintf_buffer2, "Local maxima just below Ekin at kz=%8.4f", dispersion_kz[ikz]);
+			write_log(sprintf_buffer2);
+			if(abs(eigen_curr-Ekin)<PA_FPFS_bulk_tolerance){
+			  solution_kz[solution_index]=dispersion_kz[ikz];
+			  solution_kappaz[solution_index]=0.0;
+			  solution_band_indices[solution_index]=ib;
+			  solution_index++;
+			  solution_count_real++;
+			}else{
+			  for(int ikz2=ikz-PA_FPFS_cspace_offset; ikz2<=ikz+PA_FPFS_cspace_offset; ikz2++){
+			    if(ikz2>=0 && ikz2<kz_count){
+			      cspace_search_flag[ikz2]=true;
+			    }
+			  }
 			}
-			// local maxima just above Ekin
-			if(ib>0 && dispersion_r[ikz][ib-1]<Ekin && Ekin<dispersion_r[ikz][ib]){
-				int index_next=(ikz+1)%kz_count;
-				int index_prev=(ikz+kz_count-1)%kz_count;
-				double eigen_prev=dispersion_r[index_prev][ib];
-				double eigen_curr=dispersion_r[ikz][ib];
-				double eigen_next=dispersion_r[index_next][ib];
-				if(eigen_prev > eigen_curr && eigen_curr < eigen_next){
-					sprintf(sprintf_buffer2, "Local minima just above Ekin at kz=%8.4f", dispersion_kz[ikz]);
-					write_log(sprintf_buffer2);
-					if(abs(eigen_curr-Ekin)<PA_FPFS_bulk_tolerance){
-						solution_kz[solution_index]=dispersion_kz[ikz];
-						solution_kappaz[solution_index]=0.0;
-						solution_band_indices[solution_index]=ib;
-						solution_index++;
-						solution_count_real++;
-					}else{
-						for(int ikz2=ikz-PA_FPFS_cspace_offset; ikz2<=ikz+PA_FPFS_cspace_offset; ikz2++){
-							if(ikz2>=0 && ikz2<kz_count){
-								cspace_search_flag[ikz2]=true;
-							}
-						}
-					}
-				}
+		      }
+		    }
+		    // local maxima just above Ekin
+		    if(ib>0 && dispersion_r[ikz][ib-1]<Ekin && Ekin<dispersion_r[ikz][ib]){
+		      int index_next=(ikz+1)%kz_count;
+		      int index_prev=(ikz+kz_count-1)%kz_count;
+		      double eigen_prev=dispersion_r[index_prev][ib];
+		      double eigen_curr=dispersion_r[ikz][ib];
+		      double eigen_next=dispersion_r[index_next][ib];
+		      if(eigen_prev > eigen_curr && eigen_curr < eigen_next){
+			sprintf(sprintf_buffer2, "Local minima just above Ekin at kz=%8.4f", dispersion_kz[ikz]);
+			write_log(sprintf_buffer2);
+			if(abs(eigen_curr-Ekin)<PA_FPFS_bulk_tolerance){
+			  solution_kz[solution_index]=dispersion_kz[ikz];
+			  solution_kappaz[solution_index]=0.0;
+			  solution_band_indices[solution_index]=ib;
+			  solution_index++;
+			  solution_count_real++;
+			}else{
+			  for(int ikz2=ikz-PA_FPFS_cspace_offset; ikz2<=ikz+PA_FPFS_cspace_offset; ikz2++){
+			    if(ikz2>=0 && ikz2<kz_count){
+			      cspace_search_flag[ikz2]=true;
+			    }
+			  }
 			}
-			
+		      }
+		    }
+		  }
 			// find bands crossing Ekin
 			int index_next=(ikz+1)%kz_count;
 			double eigen_curr=dispersion_r[ikz][ib];
