@@ -1601,9 +1601,9 @@ void calculate_PAD(){
 
 			// kappaz
 			kappaz_border=PA_FPFS_gap_coefficient/khn_approx;
-			double dkappaz1=kappaz_border/(PA_FPFS_bulk_kappaz_steps*1.0);
-			int kappaz_count1=PA_FPFS_bulk_kappaz_steps;
-			double dkappaz2=dkz;
+			double dkappaz1=kappaz_border/(PA_FPFS_bulk_kappaz_steps_left*1.0);
+			int kappaz_count1=PA_FPFS_bulk_kappaz_steps_left;
+			double dkappaz2=FPFS_gz_length/(PA_FPFS_bulk_kappaz_steps_right*1.0);
 			int kappaz_count2=ceil((khn_approx*PA_FPFS_kRange-kappaz_border)/dkappaz2);
 			
 			FP_bulk_kappaz_count=kappaz_count1+kappaz_count2;
@@ -1929,6 +1929,15 @@ void calculate_PAD(){
 					}
 					calc_bulk_dispersion(k_point, PA_FPFS_bulk_kz_steps, FP_bulk_dispersion_kz, final_states_FP_g_size_bulk,
 															 final_states_FP_g_vec_bulk, Vgg_use, dispersion_use, bulk_matrix);
+					/*
+					for(int ig=0; ig<final_states_FP_g_size_bulk; ig++){
+						for(int ikz=0; ikz<PA_FPFS_bulk_kz_steps; ikz++){
+							printf("%10.6f %10.6f\n", FP_bulk_dispersion_kz[ikz], FP_bulk_dispersion_up[i][ikz][ig]);
+						}
+						printf("\n");
+						}*/
+
+					
 					if(PA_calc_complex_dispersion){
 						calc_bulk_dispersion_complex(k_point, 0.0, FP_bulk_kappaz_count, kappaz_border_index, FP_bulk_dispersion_kappaz, 
 																				 final_states_FP_g_size_bulk, final_states_FP_g_bulk, final_states_FP_g_vec_bulk, Vgg_use,
@@ -1963,13 +1972,7 @@ void calculate_PAD(){
 					}
 					//write_log((char*)"Bulk complex band calculation finished");
 					
-					/*
-					for(int ig=0; ig<final_states_FP_g_size_bulk; ig++){
-						for(int ikz=0; ikz<PA_FPFS_bulk_kz_steps; ikz++){
-							printf("%8.4f %8.4f\n", FP_bulk_dispersion_kz[ikz], FP_bulk_dispersion_up[i][ikz][ig]);
-						}
-						printf("\n");
-						}*/
+					
 
 					/*
 					for(int ikappaz=0; ikappaz<FP_bulk_kappaz_count-1; ikappaz++){
