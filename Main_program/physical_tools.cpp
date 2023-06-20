@@ -2723,8 +2723,13 @@ int find_eigenstate(int g_count, int band_index, int band_index2, double Ekin, c
 	return nearest_index;
 }
 
-int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, int** g_index, double** g_vec, complex<double>** Vgg, int kz_count, double* dispersion_kz, int kappaz_count, int kappaz_border_index, int g_para_count, double* dispersion_kappaz, double** dispersion_r, complex<double>** dispersion_c, int* dispersion_c_count, int** connection_c, complex<double>** dispersion_c_BZ, int* dispersion_c_BZ_count, int** connection_c_BZ, complex<double>*** final_states_pointer, double** kz_pointer, double** kappaz_pointer, complex<double>** mat, complex<double>** vr){
-	// printf("Ekin %10.6f\n", Ekin);
+int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, int** g_index, double** g_vec, complex<double>** Vgg, int kz_count, double* dispersion_kz, int kappaz_count, int kappaz_border_index, int g_para_count, double* dispersion_kappaz, double* dispersion_mkappaz, double** dispersion_r,
+														complex<double>** dispersion_c, int* dispersion_c_count, int** connection_c,
+														complex<double>** dispersion_c_BZ, int* dispersion_c_BZ_count, int** connection_c_BZ,
+														complex<double>** dispersion_mc, int* dispersion_mc_count, int** connection_mc,
+														complex<double>** dispersion_mc_BZ, int* dispersion_mc_BZ_count, int** connection_mc_BZ,
+														complex<double>*** final_states_pointer, double** kz_pointer, double** kappaz_pointer, complex<double>** mat, complex<double>** vr){
+	printf("Ekin %10.6f\n", Ekin);
 	char* sprintf_buffer2=new char[Log_length+1];
 	int i, j;
 	// prepare matrix
@@ -2761,14 +2766,18 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 	k_bloch[1]=k_para[1];
 	
 	int solution_count_real=0;
-	int solution_count_complex=0;
+	int solution_count_complex_sum=0;
 	int solution_count_cspace=0;
 	int solution_index=0;
 
+	int cspace_count=0;
 	bool* cspace_search_flag=new bool[kz_count];
 	for(int ikz=0; ikz<kz_count; ikz++){
 		cspace_search_flag[ikz]=false;
 	}
+	int* cspace_search_indices=new int[kz_count];
+	double* cspace_search_scale=new double[kz_count];
+	
 	// real region: use dispersion_r
 	for(int ib=0; ib<g_count; ib++){
 		for(int ikz=0; ikz<kz_count; ikz++){
@@ -2781,22 +2790,27 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		      double eigen_prev=dispersion_r[index_prev][ib];
 		      double eigen_curr=dispersion_r[ikz][ib];
 		      double eigen_next=dispersion_r[index_next][ib];
+					double eigen_up=dispersion_r[ikz][ib+1];
 		      if(eigen_prev < eigen_curr && eigen_curr > eigen_next){
-			sprintf(sprintf_buffer2, "Local maxima just below Ekin at kz=%8.4f", dispersion_kz[ikz]);
-			write_log(sprintf_buffer2);
-			if(abs(eigen_curr-Ekin)<PA_FPFS_bulk_tolerance){
-			  solution_kz[solution_index]=dispersion_kz[ikz];
-			  solution_kappaz[solution_index]=0.0;
-			  solution_band_indices[solution_index]=ib;
-			  solution_index++;
-			  solution_count_real++;
-			}else{
-			  for(int ikz2=ikz-PA_FPFS_cspace_offset; ikz2<=ikz+PA_FPFS_cspace_offset; ikz2++){
-			    if(ikz2>=0 && ikz2<kz_count){
-			      cspace_search_flag[ikz2]=true;
-			    }
-			  }
-			}
+						double eigen_gap=eigen_up-eigen_curr;
+						sprintf(sprintf_buffer2, "Local maxima just below Ekin at kz=%8.4f, gap=%10.6f", dispersion_kz[ikz], eigen_gap);
+						write_log(sprintf_buffer2);
+						if(eigen_gap<PA_FPFS_bulk_tolerance){
+							solution_kz[solution_index]=dispersion_kz[ikz];
+							solution_kappaz[solution_index]=0.0;
+							solution_band_indices[solution_index]=ib;
+							solution_index++;
+							solution_count_real++;
+						}else{
+							for(int ikz2=ikz-PA_FPFS_cspace_offset; ikz2<=ikz+PA_FPFS_cspace_offset; ikz2++){
+								if(ikz2>=0 && ikz2<kz_count){
+									cspace_search_flag[ikz2]=true;
+								}
+							}
+							cspace_search_indices[cspace_count]=ikz;
+							cspace_search_scale[cspace_count]=eigen_gap;
+							cspace_count++;
+						}
 		      }
 		    }
 		    // local maxima just above Ekin
@@ -2806,22 +2820,27 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		      double eigen_prev=dispersion_r[index_prev][ib];
 		      double eigen_curr=dispersion_r[ikz][ib];
 		      double eigen_next=dispersion_r[index_next][ib];
+					double eigen_dn=dispersion_r[ikz][ib-1];
 		      if(eigen_prev > eigen_curr && eigen_curr < eigen_next){
-			sprintf(sprintf_buffer2, "Local minima just above Ekin at kz=%8.4f", dispersion_kz[ikz]);
-			write_log(sprintf_buffer2);
-			if(abs(eigen_curr-Ekin)<PA_FPFS_bulk_tolerance){
-			  solution_kz[solution_index]=dispersion_kz[ikz];
-			  solution_kappaz[solution_index]=0.0;
-			  solution_band_indices[solution_index]=ib;
-			  solution_index++;
-			  solution_count_real++;
-			}else{
-			  for(int ikz2=ikz-PA_FPFS_cspace_offset; ikz2<=ikz+PA_FPFS_cspace_offset; ikz2++){
-			    if(ikz2>=0 && ikz2<kz_count){
-			      cspace_search_flag[ikz2]=true;
-			    }
-			  }
-			}
+						double eigen_gap=eigen_curr-eigen_dn;
+						sprintf(sprintf_buffer2, "Local minima just above Ekin at kz=%8.4f, gap=%10.6f", dispersion_kz[ikz], eigen_gap);
+						write_log(sprintf_buffer2);
+						if(eigen_gap<PA_FPFS_bulk_tolerance){
+							solution_kz[solution_index]=dispersion_kz[ikz];
+							solution_kappaz[solution_index]=0.0;
+							solution_band_indices[solution_index]=ib;
+							solution_index++;
+							solution_count_real++;
+						}else{
+							for(int ikz2=ikz-PA_FPFS_cspace_offset; ikz2<=ikz+PA_FPFS_cspace_offset; ikz2++){
+								if(ikz2>=0 && ikz2<kz_count){
+									cspace_search_flag[ikz2]=true;
+								}
+							}
+							cspace_search_indices[cspace_count]=ikz;
+							cspace_search_scale[cspace_count]=eigen_gap;
+							cspace_count++;
+						}
 		      }
 		    }
 		  }
@@ -2880,40 +2899,67 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 
 	// complex axis: use dispersion_c
 	complex<double> kz;
-	double kz_r[2];
+	double kz_r[4];
 	kz_r[0]=0.0;
 	kz_r[1]=gz*0.5;
+	kz_r[2]=0.0;
+	kz_r[3]=gz*0.5;
+	int solution_count_complex[4];
+	solution_count_complex[0]=0;
+	solution_count_complex[1]=0;
+	solution_count_complex[2]=0;
+	solution_count_complex[3]=0;
 
 	complex<double>** dispersion_use;
 	int** connection_use;
 	int* dispersion_count_use;
-	for(int ikzr=0; ikzr<2; ikzr++){
+	double* dispersion_kappaz_use;
+	for(int ikzr=0; ikzr<4; ikzr++){
+		int kappaz_count_temp;
 		if(ikzr==0){
 			dispersion_use=dispersion_c;
 			connection_use=connection_c;
 			dispersion_count_use=dispersion_c_count;
-		}else{
+			dispersion_kappaz_use=dispersion_kappaz;
+			kappaz_count_temp=kappaz_count;
+		}else if(ikzr==1){
 			dispersion_use=dispersion_c_BZ;
 			connection_use=connection_c_BZ;
 			dispersion_count_use=dispersion_c_BZ_count;
+			dispersion_kappaz_use=dispersion_kappaz;
+			kappaz_count_temp=kappaz_border_index;
+		}else if(ikzr==2){
+			dispersion_use=dispersion_mc;
+			connection_use=connection_mc;
+			dispersion_count_use=dispersion_mc_count;
+			dispersion_kappaz_use=dispersion_mkappaz;
+			kappaz_count_temp=kappaz_border_index;
+		}else if(ikzr==3){
+			dispersion_use=dispersion_mc_BZ;
+			connection_use=connection_mc_BZ;
+			dispersion_count_use=dispersion_mc_BZ_count;
+			dispersion_kappaz_use=dispersion_mkappaz;
+			kappaz_count_temp=kappaz_border_index;
+		}else{
+			break;
 		}
-		for(int ikappaz=0; ikappaz<kappaz_count-1; ikappaz++){
+		for(int ikappaz=0; ikappaz<kappaz_count_temp-1; ikappaz++){
 			for(int ib=0; ib<dispersion_count_use[ikappaz]; ib++){
 				if(connection_use[ikappaz][ib]<0){
 					continue;
 				}
 				double eigen_curr=dispersion_use[ikappaz][ib].real();
 				double eigen_next=dispersion_use[ikappaz+1][connection_use[ikappaz][ib]].real();
-				double kappaz_curr=dispersion_kappaz[ikappaz];
-				double kappaz_next=dispersion_kappaz[ikappaz+1];
+				double kappaz_curr=dispersion_kappaz_use[ikappaz];
+				double kappaz_next=dispersion_kappaz_use[ikappaz+1];
 				if((eigen_curr-Ekin)*(eigen_next-Ekin)<0){
 					// interpolation
 					double kappaz_interp=(kappaz_curr*abs(eigen_next-Ekin)+kappaz_next*abs(eigen_curr-Ekin))/abs(eigen_next-eigen_curr);
 
 					// bisection
 					k_bloch[2]=0.0;
-					double kappaz_left=dispersion_kappaz[ikappaz];
-					double kappaz_right=dispersion_kappaz[ikappaz+1];
+					double kappaz_left=dispersion_kappaz_use[ikappaz];
+					double kappaz_right=dispersion_kappaz_use[ikappaz+1];
 					double kappaz_center;
 					complex<double> kz_left(kz_r[ikzr], -kappaz_left);
 					complex<double> kz_right(kz_r[ikzr], -kappaz_right);
@@ -2954,17 +3000,20 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 					}
 					
 					solution_index++;
-					solution_count_complex++;
+					solution_count_complex[ikzr]++;
 				}
 			}
 		}
 	}
+	solution_count_complex_sum=solution_count_complex[0]+solution_count_complex[1]
+		+solution_count_complex[2]+solution_count_complex[3];
 
 	// complex plane
 
 	complex<double>** kz_corner1=alloc_zmatrix(buffer_size, 4);
 	complex<double>** kz_corner2;
 	int kz_corner_index=0;
+	double* dispersion_kappaz_temp=new double[kappaz_border_index];
 	double dkz=dispersion_kappaz[1]-dispersion_kappaz[0];
 	for(int ikz=1; ikz<kz_count-1; ikz++){
 		if(kz_count%2==0){
@@ -2979,35 +3028,88 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		if(cspace_search_flag[ikz]==false){
 			continue;
 		}
-		for(int ikappaz=0; ikappaz<kappaz_border_index-1; ikappaz++){
-			// printf("%d %d\n", ikz, ikappaz);
-			bool okFlag=true;
-			int ikz_next=(ikz+1)%kz_count;
-			complex<double> kz_lb(dispersion_kz[ikz], -dispersion_kappaz[ikappaz]);
-			complex<double> kz_lt(dispersion_kz[ikz], -dispersion_kappaz[ikappaz+1]);
-			complex<double> kz_rt(dispersion_kz[ikz_next], -dispersion_kappaz[ikappaz+1]);				
-			complex<double> kz_rb(dispersion_kz[ikz_next], -dispersion_kappaz[ikappaz]);
-			if(ikz==kz_count-1){
-				kz_rt+=gz;
-				kz_rb+=gz;
+		int area_min=ikz;
+		int area_max=ikz;
+		for(; area_min>0; area_min--){
+			if(cspace_search_flag[area_min]==false){
+				break;
 			}
-				
-			complex<double> det_lb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lb, g_vec, Vgg);
-			complex<double> det_lt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lt, g_vec, Vgg);
-			complex<double> det_rt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rt, g_vec, Vgg);
-			complex<double> det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rb, g_vec, Vgg);
-
-			if(encloseOrigin(det_lb, det_lt, det_rt, det_rb)){
-				if(kz_corner_index>=buffer_size){
-					write_log((char*)"Candidates are more than buffer size");
+			if(kz_count%2==0){
+				if(area_min==kz_count/2){
 					break;
 				}
-				kz_corner1[kz_corner_index][0]=kz_lb;
-				kz_corner1[kz_corner_index][1]=kz_lt;
-				kz_corner1[kz_corner_index][2]=kz_rt;
-				kz_corner1[kz_corner_index][3]=kz_rb;
-				kz_corner_index++;
+			}else{
+				if(area_min==(kz_count+1)/2){
+					break;
+				}
+			}
+		}
+		area_min++;
+		for(; area_max<kz_count-1; area_max++){
+			if(cspace_search_flag[area_max]==false){
+				break;
+			}
+			if(kz_count%2==0){
+				if(area_max==kz_count/2){
+					break;
+				}
+			}else{
+				if(area_max==(kz_count-1)/2){
+					break;
+				}
+			}
+		}
+		area_max--;
+		int count=0;
+		double gap_sum=0.0;
+		for(int ic=0; ic<cspace_count; ic++){
+			if(area_min<=cspace_search_indices[ic] && cspace_search_indices[ic]<=area_max){
+				gap_sum+=cspace_search_scale[ic];
+				count++;
+			}
+		}
+		if(count==0){
+			continue;
+		}
+		double gap_ave=gap_sum/(1.0*count);
+		// printf("Area: %8.4f to %8.4f, gap=%10.6f\n", dispersion_kz[area_min], dispersion_kz[area_max], gap_ave);
+		double dkappaz_temp=gap_ave*PA_FPFS_cspace_size/(kappaz_border_index);
+		for(int inp=0; inp<2; inp++){
+			for(int ikappaz=0; ikappaz<kappaz_border_index; ikappaz++){
+				if(inp==0){
+					dispersion_kappaz_temp[ikappaz]=dkappaz_temp*(1.0+ikappaz);
+				}else{
+					dispersion_kappaz_temp[ikappaz]=-dkappaz_temp*(1.0+ikappaz);
+				}
+			}
+			for(int ikappaz=0; ikappaz<kappaz_border_index-1; ikappaz++){
+				// printf("%d %d\n", ikz, ikappaz);
+				int ikz_next=(ikz+1)%kz_count;
+				complex<double> kz_lb(dispersion_kz[ikz], -dispersion_kappaz_temp[ikappaz]);
+				complex<double> kz_lt(dispersion_kz[ikz], -dispersion_kappaz_temp[ikappaz+1]);
+				complex<double> kz_rt(dispersion_kz[ikz_next], -dispersion_kappaz_temp[ikappaz+1]);				
+				complex<double> kz_rb(dispersion_kz[ikz_next], -dispersion_kappaz_temp[ikappaz]);
+				if(ikz==kz_count-1){
+					kz_rt+=gz;
+					kz_rb+=gz;
+				}
 				
+				complex<double> det_lb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lb, g_vec, Vgg);
+				complex<double> det_lt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lt, g_vec, Vgg);
+				complex<double> det_rt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rt, g_vec, Vgg);
+				complex<double> det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rb, g_vec, Vgg);
+
+				if(encloseOrigin(det_lb, det_lt, det_rt, det_rb)){
+					if(kz_corner_index>=buffer_size){
+						write_log((char*)"Candidates are more than buffer size");
+						break;
+					}
+					kz_corner1[kz_corner_index][0]=kz_lb;
+					kz_corner1[kz_corner_index][1]=kz_lt;
+					kz_corner1[kz_corner_index][2]=kz_rt;
+					kz_corner1[kz_corner_index][3]=kz_rb;
+					kz_corner_index++;
+				}
 			}
 		}
 	}
@@ -3080,14 +3182,15 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 			dkz*=0.5;
 		}
 
-		int index_offset=solution_count_real+solution_count_complex;
+		int index_offset=solution_count_real+solution_count_complex_sum;
 		for(int is=0; is<kz_corner_count; is++){
 			complex<double> kz_sol=(kz_corner1[is][0]+kz_corner1[is][2])*0.5;
+			//printf("kz_sol %10.6f %10.6f\n", kz_sol.real(), kz_sol.imag());
 
 			double nearest_distance=-1;
 			for(int is2=index_offset; is2<solution_index; is2++){
 				double distance=abs(complex<double>(solution_kz[is2], -solution_kappaz[is2])-kz_sol);
-				if(nearest_distance<0 || nearest_distance>distance){
+				if(kz_sol.imag()*(-solution_kappaz[is2])>0 && (nearest_distance<0 || nearest_distance>distance)){
 					nearest_distance=distance;
 				}
 			}
@@ -3106,8 +3209,8 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 	delete_zmatrix(kz_corner1);
 
 	//int solution_count=solution_count_cross+solution_count_local;
-	int solution_count=solution_count_real+solution_count_complex+solution_count_cspace;
-	sprintf(sprintf_buffer2, "%3d solutions are found (real: %3d, complex: %3d, complex space: %3d)", solution_count, solution_count_real, solution_count_complex, solution_count_cspace);
+	int solution_count=solution_count_real+solution_count_complex_sum+solution_count_cspace;
+	sprintf(sprintf_buffer2, "%3d solutions are found (real: %3d, complex: %3d %3d %3d %3d, complex space: %3d)", solution_count, solution_count_real, solution_count_complex[0], solution_count_complex[1], solution_count_complex[2], solution_count_complex[3], solution_count_cspace);
 	write_log(sprintf_buffer2);
 
 	// for debug
@@ -3216,7 +3319,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 			return 0;
 		}
 		double eigen_diff;
-		if(is<solution_count_real+solution_count_complex){
+		if(is<solution_count_real+solution_count_complex_sum){
 			// solution (complex)
 			int eigen_index=find_eigenstate(g_count, solution_band_indices[is], solution_band_indices2[is], Ekin, wc, vr, g_index);
 			eigen_diff=abs(0.5*wc[eigen_index]-Ekin);
@@ -3287,7 +3390,11 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 	  delete[] work;
 	}
 	delete[] cspace_search_flag;
+	delete[] cspace_search_indices;
+	delete[] cspace_search_scale;
+	delete[] dispersion_kappaz_temp;
 	return solution_count;
+	
 }
 
 double* interpolate_wfn(int wfn_length, double* wfn, double* r, int wfn_length_reduced, double dr){
