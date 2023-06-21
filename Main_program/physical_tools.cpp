@@ -2812,7 +2812,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 						lmax_eigen[lmax_count]=eigen_curr;
 						lmax_band[lmax_count]=ib;
 						lmax_listed[lmax_count]=false;
-						lmax_count;
+						lmax_count++;
 		      }
 		    }
 				// local minima just above Ekin
@@ -3017,8 +3017,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 			}
 		}
 	}
-	solution_count_complex_sum=solution_count_complex[0]+solution_count_complex[1]
-		+solution_count_complex[2]+solution_count_complex[3];
+	solution_count_complex_sum=solution_count_complex[0]+solution_count_complex[1];
 
 	// complex plane
 
@@ -3225,7 +3224,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 
 	//int solution_count=solution_count_cross+solution_count_local;
 	int solution_count=solution_count_real+solution_count_complex_sum+solution_count_cspace;
-	sprintf(sprintf_buffer2, "%3d solutions are found (real: %3d, complex: %3d %3d %3d %3d, complex space: %3d)", solution_count, solution_count_real, solution_count_complex[0], solution_count_complex[1], solution_count_complex[2], solution_count_complex[3], solution_count_cspace);
+	sprintf(sprintf_buffer2, "%3d solutions are found (real: %3d, complex: %3d %3d, complex space: %3d)", solution_count, solution_count_real, solution_count_complex[0], solution_count_complex[1], solution_count_cspace);
 	write_log(sprintf_buffer2);
 
 	// for debug
