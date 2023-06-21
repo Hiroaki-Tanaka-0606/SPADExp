@@ -1676,10 +1676,13 @@ void solve_final_state_from_bulk_perturbation(double Ekin, double* k_para, doubl
 	//}
 	//printf("\n");
 
-	// step 2: other than g0 (Euler)
-	// fG(z)''=-pot(z)fG(z)+rhs(z)
 	complex<double>* rhs_vector=new complex<double>[z_count];
 	complex<double>* diff_vector=new complex<double>[z_count];
+	int mat_size=z_count-(z_start-1);
+	complex<double>** mat=alloc_zmatrix(mat_size);
+	complex<double>* special_solution=new complex<double>[mat_size];
+	complex<double>* general_solution=new complex<double>[mat_size];
+	int* ipiv=new int[mat_size];
 	double kpg[3];
 	for(int ig=0; ig<g_count; ig++){
 		if(ig==V00_index){
@@ -1692,21 +1695,74 @@ void solve_final_state_from_bulk_perturbation(double Ekin, double* k_para, doubl
 			pot_vector[iz]=2.0*Ekin-inner_product(kpg, kpg)-2.0*Vgg[V00_index][V00_index][iz];
 			rhs_vector[iz]=2.0*Vgg[ig][V00_index][iz]*FP_loc[V00_index][iz];
 		}
-		FP_loc[ig][z_count-1]=0.0;
-		diff_vector[z_count-1]=0.0;
-		for(int iz=z_count-2; iz>=z_start-1; iz--){
-			FP_loc[ig][iz]=FP_loc[ig][iz+1]-diff_vector[iz+1]*dz;
-			diff_vector[iz]=diff_vector[iz+1]-(-pot_vector[iz+1]*FP_loc[ig][iz+1]+rhs_vector[iz+1])*dz;
+
+		for(int iz1=0; iz1<mat_size; iz1++){
+			for(int iz2=0; iz2<mat_size; iz2++){
+				if(iz1==iz2){
+					mat[iz2][iz1]=-2.0/dz/dz+pot_vector[iz1+z_start-1];
+				}else if(abs(iz1-iz2)==1){
+					mat[iz2][iz1]=1.0/dz/dz;
+				}else{
+					mat[iz2][iz1]=0.0;
+				}
+			}
 		}
+		
+		// special solution
+		for(int iz=0; iz<mat_size; iz++){
+			if(iz==0){
+				special_solution[iz]=-1.0/dz/dz;
+			}else{
+				special_solution[iz]=0.0;
+			}
+			special_solution[iz]+=rhs_vector[iz+z_start-1];
+		}
+		int nrhs=1;
+		int info;
+		zgesv_(&mat_size, &nrhs, &mat[0][0], &mat_size, &ipiv[0], &special_solution[0], &mat_size, &info);
+		if(info!=0){
+			write_log((char*)"Error: zgesv failed");
+			continue;
+		}
+		printf("#Special\n");
+		for(int iz=0; iz<mat_size; iz++){
+			printf("%14.10f %14.10f\n", special_solution[iz].real(), special_solution[iz].imag());
+		}
+		printf("\n");
+
+		// general solution
+		for(int iz=0; iz<mat_size; iz++){
+			if(iz==0){
+				general_solution[iz]=-1.0/dz/dz;
+			}else{
+				general_solution[iz]=0.0;
+			}
+		}
+		char notrans='N';
+		zgetrs_(&notrans, &mat_size, &nrhs, &mat[0][0], &mat_size, &ipiv[0], &general_solution[0], &mat_size, &info);
+		if(info!=0){
+			write_log((char*)"Error: zgesv failed");
+			continue;
+		}
+		printf("#General\n");
+		for(int iz=0; iz<mat_size; iz++){
+			printf("%14.10f %14.10f\n", general_solution[iz].real(), general_solution[iz].imag());
+		}
+		printf("\n");
+		
+		
+
+		// general solution
 	}
 
+	/*
 	for(int ig=0; ig<g_count; ig++){
 		printf("#%d\n", ig);
 		for(int iz=0; iz<z_count; iz++){
 			printf("%8.4f %8.4f\n", FP_loc[ig][iz].real(), FP_loc[ig][iz].imag());
 		}
 		printf("\n");
-	}
+		}*/
 	
 	
 	
@@ -1714,6 +1770,10 @@ void solve_final_state_from_bulk_perturbation(double Ekin, double* k_para, doubl
 	delete[] rhs_vector;
 	delete[] diff_vector;
 	delete[] sprintf_buffer2;
+	delete[] special_solution;
+	delete[] general_solution;
+	delete[] ipiv;
+	delete_zmatrix(mat);
 }
 	
 // calculate res=Ax-B
@@ -2823,6 +2883,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		      double eigen_curr=dispersion_r[ikz][ib];
 		      double eigen_next=dispersion_r[index_next][ib];
 		      if(eigen_prev > eigen_curr && eigen_curr < eigen_next){
+						sprintf(sprintf_buffer2, "Local minima just above Ekin at kz=%8.4f", dispersion_kz[ikz]);
 						if(lmax_exist_flag[ikz]){
 							int lmax_index=-1;
 							int lmax_distance_min=-1;
