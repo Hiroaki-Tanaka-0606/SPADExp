@@ -43,8 +43,8 @@ complex<double> Fourier_expansion_1D(complex<double>* Vgg_bulk, double g, double
 int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, int** g_index, double** g_vec, complex<double>** Vgg, int kz_count, double* dispersion_kz, int kappaz_count, int kappaz_border_index, int g_para_count, double* dispersion_kappaz, double* dispersion_mkappaz,	double** dispersion_r,
 														complex<double>** dispersion_c, int* dispersion_c_count, int** connection_c,
 														complex<double>** dispersion_c_BZ, int* dispersion_c_BZ_count, int** connection_c_BZ,
-														complex<double>** dispersion_mc, int* dispersion_mc_count, int** connection_mc,
-														complex<double>** dispersion_mc_BZ, int* dispersion_mc_BZ_count, int** connection_mc_BZ,
+														/*complex<double>** dispersion_mc, int* dispersion_mc_count, int** connection_mc,
+															complex<double>** dispersion_mc_BZ, int* dispersion_mc_BZ_count, int** connection_mc_BZ,*/
 														complex<double>*** final_states_pointer, double** kz_pointer, double** kappaz_pointer, complex<double>** mat, complex<double>** vr);
 
 double* interpolate_wfn(int wfn_length, double* wfn, double* r, int wfn_length_reduced, double dr);
