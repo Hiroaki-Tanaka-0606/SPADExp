@@ -2786,10 +2786,10 @@ int find_eigenstate(int g_count, int band_index, int band_index2, double Ekin, c
 int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count, int** g_index, double** g_vec, complex<double>** Vgg, int kz_count, double* dispersion_kz, int kappaz_count, int kappaz_border_index, int g_para_count, double* dispersion_kappaz, double* dispersion_mkappaz, double** dispersion_r,
 														complex<double>** dispersion_c, int* dispersion_c_count, int** connection_c,
 														complex<double>** dispersion_c_BZ, int* dispersion_c_BZ_count, int** connection_c_BZ,
-														/*complex<double>** dispersion_mc, int* dispersion_mc_count, int** connection_mc,
-															complex<double>** dispersion_mc_BZ, int* dispersion_mc_BZ_count, int** connection_mc_BZ,*/
+														complex<double>** dispersion_mc, int* dispersion_mc_count, int** connection_mc,
+														complex<double>** dispersion_mc_BZ, int* dispersion_mc_BZ_count, int** connection_mc_BZ,
 														complex<double>*** final_states_pointer, double** kz_pointer, double** kappaz_pointer, complex<double>** mat, complex<double>** vr){
-	printf("Ekin %10.6f\n", Ekin);
+	// printf("Ekin %10.6f\n", Ekin);
 	char* sprintf_buffer2=new char[Log_length+1];
 	int i, j;
 	// prepare matrix
@@ -2988,18 +2988,22 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 
 	// complex axis: use dispersion_c
 	complex<double> kz;
-	double kz_r[2];
+	double kz_r[4];
 	kz_r[0]=0.0;
 	kz_r[1]=gz*0.5;
-	int solution_count_complex[2];
+	kz_r[2]=0.0;
+	kz_r[3]=gz*0.5;
+	int solution_count_complex[4];
 	solution_count_complex[0]=0;
 	solution_count_complex[1]=0;
+	solution_count_complex[2]=0;
+	solution_count_complex[3]=0;
 
 	complex<double>** dispersion_use;
 	int** connection_use;
 	int* dispersion_count_use;
 	double* dispersion_kappaz_use;
-	for(int ikzr=0; ikzr<2; ikzr++){
+	for(int ikzr=0; ikzr<4; ikzr++){
 		int kappaz_count_temp;
 		if(ikzr==0){
 			dispersion_use=dispersion_c;
@@ -3012,6 +3016,18 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 			connection_use=connection_c_BZ;
 			dispersion_count_use=dispersion_c_BZ_count;
 			dispersion_kappaz_use=dispersion_kappaz;
+			kappaz_count_temp=kappaz_border_index;
+		}else if(ikzr==2){
+			dispersion_use=dispersion_mc;
+			connection_use=connection_mc;
+			dispersion_count_use=dispersion_mc_count;
+			dispersion_kappaz_use=dispersion_mkappaz;
+			kappaz_count_temp=kappaz_border_index;
+		}else if(ikzr==3){
+			dispersion_use=dispersion_mc_BZ;
+			connection_use=connection_mc_BZ;
+			dispersion_count_use=dispersion_mc_BZ_count;
+			dispersion_kappaz_use=dispersion_mkappaz;
 			kappaz_count_temp=kappaz_border_index;
 		}else{
 			break;
@@ -3078,7 +3094,8 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 			}
 		}
 	}
-	solution_count_complex_sum=solution_count_complex[0]+solution_count_complex[1];
+	solution_count_complex_sum=solution_count_complex[0]+solution_count_complex[1]
+		+solution_count_complex[2]+solution_count_complex[3];
 
 	// complex plane
 
@@ -3147,9 +3164,6 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		// printf("Area: %8.4f to %8.4f, gap=%10.6f\n", dispersion_kz[area_min], dispersion_kz[area_max], gap_ave);
 		double dkappaz_temp=gap_ave*PA_FPFS_cspace_size/(kappaz_border_index);
 		for(int inp=0; inp<2; inp++){
-			if(inp==1){
-				continue;
-			}
 			for(int ikappaz=0; ikappaz<kappaz_border_index; ikappaz++){
 				if(inp==0){
 					dispersion_kappaz_temp[ikappaz]=dkappaz_temp*(1.0+ikappaz);
@@ -3285,7 +3299,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 
 	//int solution_count=solution_count_cross+solution_count_local;
 	int solution_count=solution_count_real+solution_count_complex_sum+solution_count_cspace;
-	sprintf(sprintf_buffer2, "%3d solutions are found (real: %3d, complex: %3d %3d, complex space: %3d)", solution_count, solution_count_real, solution_count_complex[0], solution_count_complex[1], solution_count_cspace);
+	sprintf(sprintf_buffer2, "%3d solutions are found (real: %3d, complex: %3d %3d %3d %3d, complex space: %3d)", solution_count, solution_count_real, solution_count_complex[0], solution_count_complex[1], solution_count_complex[2], solution_count_complex[3], solution_count_cspace);
 	write_log(sprintf_buffer2);
 
 	// for debug
