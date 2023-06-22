@@ -1228,7 +1228,7 @@ void calculate_PAD(){
 
 		// Fourier expansion of VKS
 		write_log((char*)"----Fourier expansion of the Kohn-Sham potential----");
-		double khn_approx=sqrt(2*PA_excitation_energy/Eh);
+		double khn_approx=sqrt(2.0*PA_excitation_energy/Eh);
 		double b1_length=sqrt(inner_product(rec_cell[1], rec_cell[1]));
 		double b2_length=sqrt(inner_product(rec_cell[2], rec_cell[2]));
 		double b_length=min(b1_length, b2_length);

@@ -2928,6 +2928,19 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 									cspace_search_scale[cspace_count]=eigen_gap;
 									cspace_count++;
 								}
+							}else{
+								double eigen_dn=dispersion_r[ikz][ib-1];
+								double eigen_gap=eigen_curr-eigen_dn;
+								sprintf(sprintf_buffer2, "Unpaired local minima just above Ekin at kz=%8.4f, gap=%10.6f", dispersion_kz[ikz], eigen_gap);
+								write_log(sprintf_buffer2);
+								for(int ikz2=ikz-PA_FPFS_cspace_offset; ikz2<=ikz+PA_FPFS_cspace_offset; ikz2++){
+									if(ikz2>=0 && ikz2<kz_count){
+										cspace_search_flag[ikz2]=true;
+									}
+								}
+								cspace_search_indices[cspace_count]=ikz;
+								cspace_search_scale[cspace_count]=eigen_gap;
+								cspace_count++;
 							}
 						}
 		      }
@@ -2984,6 +2997,26 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 				solution_count_real++;
 			}
 		}	
+	}
+
+	for(int il=0; il<lmax_count; il++){
+		if(lmax_listed[il]==false){
+			int ikz=lmax_indices[il];
+			int ib=lmax_band[il];
+			double eigen_curr=lmax_eigen[il];
+			double eigen_up=dispersion_r[ikz][ib+1];
+			double eigen_gap=eigen_up-eigen_curr;
+			sprintf(sprintf_buffer2, "Unpaired local maxima just below Ekin at kz=%8.4f, gap=%10.6f", dispersion_kz[ikz], eigen_gap);
+			write_log(sprintf_buffer2);
+			for(int ikz2=ikz-PA_FPFS_cspace_offset; ikz2<=ikz+PA_FPFS_cspace_offset; ikz2++){
+				if(ikz2>=0 && ikz2<kz_count){
+					cspace_search_flag[ikz2]=true;
+				}
+			}
+			cspace_search_indices[cspace_count]=ikz;
+			cspace_search_scale[cspace_count]=eigen_gap;
+			cspace_count++;
+		}
 	}
 
 	// complex axis: use dispersion_c
@@ -3162,7 +3195,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		}
 		double gap_ave=gap_sum/(1.0*count);
 		// printf("Area: %8.4f to %8.4f, gap=%10.6f\n", dispersion_kz[area_min], dispersion_kz[area_max], gap_ave);
-		double dkappaz_temp=gap_ave*PA_FPFS_cspace_size/(kappaz_border_index);
+		double dkappaz_temp=gap_ave*PA_FPFS_cspace_size/(kappaz_border_index*sqrt(2.0*PA_excitation_energy/Eh));
 		for(int inp=0; inp<2; inp++){
 			for(int ikappaz=0; ikappaz<kappaz_border_index; ikappaz++){
 				if(inp==0){
