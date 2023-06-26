@@ -169,21 +169,12 @@ void initialize(){
 	PA_ignore_core_set=false;
 	PA_add_nonorth_term=false;
 	PA_add_nonorth_term_set=false;
-	PA_calc_all_nonloc=false;
+	PA_calc_all_nonloc=true;
 	PA_calc_all_nonloc_set=false;
-	PA_calc_all_loc=true;
-	PA_calc_all_loc_set=false;
 	PA_ignore_nonlocal=false;
 	PA_ignore_nonlocal_set=false;
 	PA_FPFS_Numerov=false;
 	PA_FPFS_Numerov_set=false;
-	PA_FPFS_margin=15.0;
-	PA_FPFS_edge_smoothing=false;
-	PA_FPFS_edge_smoothing_set=false;
-	PA_FPFS_smoothing_E=0;
-	PA_FPFS_smoothing_E_set=false;
-	PA_FPFS_smoothing_k=0;
-	PA_FPFS_smoothing_k_set=false;
 	PA_FPFS_bulk_set=false;
 	PA_FPFS_bulk_min_ang=0.0;
 	PA_FPFS_bulk_max_ang=0.0;
@@ -193,19 +184,15 @@ void initialize(){
 	PA_FPFS_bulk_kappaz_steps_right=50;
 	PA_interpolate_wfn=true;
 	PA_interpolate_wfn_coef=0.5;
-	PA_FPFS_bulk_tolerance=0.003;
-	PA_FPFS_bulk_buffer_size=256;
-	PA_FPFS_perturbation=false;
-	PA_FPFS_perturbation_set=false;
-	PA_calc_complex_dispersion=true;
-	PA_calc_complex_dispersion_set=false;
-	PA_FPFS_complex_dispersion_criterion=0.02;
+	PA_FPFS_negligible_gap_size=0.003;
+	PA_FPFS_bulk_buffer_size=1024;
+	PA_FPFS_real_eigenvalue_criterion=0.02;
 	PA_FPFS_dispersion_group_criterion_left=0.01;
 	PA_FPFS_dispersion_group_criterion_right=0.1;
 	PA_FPFS_gap_coefficient=0.3;
-	PA_FPFS_cspace_offset=10;
+	PA_FPFS_kz_margin_index_size=10;
 	PA_FPFS_cspace_size=5;
-	PA_FPFS_kz_criterion=0.005;
+	PA_FPFS_kz_exclude_criterion=0.005;
 }
 
 void finalize(){

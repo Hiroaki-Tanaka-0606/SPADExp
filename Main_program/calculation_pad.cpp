@@ -704,11 +704,6 @@ void calculate_PAD(){
 		}
 		sprintf(sprintf_buffer, "%32s = [%8.2f, %8.2f] [a.u.]", "Weighting range", range_min, range_max);
 		write_log(sprintf_buffer);
-		if(PA_FPFS && !PA_calc_all_loc){
-			FPFS_z_bottom=range_min-PA_FPFS_margin;
-			sprintf(sprintf_buffer, "%32s = %8.2f [a.u.]", "FPFS z bottom", FPFS_z_bottom);
-			write_log(sprintf_buffer);
-		}
 		for(i=0; i<atom_length; i++){
 			double signed_length=inner_product(axis_au, atom_coordinates[i]);
 			if(range_min<signed_length && signed_length<range_max){
@@ -864,6 +859,7 @@ void calculate_PAD(){
 	int** final_states_EScale;                // [total_count_ext][FPIndex]=round(E/FPFS_energy_step)
 	int** final_states_spin;                  // [total_count_ext][FPIndex]=up(0) or down(1), always zero for spin_i==0 (off)
 	double*** final_states_k;                 // [total_count_ext][FPIndex]=k vector (au^-1)
+	double** final_states_zgels_norm;         // [total_count_ext][FPIndex]=zgels norm (in FPFS_bulk)
 	int* final_states_FP_size;                // [total_count_ext]=FPIndex_size
 	int E_min_scale;                          // round(E_min_tail/PA_FPFS_energy_step);
 	int E_max_scale;                          // round(E_max_tail/PA_FPFS_energy_step);
@@ -1308,15 +1304,10 @@ void calculate_PAD(){
 		final_states_dz=sqrt(inner_product(atom_cell[0], atom_cell[0]))/VKS_count[0];
 		sprintf(sprintf_buffer, "dz = %.3f", final_states_dz);
 		write_log(sprintf_buffer);
-		if(!PA_calc_all_loc){
-			if(!PA_FPFS_bulk_set){
-				FPFS_z_start=round(FPFS_z_bottom/final_states_dz);
-			}else{
-				FPFS_z_start=floor(FPFS_bulk_max/final_states_dz);
-			}
+		if(PA_FPFS_bulk_set){
+			FPFS_z_start=floor(FPFS_bulk_max/final_states_dz);
 			sprintf(sprintf_buffer, "z_start = %d", FPFS_z_start);
 			write_log(sprintf_buffer);
-
 		}
 
 		if(PA_FPFS_bulk_set){
@@ -1486,6 +1477,9 @@ void calculate_PAD(){
 			final_states_FP_bulk_kz=new double**[total_count_ext];
 			final_states_FP_bulk_kappaz=new double**[total_count_ext];
 			final_states_FP_bulk_coefs=new complex<double>**[total_count_ext];
+		}
+		if(!PA_FPFS_Numerov){
+			final_states_zgels_norm=new double*[total_count_ext];
 		}
 		// final_states_FP_bulk_dispersion=new double*[total_count_ext];
 		int digit=(spin_i==2)?2:1;
@@ -1711,53 +1705,42 @@ void calculate_PAD(){
 			for(sp=0; sp<sp_max;sp++){
 				// initialization
 				for(j=0; j<scale_width; j++){
-					if(PA_FPFS_edge_smoothing){
-						band_exists[j]=true;
-						band_exists_up[j]=true;
-						band_exists_dn[j]=true;
-					}else{
-						band_exists[j]=false;
-						band_exists_up[j]=false;
-						band_exists_dn[j]=false;
-					}
+					band_exists[j]=false;
+					band_exists_up[j]=false;
+					band_exists_dn[j]=false;
 				}
-				count=0;
-				count_up=0;
-				count_dn=0;
-				if(PA_FPFS_edge_smoothing){
-					count=scale_width;
-					count_up=scale_width;
-					count_dn=scale_width;
+			}
+			count=0;
+			count_up=0;
+			count_dn=0;
+			// fill
+			for(j=0; j<num_bands; j++){
+				double eigen;
+				if(spin_i==0 || spin_i==2){
+					eigen=(band[k_index][j]-EF_Eh)*Eh;
+				}else if(sp==0){
+					eigen=(band_up[k_index][j]-EF_Eh)*Eh;
+				}else{
+					eigen=(band_dn[k_index][j]-EF_Eh)*Eh;
 				}
-				// fill
-				for(j=0; j<num_bands; j++){
-					double eigen;
+				int eigen_scale=round(eigen/PA_FPFS_energy_step);
+				// printf("Eigen scale: %d\n", eigen_scale);
+				int eigen_scale_offset=eigen_scale-E_min_scale;
+				if(E_min_scale<= eigen_scale && eigen_scale<=E_max_scale){
 					if(spin_i==0 || spin_i==2){
-						eigen=(band[k_index][j]-EF_Eh)*Eh;
+						if(band_exists[eigen_scale_offset]==false){
+							count++;
+							band_exists[eigen_scale_offset]=true;
+						}
 					}else if(sp==0){
-						eigen=(band_up[k_index][j]-EF_Eh)*Eh;
+						if(band_exists_up[eigen_scale_offset]==false){
+							count_up++;
+							band_exists_up[eigen_scale_offset]=true;
+						}
 					}else{
-						eigen=(band_dn[k_index][j]-EF_Eh)*Eh;
-					}
-					int eigen_scale=round(eigen/PA_FPFS_energy_step);
-					// printf("Eigen scale: %d\n", eigen_scale);
-					int eigen_scale_offset=eigen_scale-E_min_scale;
-					if(E_min_scale<= eigen_scale && eigen_scale<=E_max_scale){
-						if(spin_i==0 || spin_i==2){
-							if(band_exists[eigen_scale_offset]==false){
-								count++;
-								band_exists[eigen_scale_offset]=true;
-							}
-						}else if(sp==0){
-							if(band_exists_up[eigen_scale_offset]==false){
-								count_up++;
-								band_exists_up[eigen_scale_offset]=true;
-							}
-						}else{
-							if(band_exists_dn[eigen_scale_offset]==false){
-								band_exists_dn[eigen_scale_offset]=true;
-								count_dn++;
-							}
+						if(band_exists_dn[eigen_scale_offset]==false){
+							band_exists_dn[eigen_scale_offset]=true;
+							count_dn++;
 						}
 					}
 				}
@@ -1798,12 +1781,18 @@ void calculate_PAD(){
 				final_states_FP_bulk_kappaz[i]=new double*[FPIndex_size];
 				final_states_FP_bulk_coefs[i]=new complex<double>*[FPIndex_size];
 			}
+			if(!PA_FPFS_Numerov){
+				final_states_zgels_norm[i]=new double[FPIndex_size];
+			}
 
 			for(j=0; j<FPIndex_size; j++){
 				final_states_k[i][j]=new double[3];
 				final_states_FP_nonloc[i][j]=new complex<double>**[atom_length];
 				final_states_FP_norm1[i][j]=new double[atom_length];
 				final_states_FP_norm2[i][j]=new double[atom_length];
+				if(!PA_FPFS_Numerov){
+					final_states_zgels_norm[i][j]=0.0;
+				}
 				for(int ia=0; ia<atom_length; ia++){
 					int is=atom_spec_index[ia];
 					if(empty_atoms[is]){
@@ -1857,29 +1846,6 @@ void calculate_PAD(){
 								FPIndex+=2;
 							}
 						}
-					}
-				}
-			}
-			// fill for edge_smoothing
-			if(PA_FPFS_edge_smoothing){
-				FPIndex=0;
-				for(int sp=0; sp<sp_max; sp++){
-					for(int ie=E_min_scale; ie<=E_max_scale; ie++){
-							if(spin_i==0){
-								final_states_EScale[i][FPIndex]=ie;
-								final_states_spin[i][FPIndex]=0;
-								FPIndex++;
-							}else if(spin_i==1){
-								final_states_EScale[i][FPIndex]=ie;
-								final_states_spin[i][FPIndex]=sp;
-								FPIndex++;
-							}else{
-								final_states_EScale[i][FPIndex]=ie;
-								final_states_spin[i][FPIndex]=0;
-								final_states_EScale[i][FPIndex+1]=ie;
-								final_states_spin[i][FPIndex+1]=1;
-								FPIndex+=2;
-							}
 					}
 				}
 			}
@@ -1953,12 +1919,10 @@ void calculate_PAD(){
 						printf("\n");
 						}*/
 
-					
-					if(PA_calc_complex_dispersion){
-						calc_bulk_dispersion_complex(k_point, 0.0, FP_bulk_kappaz_count, kappaz_border_index, FP_bulk_dispersion_kappaz, 
-																				 final_states_FP_g_size_bulk, final_states_FP_g_bulk, final_states_FP_g_vec_bulk, Vgg_use,
-																				 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix);
-					}
+				  
+					calc_bulk_dispersion_complex(k_point, 0.0, FP_bulk_kappaz_count, kappaz_border_index, FP_bulk_dispersion_kappaz, 
+																			 final_states_FP_g_size_bulk, final_states_FP_g_bulk, final_states_FP_g_vec_bulk, Vgg_use,
+																			 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix);
 					/*
 					for(int ikappaz=0; ikappaz<FP_bulk_kappaz_count-1; ikappaz++){
 						for(int ib=0; ib<dispersion_c_count_pointer[ikappaz]; ib++){
@@ -1970,57 +1934,54 @@ void calculate_PAD(){
 						}
 						printf("\n");
 						}*/
-					if(PA_calc_complex_dispersion){
 						// BZ, positive kappaz
-						if(sp==0){
-							Vgg_use=Vgg0_matrix_bulk;
-							dispersion_c_pointer=&dispersion_c_BZ_up;
-							dispersion_c_count_pointer=dispersion_c_BZ_count_up;
-							connection_c_pointer=&connection_c_BZ_up;
-						}else{
-							Vgg_use=Vgg1_matrix_bulk;
-							dispersion_c_pointer=&dispersion_c_BZ_dn;
-							dispersion_c_count_pointer=dispersion_c_BZ_count_dn;
-							connection_c_pointer=&connection_c_BZ_dn;
-						}
-						calc_bulk_dispersion_complex(k_point, FPFS_gz_length*0.5, kappaz_border_index, kappaz_border_index, FP_bulk_dispersion_kappaz, 
-																				 final_states_FP_g_size_bulk, final_states_FP_g_bulk, final_states_FP_g_vec_bulk, Vgg_use,
-																				 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix);
-
-						// zero, negative kappaz
-						
-						if(sp==0){
-							Vgg_use=Vgg0_matrix_bulk;
-							dispersion_c_pointer=&dispersion_mc_up;
-							dispersion_c_count_pointer=dispersion_mc_count_up;
-							connection_c_pointer=&connection_mc_up;
-						}else{
-							Vgg_use=Vgg1_matrix_bulk;
-							dispersion_c_pointer=&dispersion_mc_dn;
-							dispersion_c_count_pointer=dispersion_mc_count_dn;
-							connection_c_pointer=&connection_mc_dn;
-						}
-						calc_bulk_dispersion_complex(k_point, 0, kappaz_border_index, kappaz_border_index, FP_bulk_dispersion_mkappaz, 
-																				 final_states_FP_g_size_bulk, final_states_FP_g_bulk, final_states_FP_g_vec_bulk, Vgg_use,
-																				 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix);
-
-						// BZ, negative kappaz
-						
-						if(sp==0){
-							Vgg_use=Vgg0_matrix_bulk;
-							dispersion_c_pointer=&dispersion_mc_BZ_up;
-							dispersion_c_count_pointer=dispersion_mc_BZ_count_up;
-							connection_c_pointer=&connection_mc_BZ_up;
-						}else{
-							Vgg_use=Vgg1_matrix_bulk;
-							dispersion_c_pointer=&dispersion_mc_BZ_dn;
-							dispersion_c_count_pointer=dispersion_mc_BZ_count_dn;
-							connection_c_pointer=&connection_mc_BZ_dn;
-						}
-						calc_bulk_dispersion_complex(k_point, FPFS_gz_length*0.5, kappaz_border_index, kappaz_border_index, FP_bulk_dispersion_mkappaz, 
-																				 final_states_FP_g_size_bulk, final_states_FP_g_bulk, final_states_FP_g_vec_bulk, Vgg_use,
-																				 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix);
+					if(sp==0){
+						Vgg_use=Vgg0_matrix_bulk;
+						dispersion_c_pointer=&dispersion_c_BZ_up;
+						dispersion_c_count_pointer=dispersion_c_BZ_count_up;
+						connection_c_pointer=&connection_c_BZ_up;
+					}else{
+						Vgg_use=Vgg1_matrix_bulk;
+						dispersion_c_pointer=&dispersion_c_BZ_dn;
+						dispersion_c_count_pointer=dispersion_c_BZ_count_dn;
+						connection_c_pointer=&connection_c_BZ_dn;
 					}
+					calc_bulk_dispersion_complex(k_point, FPFS_gz_length*0.5, kappaz_border_index, kappaz_border_index, FP_bulk_dispersion_kappaz, 
+																			 final_states_FP_g_size_bulk, final_states_FP_g_bulk, final_states_FP_g_vec_bulk, Vgg_use,
+																			 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix);
+
+					// zero, negative kappaz
+					if(sp==0){
+						Vgg_use=Vgg0_matrix_bulk;
+						dispersion_c_pointer=&dispersion_mc_up;
+						dispersion_c_count_pointer=dispersion_mc_count_up;
+						connection_c_pointer=&connection_mc_up;
+					}else{
+						Vgg_use=Vgg1_matrix_bulk;
+						dispersion_c_pointer=&dispersion_mc_dn;
+						dispersion_c_count_pointer=dispersion_mc_count_dn;
+						connection_c_pointer=&connection_mc_dn;
+					}
+					calc_bulk_dispersion_complex(k_point, 0, kappaz_border_index, kappaz_border_index, FP_bulk_dispersion_mkappaz, 
+																			 final_states_FP_g_size_bulk, final_states_FP_g_bulk, final_states_FP_g_vec_bulk, Vgg_use,
+																			 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix);
+
+					// BZ, negative kappaz
+						
+					if(sp==0){
+						Vgg_use=Vgg0_matrix_bulk;
+						dispersion_c_pointer=&dispersion_mc_BZ_up;
+						dispersion_c_count_pointer=dispersion_mc_BZ_count_up;
+						connection_c_pointer=&connection_mc_BZ_up;
+					}else{
+						Vgg_use=Vgg1_matrix_bulk;
+						dispersion_c_pointer=&dispersion_mc_BZ_dn;
+						dispersion_c_count_pointer=dispersion_mc_BZ_count_dn;
+						connection_c_pointer=&connection_mc_BZ_dn;
+					}
+					calc_bulk_dispersion_complex(k_point, FPFS_gz_length*0.5, kappaz_border_index, kappaz_border_index, FP_bulk_dispersion_mkappaz, 
+																			 final_states_FP_g_size_bulk, final_states_FP_g_bulk, final_states_FP_g_vec_bulk, Vgg_use,
+																			 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix);
 					//write_log((char*)"Bulk complex band calculation finished");
 
 					/*
@@ -2286,23 +2247,20 @@ void calculate_PAD(){
 																		final_states_FP_loc[i][j]);
 				}else{
 					if(!PA_FPFS_bulk_set){
-						solve_final_state_Matrix(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0],
-																		 final_states_dz, FPFS_z_start, V00_index, Vgg_matrix, final_states_FP_g_vec[i][j],
-																		 final_states_FP_loc[i][j], left_matrix, right_matrix, PA_FPFS_edge_smoothing?1:0, final_states_FP_loc_edge[i][j]);
+						final_states_zgels_norm[i][j]
+							=solve_final_state_Matrix(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0],
+																				final_states_dz, FPFS_z_start, V00_index, Vgg_matrix, final_states_FP_g_vec[i][j],
+																				final_states_FP_loc[i][j], left_matrix, right_matrix, final_states_FP_loc_edge[i][j]);
 					}else{
-						if(!PA_FPFS_perturbation){
-							solve_final_state_from_bulk(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0], FP_bulk_count,
-																					final_states_dz, FPFS_z_start, V00_index, Vgg_matrix, final_states_FP_g_vec[i][j],
-																					final_states_FP_bulk_z, final_states_FP_loc[i][j], left_matrix, right_matrix,
-																					final_states_FP_bulk_coefs[i][j]);
-						}else{
-							solve_final_state_from_bulk_perturbation(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0], FP_bulk_count,
-																											 final_states_dz, FPFS_z_start, V00_index, Vgg_matrix, final_states_FP_g_vec[i][j],
-																											 final_states_FP_bulk_z, final_states_FP_loc[i][j],
-																											 final_states_FP_bulk_coefs[i][j]);
-						}
-																				
-
+						final_states_zgels_norm[i][j]
+							=solve_final_state_from_bulk(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0], FP_bulk_count,
+																					 final_states_dz, FPFS_z_start, V00_index, Vgg_matrix, final_states_FP_g_vec[i][j],
+																					 final_states_FP_bulk_z, final_states_FP_loc[i][j], left_matrix, right_matrix,
+																					 final_states_FP_bulk_coefs[i][j]);
+						//solve_final_state_from_bulk_perturbation(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0], FP_bulk_count,
+						//																			 final_states_dz, FPFS_z_start, V00_index, Vgg_matrix, final_states_FP_g_vec[i][j],
+						//																				 final_states_FP_bulk_z, final_states_FP_loc[i][j],
+						//																				 final_states_FP_bulk_coefs[i][j]);
 						delete_zcube(final_states_FP_bulk_z);
 					}
 				}
@@ -2352,173 +2310,6 @@ void calculate_PAD(){
 			}
 			printf("\n");
 			}*/
-		
-		if(!PA_FPFS_bulk_set && PA_FPFS_edge_smoothing){
-			int ESize=E_max_scale-E_min_scale+1;
-			int kSize=total_count_ext;
-			int sp_max=(spin_i==0 || spin_i==2)?1:2;
-			int g_count=final_states_FP_g_size[0][0];
-			complex<double>** edge_matrix=alloc_zmatrix(ESize, kSize);
-			complex<double>** edge_matrix2=alloc_zmatrix(ESize, kSize);
-			for(int ig=0; ig<g_count; ig++){
-				for(int sp=0; sp<sp_max; sp++){
-					// extract
-					for(int iep=0; iep<ESize; iep++){
-						int ie=iep+E_min_scale;
-						for(int ik=0; ik<kSize; ik++){
-							bool ifp_found=false;
-							for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
-								if(final_states_EScale[ik][ifp]==ie && final_states_spin[ik][ifp]==sp){
-									edge_matrix[iep][ik]=final_states_FP_loc_edge[ik][ifp][ig];
-									ifp_found=true;
-									break;
-								}
-							}
-							if(!ifp_found){
-								write_log((char*)"Error: ifp not found");
-								return;
-							}
-						}
-					}
-					for(int iep=0; iep<ESize; iep++){
-						for(int ik=0; ik<kSize; ik++){
-							printf("%10.4f ", edge_matrix[iep][ik].real());
-						}
-						printf("\n");
-					}
-					printf("\n");
-					for(int iep=0; iep<ESize; iep++){
-						for(int ik=0; ik<kSize; ik++){
-							printf("%10.4f ", edge_matrix[iep][ik].imag());
-						}
-						printf("\n");
-					}
-					printf("\n");
-
-					// smoothing
-					// -E~E, -k~k
-					int EWidth=PA_FPFS_smoothing_E;
-					int kWidth=PA_FPFS_smoothing_k;
-					for(int iep=0; iep<ESize; iep++){
-						for(int ik=0; ik<kSize; ik++){
-							complex<double> sum(0.0, 0.0);
-							int count=0;
-							for(int ies=-EWidth; ies<=EWidth; ies++){
-								int ie2=iep+ies;
-								for(int iks=-kWidth; iks<=kWidth; iks++){
-									int ik2=ik+iks;
-									if(ie2>=0 && ie2<ESize && ik2>=0 && ik2<kSize){
-										sum+=edge_matrix[ie2][ik2];
-										count++;
-									}
-								}
-							}
-							//cout << count << "COUNT" << endl;
-							edge_matrix2[iep][ik]=sum/complex<double>(1.0*count, 0.0);
-							//printf("AVE %f %f\n", edge_matrix2[iep][ik].real(), edge_matrix2[iep][ik].imag());
-							//printf("SUM %f %f\n", sum.real(), sum.imag());
-							bool ifp_found=false;
-							int ie=iep+E_min_scale;
-							for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
-								if(final_states_EScale[ik][ifp]==ie && final_states_spin[ik][ifp]==sp){
-									//cout << g_count << " " << final_states_FP_g_size[ik][ifp] << endl;
-								  final_states_FP_loc_edge[ik][ifp][ig]=edge_matrix2[iep][ik];
-									ifp_found=true;
-									break;
-								}
-							}
-							if(!ifp_found){
-								write_log((char*)"Error: ifp not found");
-								return;
-							}
-						}
-					}
-					for(int ie=0; ie<ESize; ie++){
-						for(int ik=0; ik<kSize; ik++){
-							printf("%10.4f ", edge_matrix2[ie][ik].real());
-						}
-						printf("\n");
-					}
-					printf("\n");
-					for(int ie=0; ie<ESize; ie++){
-						for(int ik=0; ik<kSize; ik++){
-							printf("%10.4f ", edge_matrix2[ie][ik].imag());
-						}
-						printf("\n");
-					}
-					printf("\n");
-				} // end of for (sp)
-			} // end of for (ig)
-			delete_zmatrix(edge_matrix);
-			delete_zmatrix(edge_matrix2);
-
-			// solve
-#pragma omp parallel firstprivate(scale_width, PA_ext_set, spin_i, num_bands, EF_Eh, Eh, PA_FPFS_energy_step, E_min_scale, E_max_scale, PA_excitation_energy, atom_above_surface, atom_length, n_range, digit, PA_FPFS_kRange, khn_approx, FPFS_z_start) private(j)
-#pragma omp for
-			for(i=0; i<total_count_ext; i++){
-				int threadId=omp_get_thread_num();
-				complex<double>** left_matrix=left_matrix_buffer[threadId];
-				complex<double>** right_matrix=right_matrix_buffer[threadId];
-				double* k_point;
-				int k_index=i;
-				if(PA_ext_set){
-					k_point=k_points_ext[i];
-					k_index=k_index_reduced[k_index];
-				}else{
-					k_point=k_points[i];
-				}
-				for(j=0; j<final_states_FP_size[i]; j++){
-					int eigen_scale=final_states_EScale[i][j];
-					double kinetic_energy_Eh=(eigen_scale*PA_FPFS_energy_step+PA_excitation_energy)/Eh+EF_Eh;
-					int eigen_spin=final_states_spin[i][j];
-					//printf("Scale=%d, Ekin=%.2f, Spin=%d\n", eigen_scale, kinetic_energy_Eh, eigen_spin);
-					double k_au[3]={final_states_k[i][j][0], final_states_k[i][j][1], 0.0}; // contains only in-plane components
-					double kz=final_states_k[i][j][2];
-					int FP_g_count=final_states_FP_g_size[i][j];
-
-					complex<double>*** Vgg_matrix=alloc_zpmatrix(FP_g_count);
-					int V00_index=-1;
-					bool Vgg_error=false;
-					for(int ig1=0; ig1<FP_g_count; ig1++){
-						if(final_states_FP_g[i][j][ig1][0]==0 && final_states_FP_g[i][j][ig1][1]==0){
-							V00_index=ig1;
-						}
-						for(int ig2=0; ig2<FP_g_count; ig2++){
-							int n1_12=final_states_FP_g[i][j][ig1][0]-final_states_FP_g[i][j][ig2][0];
-							int n2_12=final_states_FP_g[i][j][ig1][1]-final_states_FP_g[i][j][ig2][1];
-							bool Vgg_found=false;
-							for(int ig=0; ig<Vgg_count; ig++){
-								if(n1_12==Vgg_list[ig][0] && n2_12==Vgg_list[ig][1]){
-									if(final_states_spin[i][j]==0){
-										Vgg_matrix[ig1][ig2]=&Vgg0[ig][0];
-									}else{
-										Vgg_matrix[ig1][ig2]=&Vgg1[ig][0];
-									}
-									Vgg_found=true;
-									/*
-										for(int iz=0; iz<VKS_count[0]; iz++){
-										printf("%f %f\n", Vgg_matrix[ig1][ig2][iz].real(), Vgg_matrix[ig1][ig2][iz].imag());
-										}*/
-									break;
-								}
-							}
-							if(Vgg_found==false){
-								write_log((char*)"Error: Vgg not found");
-								Vgg_error=true;
-							}
-						}
-					}
-					if(Vgg_error==true){
-						continue;
-					}
-					
-					solve_final_state_Matrix(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0],
-																	 final_states_dz, FPFS_z_start, V00_index, Vgg_matrix, final_states_FP_g_vec[i][j],
-																	 final_states_FP_loc[i][j], left_matrix, right_matrix, 2, final_states_FP_loc_edge[i][j]);
-					delete_zpmatrix(Vgg_matrix);
-				}
-			}
-		}
 		
 		if(!PA_FPFS_Numerov){
 			int num_threads=omp_get_max_threads();
@@ -3697,6 +3488,8 @@ void calculate_PAD(){
   double**** FP_loc_edge_export_im; // [sp][ig][ie][ik]
 	int** FP_bulk_count_export_up; // [ie][ik];
 	int** FP_bulk_count_export_dn;
+	double** FP_zgels_norm_export_up; // [ie][ik];
+	double** FP_zgels_norm_export_dn;
 	
 	int EScale_count=E_max_scale-E_min_scale+1;
 	int g_count=0;
@@ -3760,6 +3553,27 @@ void calculate_PAD(){
 			w_data_2i(FPFSG, "FP_bulk_count_up", EScale_count, total_count_ext, (int**)&FP_bulk_count_export_up[0][0]);
 			if(spin_i>0){
 				w_data_2i(FPFSG, "FP_bulk_count_dn", EScale_count, total_count_ext, (int**)&FP_bulk_count_export_dn[0][0]);
+			}
+		}
+		if(!PA_FPFS_Numerov){
+			FP_zgels_norm_export_up=alloc_dmatrix(EScale_count, total_count_ext);
+			if(spin_i>0){
+				FP_zgels_norm_export_dn=alloc_dmatrix(EScale_count, total_count_ext);
+			}
+			for(int ik=0; ik<total_count_ext; ik++){
+				for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
+					int ie=final_states_EScale[ik][ifp]-E_min_scale;
+					int sp=final_states_spin[ik][ifp];
+					if(sp==0){
+						FP_zgels_norm_export_up[ie][ik]=final_states_zgels_norm[ik][ifp];
+					}else{
+						FP_zgels_norm_export_dn[ie][ik]=final_states_zgels_norm[ik][ifp];
+					}
+				}
+			}
+			w_data_2d(FPFSG, "FP_zgels_norm_up", EScale_count, total_count_ext, (double**)&FP_zgels_norm_export_up[0][0]);
+			if(spin_i>0){
+				w_data_2d(FPFSG, "FP_zgels_norm_dn", EScale_count, total_count_ext, (double**)&FP_zgels_norm_export_dn[0][0]);
 			}
 		}
 	  

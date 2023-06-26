@@ -942,6 +942,83 @@ int load_input(){
 				}
 			  PA_FPFS_kRange_set=true; continue;
 			}
+			/// FPFS_negligible_gap_size: double
+			if(strcmp(keyword_buffer, "FPFS_negligible_gap_size")==0){
+				if(PA_FPFS_negligible_gap_size_set){
+					output_error(line_number, (char*)"keyword FPFS_negligible_gap_size already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PA_FPFS_negligible_gap_size);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of FPFS_negligible_gap_size"); status=0; goto FINALIZATION;
+				}
+			  PA_FPFS_negligible_gap_size_set=true; continue;
+			}
+			/// FPFS_real_eigenvalue_criterion: double
+			if(strcmp(keyword_buffer, "FPFS_real_eigenvalue_criterion")==0){
+				if(PA_FPFS_real_eigenvalue_criterion_set){
+					output_error(line_number, (char*)"keyword FPFS_real_eigenvalue_criterion already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PA_FPFS_real_eigenvalue_criterion);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of FPFS_real_eigenvalue_criterion"); status=0; goto FINALIZATION;
+				}
+			  PA_FPFS_real_eigenvalue_criterion_set=true; continue;
+			}
+			/// FPFS_dispersion_group_criterion_left: double
+			if(strcmp(keyword_buffer, "FPFS_dispersion_group_criterion_left")==0){
+				if(PA_FPFS_dispersion_group_criterion_left_set){
+					output_error(line_number, (char*)"keyword FPFS_dispersion_group_criterion_left already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PA_FPFS_dispersion_group_criterion_left);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of FPFS_dispersion_group_criterion_left"); status=0; goto FINALIZATION;
+				}
+			  PA_FPFS_dispersion_group_criterion_left_set=true; continue;
+			}
+			/// FPFS_dispersion_group_criterion_right: double
+			if(strcmp(keyword_buffer, "FPFS_dispersion_group_criterion_right")==0){
+				if(PA_FPFS_dispersion_group_criterion_right_set){
+					output_error(line_number, (char*)"keyword FPFS_dispersion_group_criterion_right already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PA_FPFS_dispersion_group_criterion_right);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of FPFS_dispersion_group_criterion_right"); status=0; goto FINALIZATION;
+				}
+			  PA_FPFS_dispersion_group_criterion_right_set=true; continue;
+			}
+			/// FPFS_cspace_size: double
+			if(strcmp(keyword_buffer, "FPFS_cspace_size")==0){
+				if(PA_FPFS_cspace_size_set){
+					output_error(line_number, (char*)"keyword FPFS_cspace_size already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PA_FPFS_cspace_size);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of FPFS_cspace_size"); status=0; goto FINALIZATION;
+				}
+			  PA_FPFS_cspace_size_set=true; continue;
+			}
+			/// FPFS_kz_margin_index_size: int
+			if(strcmp(keyword_buffer, "FPFS_kz_margin_index_size")==0){
+				if(PA_FPFS_kz_margin_index_size_set){
+					output_error(line_number, (char*)"keyword FPFS_kz_margin_index_size already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_int(input_line_c, &PA_FPFS_kz_margin_index_size);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of FPFS_kz_margin_index_size"); status=0; goto FINALIZATION;
+				}
+			  PA_FPFS_kz_margin_index_size_set=true; continue;
+			}
+			/// FPFS_kz_exclude_criterion: double
+			if(strcmp(keyword_buffer, "FPFS_kz_exclude_criterion")==0){
+				if(PA_FPFS_kz_exclude_criterion_set){
+					output_error(line_number, (char*)"keyword FPFS_kz_exclude_criterion already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PA_FPFS_kz_exclude_criterion);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of FPFS_kz_exclude_criterion"); status=0; goto FINALIZATION;
+				}
+			  PA_FPFS_kz_exclude_criterion_set=true; continue;
+			}
 			/// FPFS_file: char
 			if(strcmp(keyword_buffer, "FPFS_file")==0){
 				if(PA_FPFS_file_set){
@@ -997,17 +1074,6 @@ int load_input(){
 				}
 			  PA_calc_all_nonloc_set=true; continue;
 			}
-			/// Calc_all_loc: bool
-			if(strcmp(keyword_buffer, "Calc_all_loc")==0){
-				if(PA_calc_all_loc_set){
-					output_error(line_number, (char*)"keyword Calc_all_loc already appeared"); status=0; goto FINALIZATION;
-				}
-				parse_status=parse_bool(input_line_c, &PA_calc_all_loc, value_buffer);
-				if(parse_status==0){
-					output_error(line_number, (char*)"invalid value of Calc_all_loc"); status=0; goto FINALIZATION;
-				}
-			  PA_calc_all_loc_set=true; continue;
-			}
 			/// Orth_correction: bool
 			if(strcmp(keyword_buffer, "Orth_correction")==0){
 				if(PA_orth_correction_set){
@@ -1041,39 +1107,6 @@ int load_input(){
 				}
 			  PA_FPFS_Numerov_set=true; continue;
 			}
-			/// FPFS_edge_smoothing: bool
-			if(strcmp(keyword_buffer, "FPFS_edge_smoothing")==0){
-				if(PA_FPFS_edge_smoothing_set){
-					output_error(line_number, (char*)"keyword FPFS_edge_smoothing already appeared"); status=0; goto FINALIZATION;
-				}
-				parse_status=parse_bool(input_line_c, &PA_FPFS_edge_smoothing, value_buffer);
-				if(parse_status==0){
-					output_error(line_number, (char*)"invalid value of FPFS_edge_smoothing"); status=0; goto FINALIZATION;
-				}
-			  PA_FPFS_edge_smoothing_set=true; continue;
-			}
-			/// FPFS_smoothing_E: int
-			if(strcmp(keyword_buffer, "FPFS_smoothing_E")==0){
-				if(PA_FPFS_smoothing_E_set){
-					output_error(line_number, (char*)"keyword FPFS_smoothing_E already appeared"); status=0; goto FINALIZATION;
-				}
-				parse_status=parse_int(input_line_c, &PA_FPFS_smoothing_E);
-				if(parse_status==0){
-					output_error(line_number, (char*)"invalid value of FPFS_smoothing_E"); status=0; goto FINALIZATION;
-				}
-				PA_FPFS_smoothing_E_set=true; continue;
-			}
-			/// FPFS_smoothing_k: int
-			if(strcmp(keyword_buffer, "FPFS_smoothing_k")==0){
-				if(PA_FPFS_smoothing_k_set){
-					output_error(line_number, (char*)"keyword FPFS_smoothing_k already appeared"); status=0; goto FINALIZATION;
-				}
-				parse_status=parse_int(input_line_c, &PA_FPFS_smoothing_k);
-				if(parse_status==0){
-					output_error(line_number, (char*)"invalid value of FPFS_smoothing_k"); status=0; goto FINALIZATION;
-				}
-				PA_FPFS_smoothing_k_set=true; continue;
-			}
 			/// FPFS_bulk: double(min, ang) double(max, ang) int(count)
 			if(strcmp(keyword_buffer, "FPFS_bulk")==0){
 				if(PA_FPFS_bulk_set){
@@ -1084,28 +1117,6 @@ int load_input(){
 					output_error(line_number, (char*)"invalid value of FPFS_bulk"); status=0; goto FINALIZATION;
 				}
 				PA_FPFS_bulk_set=true; continue;
-			}
-			/// FPFS_perturbation: bool
-			if(strcmp(keyword_buffer, "FPFS_perturbation")==0){
-				if(PA_FPFS_perturbation_set){
-					output_error(line_number, (char*)"keyword FPFS_perturbation already appeared"); status=0; goto FINALIZATION;
-				}
-				parse_status=parse_bool(input_line_c, &PA_FPFS_perturbation, value_buffer);
-				if(parse_status==0){
-					output_error(line_number, (char*)"invalid value of FPFS_perturbation"); status=0; goto FINALIZATION;
-				}
-			  PA_FPFS_perturbation_set=true; continue;
-			}
-			/// Calc_complex_dispersion: bool
-			if(strcmp(keyword_buffer, "Calc_complex_dispersion")==0){
-				if(PA_calc_complex_dispersion_set){
-					output_error(line_number, (char*)"keyword Calc_complex_dispersion already appeared"); status=0; goto FINALIZATION;
-				}
-				parse_status=parse_bool(input_line_c, &PA_calc_complex_dispersion, value_buffer);
-				if(parse_status==0){
-					output_error(line_number, (char*)"invalid value of Calc_complex_dispersion"); status=0; goto FINALIZATION;
-				}
-			  PA_calc_complex_dispersion_set=true; continue;
 			}
 			/// interpolate_wfn: bool
 			if(strcmp(keyword_buffer, "Interpolate_wfn")==0){

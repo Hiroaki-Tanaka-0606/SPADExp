@@ -692,11 +692,6 @@ void Fourier_expansion_z(double* V_buffer, int* V_count, double* g, double* atom
 	delete[] V;
 }
 
-void calc_residual_vector(int g_count, int v_count, double* A, double* B, double* x, double* res);
-double calc_residual_error(int g_count, int v_count, double* A, double* B, double* x);
-void calc_gradient_vector(int g_count, int v_count, double* A, double* B, double* x, double* gr);
-double calc_norm(int count, double* vector);
-
 // In the Numerov method, the solving direction is downward
 // f_{i-1}=(1+h^2/12 a_{i-1})^-1 * [ 2(1-5h^2/12 a_i)*f_i - (1+h^2/12 a_{i+1})*f_{i+1} ]
 void solve_final_state_Numerov(double Ekin, double* k_para, double kz, int g_count, int z_count, double dz, int z_start, int V00_index, complex<double>*** Vgg, double** g_vec, complex<double>** FP_loc){
@@ -814,11 +809,7 @@ void solve_final_state_Numerov(double Ekin, double* k_para, double kz, int g_cou
 	delete[] IPIV;
 }
 
-// calc_mode:
-// 0: perform the whole calculations, store right vector in loc_edge
-// 1: stop the calculations at zgels, store right vector in loc_edge
-// 2: perform zgesv using the given right vector in loc_edge
-void solve_final_state_Matrix(double Ekin, double* k_para, double kz, int g_count, int z_count, double dz, int z_start, int V00_index, complex<double>*** Vgg, double** g_vec, complex<double>** FP_loc, complex<double>** left_matrix, complex<double>** right_matrix, int calc_mode, complex<double>* loc_edge){
+double solve_final_state_Matrix(double Ekin, double* k_para, double kz, int g_count, int z_count, double dz, int z_start, int V00_index, complex<double>*** Vgg, double** g_vec, complex<double>** FP_loc, complex<double>** left_matrix, complex<double>** right_matrix, complex<double>* loc_edge){
   //cout << "Matrix " << endl;
 	char* sprintf_buffer2=new char[Log_length+1];
 	// composite matrix
@@ -888,48 +879,6 @@ void solve_final_state_Matrix(double Ekin, double* k_para, double kz, int g_coun
 			}
 		}
 	}
-	//cout << "Matrix preparation " << endl;
-	/*
-	// LU decomposition
-	int info;
-	int* ipiv=new int[eq_dim];
-	int nrhs=1;
-
-	cout << "LU start" << endl;
-	zgetrf_(&eq_dim, &eq_dim, &left_matrix[0][0], &eq_dim, &ipiv[0], &info);
-	if(info!=0){
-	write_log((char*)"zgetrf failed");
-	return;
-	}
-	cout << "LU end" << endl;
-
-	// inverse matrix calculation
-	cout << "Inverse 1 start" << endl;
-	int lwork=-1;
-	complex<double> work_dummy;
-	zgetri_(&eq_dim, &left_matrix[0][0], &eq_dim, &ipiv[0], &work_dummy, &lwork, &info);
-	if(info!=0){
-	write_log((char*)"Work space calculation failed");
-	return;
-	}
-	cout << "Inverse 1 end" << endl;
-	lwork=round(abs(work_dummy));
-	complex<double>* work=new complex<double>[lwork];
-	cout << "Inverse 2 start" << endl;
-	zgetri_(&eq_dim, &left_matrix[0][0], &eq_dim, &ipiv[0], &work[0], &lwork, &info);
-	if(info!=0){
-	write_log((char*)"zgetri failed");
-	return;
-	}
-	cout << "Inverse 2 end" << endl;
-	delete[] work;*/
-	/*
-		for(int i=0; i<eq_dim; i++){
-		for(int j=0; j<eq_dim; j++){
-		printf("(%10.2e, %10.2e) ", left_matrix[j][i].real(), left_matrix[j][i].imag());
-		}
-		printf("\n");
-		}*/
 
 	int info;
 	int* ipiv=new int[eq_dim];
@@ -938,338 +887,218 @@ void solve_final_state_Matrix(double Ekin, double* k_para, double kz, int g_coun
 	complex<double> alpha(1.0, 0.0);
 	complex<double> beta(1.0, 0.0);
 	int inc=1;
-	if(calc_mode==0 || calc_mode==1){
-		// 0~g: for RL, g~2g: for RR
-		//complex<double>** right_matrix=alloc_zmatrix(2*g_count, eq_dim); //transposed
+	// 0~g: for RL, g~2g: for RR
+	//complex<double>** right_matrix=alloc_zmatrix(2*g_count, eq_dim); //transposed
+	for(int igz1=0; igz1<eq_dim; igz1++){
+		for(int ig2=0; ig2<2*g_count; ig2++){
+			right_matrix[ig2][igz1]=complex<double>(0.0, 0.0);
+		}
+	}
+	for(int ig1=0; ig1<g_count; ig1++){
+		int index1=ig1*z_count_new;
+		int index2=ig1;
+		right_matrix[index2][index1]=complex<double>(1.0, 0.0);
+		index1=(ig1+1)*z_count_new-1;
+		index2=ig1+g_count;
+		right_matrix[index2][index1]=complex<double>(1.0, 0.0);
+	}
+	/*
 		for(int igz1=0; igz1<eq_dim; igz1++){
-			for(int ig2=0; ig2<2*g_count; ig2++){
-				right_matrix[ig2][igz1]=complex<double>(0.0, 0.0);
-			}
+		for(int ig2=0; ig2<2*g_count; ig2++){
+		printf("%4.1f ", abs(right_matrix[ig2][igz1]));
 		}
-		for(int ig1=0; ig1<g_count; ig1++){
-			int index1=ig1*z_count_new;
-			int index2=ig1;
-			right_matrix[index2][index1]=complex<double>(1.0, 0.0);
+		printf("\n");
+		}*/
+	zgesv_(&eq_dim, &nrhs, &left_matrix[0][0], &eq_dim, &ipiv[0], &right_matrix[0][0], &eq_dim, &info);
+	if(info!=0){
+		write_log((char*)"zgesv failed");
+		return -1;
+	}
+
+	// extract the RL and RR matrices
+	complex<double>** H_RL=alloc_zmatrix(g_count); // inverted
+	complex<double>** H_RR=alloc_zmatrix(g_count); // inverted
+	int index1, index2;
+	for(int ig1=0; ig1<g_count; ig1++){
+		for(int ig2=0; ig2<g_count; ig2++){
 			index1=(ig1+1)*z_count_new-1;
-			index2=ig1+g_count;
-			right_matrix[index2][index1]=complex<double>(1.0, 0.0);
-		}
-		/*
-			for(int igz1=0; igz1<eq_dim; igz1++){
-			for(int ig2=0; ig2<2*g_count; ig2++){
-			printf("%4.1f ", abs(right_matrix[ig2][igz1]));
-			}
-			printf("\n");
-			}*/
-		zgesv_(&eq_dim, &nrhs, &left_matrix[0][0], &eq_dim, &ipiv[0], &right_matrix[0][0], &eq_dim, &info);
-		if(info!=0){
-			write_log((char*)"zgesv failed");
-			return;
-		}
-
-		// extract the RL and RR matrices
-		complex<double>** H_RL=alloc_zmatrix(g_count); // inverted
-		complex<double>** H_RR=alloc_zmatrix(g_count); // inverted
-		int index1, index2;
-		for(int ig1=0; ig1<g_count; ig1++){
-			for(int ig2=0; ig2<g_count; ig2++){
-				index1=(ig1+1)*z_count_new-1;
-				index2=ig2;
-				H_RL[ig2][ig1]=right_matrix[index2][index1];
+			index2=ig2;
+			H_RL[ig2][ig1]=right_matrix[index2][index1];
 				
-				index1=(ig1+1)*z_count_new-1;
-				index2=ig2+g_count;
-				H_RR[ig2][ig1]=right_matrix[index2][index1];
-			}
+			index1=(ig1+1)*z_count_new-1;
+			index2=ig2+g_count;
+			H_RR[ig2][ig1]=right_matrix[index2][index1];
 		}
+	}
 
-		/*
-			printf("H_RL\n");
-			for(int ig1=0; ig1<g_count; ig1++){
-			for(int ig2=0; ig2<g_count; ig2++){
-			printf("(%10.2e, %10.2e) ", H_RL[ig2][ig1].real(), H_RL[ig2][ig1].imag());
-			}
-			printf("\n");
-			}
-		
-			printf("H_RR\n");
-			for(int ig1=0; ig1<g_count; ig1++){
-			for(int ig2=0; ig2<g_count; ig2++){
-			printf("(%10.2e, %10.2e) ", H_RR[ig2][ig1].real(), H_RR[ig2][ig1].imag());
-			}
-			printf("\n");
-			}*/
-
-		// compute the right vector
-		for(int ig=0; ig<g_count; ig++){
-			if(ig==V00_index){
-				right_vector[ig]=-dz*dz*complex<double>(cos(kzz0), sin(kzz0));
-			}else{
-				right_vector[ig]=complex<double>(0.0, 0.0);
-			}
+	/*
+		printf("H_RL\n");
+		for(int ig1=0; ig1<g_count; ig1++){
+		for(int ig2=0; ig2<g_count; ig2++){
+		printf("(%10.2e, %10.2e) ", H_RL[ig2][ig1].real(), H_RL[ig2][ig1].imag());
 		}
-		for(int ig=0; ig<g_count; ig++){
-			if(ig==V00_index){
-				right_vector2[ig]=-complex<double>(cos(kzz0h), sin(kzz0h));
-			}else{
-				right_vector2[ig]=complex<double>(0.0, 0.0);
-			}
-		}
-
-		// alpha=1
-		// beta=1
-		zgemv_(&notrans, &g_count, &g_count, &alpha, &H_RR[0][0], &g_count, &right_vector2[0], &inc, &beta, &right_vector[0], &inc);
-		
-		/*
-			printf("Right\n");
-			for(int ig=0; ig<g_count; ig++){
-			printf("(%10.2e, %10.2e)\n", right_vector[ig].real(), right_vector[ig].imag());
-			}
-			printf("\n");*/
-
-		// obtain f_G(-h)
-		// by zgesv
-		/*
-			int ipiv2[g_count];
-			zgesv_(&g_count, &nrhs, &H_RL[0][0], &g_count, &ipiv2[0], &right_vector[0], &g_count, &info);
-			if(info==0){
-			// ok
-			for(int ig=0; ig<g_count; ig++){
-			printf("(%10.2e, %10.2e)\n", right_vector[ig].real(), right_vector[ig].imag());
-			}
-			}else{
-			write_log((char*)"zgesv failed");
-			return;
-			}*/
-
-	
-		bool* nonzero_edge=new bool[g_count];
-		int nonzero_edge_count=0;
-		int* nonzero_edge_index=new int[g_count];
-		
-		for(int ig=0; ig<g_count; ig++){
-			for(int p=0; p<3; p++){
-				kpg[p]=k_para[p]+g_vec[ig][p];
-			}
-			double Ekpg=inner_product(kpg, kpg)/2.0;
-			nonzero_edge[ig]=!PA_calc_all_loc || Ekpg<Ekin;
-			// printf("nonzero_edge[%2d]=%s\n", ig, nonzero_edge[ig]?"true":"false");
-			if(nonzero_edge[ig]){
-				nonzero_edge_index[nonzero_edge_count]=ig;
-				nonzero_edge_count++;
-			}
-		}
-
-		// by steepest-decent
-		
-		int g2_count=g_count*2;
-		int v2_count=nonzero_edge_count*2;
-		double** A_real=alloc_dmatrix(v2_count, g2_count); //transposed
-		for(int ig=0; ig<g_count; ig++){
-			for(int iv=0; iv<nonzero_edge_count; iv++){
-				int ig2=nonzero_edge_index[iv];
-				A_real[iv*2][ig*2]=H_RL[ig2][ig].real();
-				A_real[iv*2+1][ig*2]=-H_RL[ig2][ig].imag();
-				A_real[iv*2][ig*2+1]=H_RL[ig2][ig].imag();
-				A_real[iv*2+1][ig*2+1]=H_RL[ig2][ig].real();
-			}
+		printf("\n");
 		}
 		
-		//printf("A_real\n");
-		//for(int igp=0; igp<g2_count; igp++){
-		//		for(int ivp=0; ivp<v2_count; ivp++){
-		//		printf("%10.2e ", A_real[ivp][igp]);
-		//		}
-		//	printf("\n");
-		//	}
-		double* B_real=new double[g2_count];
-		for(int ig=0; ig<g_count; ig++){
-			B_real[ig*2]=right_vector[ig].real();
-			B_real[ig*2+1]=right_vector[ig].imag();
+		printf("H_RR\n");
+		for(int ig1=0; ig1<g_count; ig1++){
+		for(int ig2=0; ig2<g_count; ig2++){
+		printf("(%10.2e, %10.2e) ", H_RR[ig2][ig1].real(), H_RR[ig2][ig1].imag());
 		}
-		
-		//printf("B_real\n");
-		//for(int igp=0; igp<g2_count; igp++){
-		//	printf("%10.2e\n", B_real[igp]);
-		//	}
+		printf("\n");
+		}*/
 
-		double* x_real=new double[v2_count];
-		for(int iv=0; iv<v2_count; iv++){
-			x_real[iv]=0.0;
-		}
-
-		double* nabla=new double[v2_count];
-		double* Anabla=new double[g2_count];
-
-		double res_init=calc_residual_error(g2_count, v2_count, &A_real[0][0], &B_real[0], &x_real[0]);
-		//sprintf(sprintf_buffer2, "Residual error[%3d] = %10.2e", 0, res_init);
-		//write_log(sprintf_buffer2);
-
-		int trial;
-		double alpha2=1.0;
-		double beta2=0.0;
-		double sd_alpha;
-		double res;
-		double res_prev=res_init;
-		for(trial=0; trial<100; trial++){
-			calc_gradient_vector(g2_count, v2_count, &A_real[0][0], &B_real[0], &x_real[0], &nabla[0]);
-			dgemv_(&notrans, &g2_count, &v2_count, &alpha2, &A_real[0][0], &g2_count, &nabla[0], &inc, &beta2, &Anabla[0], &inc);
-			sd_alpha=-calc_norm(v2_count, nabla)/calc_norm(g2_count, Anabla);
-			for(int iv=0; iv<v2_count; iv++){
-				x_real[iv]+=sd_alpha*nabla[iv];
-			}
-			res=calc_residual_error(g2_count, v2_count, &A_real[0][0], &B_real[0], &x_real[0]);
-			// printf("Residual error[%3d] = %10.2e\n", trial+1, res);
-			if(res/res_init<1e-10){
-				break;
-			}
-			/*
-				printf("Right(solution) by SD\n");
-				for(int ig=0; ig<g_count; ig++){
-				printf("(%10.2e, %10.2e)\n", right_vector[ig].real(), right_vector[ig].imag());
-				}*/
-		}
-		if(!PA_calc_all_loc){
-			sprintf(sprintf_buffer2, "Last residual error[%3d] = %10.2e", trial+1, res);
-			write_log(sprintf_buffer2);
-		}
-		// by steepest decent finished
-		
-		// by zgels
-		complex<double>** A_complex=alloc_zmatrix(nonzero_edge_count, g_count);
-		for(int ig=0; ig<g_count; ig++){
-			for(int iv=0; iv<nonzero_edge_count; iv++){
-				int ig2=nonzero_edge_index[iv];
-				A_complex[iv][ig]=H_RL[ig2][ig];
-			}
-		}
-		complex<double>* B_complex=new complex<double>[g_count];
-		for(int ig=0; ig<g_count; ig++){
-			B_complex[ig]=right_vector[ig];
-		}
-
-		int lwork=-1;
-		complex<double> work_dummy;
-		nrhs=1;
-		zgels_(&notrans, &g_count, &nonzero_edge_count, &nrhs, &A_complex[0][0], &g_count, &B_complex[0], &g_count, &work_dummy, &lwork, &info);
-		if(info!=0){
-			write_log((char*)"Work space calculation failed");
-			return;
-		}
-		lwork=round(abs(work_dummy));
-		complex<double>* work=new complex<double>[lwork];
-		zgels_(&notrans, &g_count, &nonzero_edge_count, &nrhs, &A_complex[0][0], &g_count, &B_complex[0], &g_count, &work[0], &lwork, &info);
-		if(info!=0){
-			write_log((char*)"zgels failed");
-			return;
-		}
-		delete[] work;
-		// by zgels finished
-		
-		for(int ig=0; ig<g_count; ig++){
+	// compute the right vector
+	for(int ig=0; ig<g_count; ig++){
+		if(ig==V00_index){
+			right_vector[ig]=-dz*dz*complex<double>(cos(kzz0), sin(kzz0));
+		}else{
 			right_vector[ig]=complex<double>(0.0, 0.0);
 		}
-		for(int iv=0; iv<nonzero_edge_count; iv++){
-			if(PA_calc_all_loc){
-				right_vector[nonzero_edge_index[iv]]=B_complex[iv];
-			}else{
-				right_vector[nonzero_edge_index[iv]]=complex<double>(x_real[2*iv], x_real[2*iv+1]);
-			}
+	}
+	for(int ig=0; ig<g_count; ig++){
+		if(ig==V00_index){
+			right_vector2[ig]=-complex<double>(cos(kzz0h), sin(kzz0h));
+		}else{
+			right_vector2[ig]=complex<double>(0.0, 0.0);
 		}
-		for(int ig=0; ig<g_count; ig++){
-			loc_edge[ig]=right_vector[ig];
-		}
-		
-		//if(!PA_calc_all_loc){
-		// printf("Right(solution) by SD\n");
-		//for(int iv=0; iv<nonzero_edge_count; iv++){
-		//	printf("%10.6f %10.6f  ", x_real[2*iv], x_real[2*iv+1]);
-		//}
-		//printf("\n");
-		//}else{
-		//printf("Right(solution) by zgels\n");
-		//for(int iv=0; iv<nonzero_edge_count; iv++){
-		//	printf("%10.6f %10.6f  ", B_complex[iv].real(), B_complex[iv].imag());
-		//}
-		//printf("\n");
-		//}
+	}
 
-		if(PA_calc_all_loc){
-			double zgels_norm=0.0;
-			for(int iv=nonzero_edge_count; iv<g_count; iv++){
-				zgels_norm+=norm(B_complex[iv]);
-			}
-			sprintf(sprintf_buffer2, "zgels norm: %10.2e", zgels_norm);
-			write_log(sprintf_buffer2);
+	// alpha=1
+	// beta=1
+	zgemv_(&notrans, &g_count, &g_count, &alpha, &H_RR[0][0], &g_count, &right_vector2[0], &inc, &beta, &right_vector[0], &inc);
+		
+	/*
+		printf("Right\n");
+		for(int ig=0; ig<g_count; ig++){
+		printf("(%10.2e, %10.2e)\n", right_vector[ig].real(), right_vector[ig].imag());
 		}
+		printf("\n");*/
+
+	// obtain f_G(-h)
+	// by zgesv
+	/*
+		int ipiv2[g_count];
+		zgesv_(&g_count, &nrhs, &H_RL[0][0], &g_count, &ipiv2[0], &right_vector[0], &g_count, &info);
+		if(info==0){
+		// ok
+		for(int ig=0; ig<g_count; ig++){
+		printf("(%10.2e, %10.2e)\n", right_vector[ig].real(), right_vector[ig].imag());
+		}
+		}else{
+		write_log((char*)"zgesv failed");
+		return;
+		}*/
+
 	
-		delete_dmatrix(A_real);
-		delete_zmatrix(A_complex);
-		delete_zmatrix(H_RR);
-		delete_zmatrix(H_RL);
-		delete[] nonzero_edge;
-		delete[] nonzero_edge_index;
-		delete[] B_real;
-		delete[] x_real;
-		delete[] nabla;
-		delete[] Anabla;
-		delete[] B_complex;
-	}
-
-	// printf("f_G(z)\n");
-	if(calc_mode==2){
-		for(int ig=0; ig<g_count; ig++){
-			right_vector[ig]=loc_edge[ig];
-		}
-	}
-
-	if(calc_mode==0 || calc_mode==2){
-		// obtain f_G(z)
-		complex<double>* right_vector_all=new complex<double>[eq_dim];
-		for(int ig=0; ig<g_count; ig++){
-			int index=ig*z_count_new;
-			right_vector_all[index]=-right_vector[ig]/dz/dz;
-			if(ig==V00_index){
-				index=(ig+1)*z_count_new-1;
-				right_vector_all[index]=-1.0/dz/dz*complex<double>(cos(kzz0h), sin(kzz0h));
-			}
-		}
+	bool* nonzero_edge=new bool[g_count];
+	int nonzero_edge_count=0;
+	int* nonzero_edge_index=new int[g_count];
 		
-		// beta=complex<double>(0.0, 0.0);
-		//for(int igz=0; igz<eq_dim; igz++){
-		//printf("(%8.4f, %8.4f)\n", right_vector_all[igz].real(), right_vector_all[igz].imag());
-		//}
-		// zgemv_(&notrans, &eq_dim, &eq_dim, &alpha, &left_matrix[0][0], &eq_dim, &right_vector_all[0], &inc, &beta, &FP_loc_buffer[0], &inc);
-		if(calc_mode==0){
-			nrhs=1;
-			zgetrs_(&notrans, &eq_dim, &nrhs, &left_matrix[0][0], &eq_dim, &ipiv[0], &right_vector_all[0], &eq_dim, &info);
-			if(info!=0){
-				write_log((char*)"zgetrs failed");
-			}
-		}else if(calc_mode==2){
-			nrhs=1;
-			zgesv_(&eq_dim, &nrhs, &left_matrix[0][0], &eq_dim, &ipiv[0], &right_vector_all[0], &eq_dim, &info);
-			if(info!=0){
-				write_log((char*)"zgesv failed");
-			}
+	for(int ig=0; ig<g_count; ig++){
+		for(int p=0; p<3; p++){
+			kpg[p]=k_para[p]+g_vec[ig][p];
 		}
-
-		for(int ig=0; ig<g_count; ig++){
-			for(int iz=z_start; iz<z_count; iz++){
-				int index_sol=ig*z_count_new+iz-z_start;
-				FP_loc[ig][iz]=right_vector_all[index_sol];
-			}
+		double Ekpg=inner_product(kpg, kpg)/2.0;
+		nonzero_edge[ig]=Ekpg<Ekin;
+		// printf("nonzero_edge[%2d]=%s\n", ig, nonzero_edge[ig]?"true":"false");
+		if(nonzero_edge[ig]){
+			nonzero_edge_index[nonzero_edge_count]=ig;
+			nonzero_edge_count++;
 		}
-		
-		for(int ig=0; ig<g_count; ig++){
-			for(int iz=0; iz<z_count; iz++){
-				int index=ig*z_count+iz;
-				//printf("(%8.4f, %8.4f)\n", FP_loc_buffer[index].real(), FP_loc_buffer[index].imag());
-			}
-			//printf("\n");
-		}
-		delete[] right_vector_all;
 	}
+		
+	// by zgels
+	complex<double>** A_complex=alloc_zmatrix(nonzero_edge_count, g_count);
+	for(int ig=0; ig<g_count; ig++){
+		for(int iv=0; iv<nonzero_edge_count; iv++){
+			int ig2=nonzero_edge_index[iv];
+			A_complex[iv][ig]=H_RL[ig2][ig];
+		}
+	}
+	complex<double>* B_complex=new complex<double>[g_count];
+	for(int ig=0; ig<g_count; ig++){
+		B_complex[ig]=right_vector[ig];
+	}
+
+	int lwork=-1;
+	complex<double> work_dummy;
+	nrhs=1;
+	zgels_(&notrans, &g_count, &nonzero_edge_count, &nrhs, &A_complex[0][0], &g_count, &B_complex[0], &g_count, &work_dummy, &lwork, &info);
+	if(info!=0){
+		write_log((char*)"Work space calculation failed");
+		return -1;
+	}
+	lwork=round(abs(work_dummy));
+	complex<double>* work=new complex<double>[lwork];
+	zgels_(&notrans, &g_count, &nonzero_edge_count, &nrhs, &A_complex[0][0], &g_count, &B_complex[0], &g_count, &work[0], &lwork, &info);
+	if(info!=0){
+		write_log((char*)"zgels failed");
+		return -1;
+	}
+	delete[] work;
+	// by zgels finished
+		
+	for(int ig=0; ig<g_count; ig++){
+		right_vector[ig]=complex<double>(0.0, 0.0);
+	}
+	for(int iv=0; iv<nonzero_edge_count; iv++){
+		right_vector[nonzero_edge_index[iv]]=B_complex[iv];
+	}
+	for(int ig=0; ig<g_count; ig++){
+		loc_edge[ig]=right_vector[ig];
+	}
+		
+	//printf("Right(solution) by zgels\n");
+	//for(int iv=0; iv<nonzero_edge_count; iv++){
+	//	printf("%10.6f %10.6f  ", B_complex[iv].real(), B_complex[iv].imag());
+	//}
+	//printf("\n");
+
+	double zgels_norm=0.0;
+	for(int iv=nonzero_edge_count; iv<g_count; iv++){
+		zgels_norm+=norm(B_complex[iv]);
+	}
+	sprintf(sprintf_buffer2, "zgels norm: %10.2e", zgels_norm);
+	write_log(sprintf_buffer2);
+
+	// obtain f_G(z)
+	complex<double>* right_vector_all=new complex<double>[eq_dim];
+	for(int ig=0; ig<g_count; ig++){
+		int index=ig*z_count_new;
+		right_vector_all[index]=-right_vector[ig]/dz/dz;
+		if(ig==V00_index){
+			index=(ig+1)*z_count_new-1;
+			right_vector_all[index]=-1.0/dz/dz*complex<double>(cos(kzz0h), sin(kzz0h));
+		}
+	}
+		
+	// beta=complex<double>(0.0, 0.0);
+	//for(int igz=0; igz<eq_dim; igz++){
+	//printf("(%8.4f, %8.4f)\n", right_vector_all[igz].real(), right_vector_all[igz].imag());
+	//}
+	// zgemv_(&notrans, &eq_dim, &eq_dim, &alpha, &left_matrix[0][0], &eq_dim, &right_vector_all[0], &inc, &beta, &FP_loc_buffer[0], &inc);
+	nrhs=1;
+	zgetrs_(&notrans, &eq_dim, &nrhs, &left_matrix[0][0], &eq_dim, &ipiv[0], &right_vector_all[0], &eq_dim, &info);
+	if(info!=0){
+		write_log((char*)"zgetrs failed");
+	}
+
+	for(int ig=0; ig<g_count; ig++){
+		for(int iz=z_start; iz<z_count; iz++){
+			int index_sol=ig*z_count_new+iz-z_start;
+			FP_loc[ig][iz]=right_vector_all[index_sol];
+		}
+	}
+		
+	//for(int ig=0; ig<g_count; ig++){
+	//	for(int iz=0; iz<z_count; iz++){
+	//		int index=ig*z_count+iz;
+	//printf("(%8.4f, %8.4f)\n", FP_loc_buffer[index].real(), FP_loc_buffer[index].imag());
+	//	}
+	//printf("\n");
+	//}
+	delete[] right_vector_all;
 		
 	//delete_zmatrix(left_matrix);
 	//delete_zmatrix(right_matrix);
@@ -1279,9 +1108,22 @@ void solve_final_state_Matrix(double Ekin, double* k_para, double kz, int g_coun
 		
 	delete[] sprintf_buffer2;
 	//delete_zpmatrix(Vgg);
+	//delete_dmatrix(A_real);
+	delete_zmatrix(A_complex);
+	delete_zmatrix(H_RR);
+	delete_zmatrix(H_RL);
+	delete[] nonzero_edge;
+	delete[] nonzero_edge_index;
+	//delete[] B_real;
+	//delete[] x_real;
+	//delete[] nabla;
+	//delete[] Anabla;
+	delete[] B_complex;
+
+	return zgels_norm;
 }
 
-void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_count, int z_count, int bulk_count, double dz, int z_start, int V00_index, complex<double>*** Vgg, double** g_vec, complex<double>*** bulk_z, complex<double>** FP_loc, complex<double>** left_matrix, complex<double>** right_matrix, complex<double>* bulk_coefs){
+double solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_count, int z_count, int bulk_count, double dz, int z_start, int V00_index, complex<double>*** Vgg, double** g_vec, complex<double>*** bulk_z, complex<double>** FP_loc, complex<double>** left_matrix, complex<double>** right_matrix, complex<double>* bulk_coefs){
 	char* sprintf_buffer2=new char[Log_length+1];
 	
 	// composite matrix
@@ -1382,7 +1224,7 @@ void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_c
 	zgesv_(&eq_dim, &nrhs, &left_matrix[0][0], &eq_dim, &ipiv[0], &right_matrix[0][0], &eq_dim, &info);
 	if(info!=0){
 		write_log((char*)"zgesv failed");
-		return;
+		return -1;
 	}
 
 	// extract the RL and RR matrices
@@ -1548,7 +1390,7 @@ void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_c
 	//zgels_(&notrans, &g_count, &bulk_count, &nrhs, &left_matrix_all[0][0], &g_count, &right_vector[g_count], &numRows, &work_dummy, &lwork, &info);
 	if(info!=0){
 		write_log((char*)"Work space calculation failed");
-		return;
+		return -1;
 	}
 	lwork=round(abs(work_dummy));
 	complex<double>* work=new complex<double>[lwork];
@@ -1556,7 +1398,7 @@ void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_c
 	//zgels_(&notrans, &g_count, &bulk_count, &nrhs, &left_matrix_all[0][0], &g_count, &right_vector[g_count], &numRows, &work[0], &lwork, &info);
 	if(info!=0){
 		write_log((char*)"zgels failed");
-		return;
+		return -1;
 	}
 	delete[] work;
 	
@@ -1605,7 +1447,7 @@ void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_c
 	zgetrs_(&notrans, &eq_dim, &nrhs, &left_matrix[0][0], &eq_dim, &ipiv[0], &right_vector_sol[0], &eq_dim, &info);
 	if(info!=0){
 		write_log((char*)"zgetrs failed");
-		return;
+		return -1;
 	}
 	
 	for(int ig=0; ig<g_count; ig++){
@@ -1646,373 +1488,8 @@ void solve_final_state_from_bulk(double Ekin, double* k_para, double kz, int g_c
 	delete[] right_vector;
 	delete[] right_vector2;
 	delete[] right_vector_sol;
+	return zgels_norm;
 }
-
-
-// downward Numerov:
-// f_{i-1}=(1+h^2/12 a_{i-1})^-1 * [ 2(1-5h^2/12 a_i)*f_i - (1+h^2/12 a_{i+1})*f_{i+1} ]
-void solve_final_state_from_bulk_perturbation(double Ekin, double* k_para, double kz, int g_count, int z_count, int bulk_count, double dz, int z_start, int V00_index, complex<double>*** Vgg, double** g_vec, complex<double>*** bulk_z, complex<double>** FP_loc, complex<double>* bulk_coefs){
-	char* sprintf_buffer2=new char[Log_length+1];
-
-	// step 1: g0 component (Numerov)	
-	double kzz1=kz*dz*(z_count-1);
-	double kzz1mh=kz*dz*(z_count-2);
-	FP_loc[V00_index][z_count-1]=complex<double>(cos(kzz1), sin(kzz1));
-	FP_loc[V00_index][z_count-2]=complex<double>(cos(kzz1mh), sin(kzz1mh));
-
-	complex<double>* pot_vector=new complex<double>[z_count];
-	for(int iz=0; iz<z_count; iz++){
-		pot_vector[iz]=2.0*Ekin-inner_product(k_para, k_para)-2.0*Vgg[V00_index][V00_index][iz];
-	}
-	for(int iz=z_count-2; iz>=0; iz--){
-		int izm1=iz-1;
-		int izp1=iz+1;
-		FP_loc[V00_index][izm1]=(2.0*(1.0-5.0/12.0*dz*dz*pot_vector[iz])*FP_loc[V00_index][iz]-(1.0+1.0/12.0*dz*dz*pot_vector[izp1])*FP_loc[V00_index][izp1])
-			/(1.0+1.0/12.0*dz*dz*pot_vector[izm1]);
-	}
-
-	//for(int iz=0; iz<z_count; iz++){
-	//	printf("%8.4f %8.4f\n", FP_loc[V00_index][iz].real(), FP_loc[V00_index][iz].imag());
-	//}
-	//printf("\n");
-
-	complex<double>* rhs_vector=new complex<double>[z_count];
-	complex<double>* diff_vector=new complex<double>[z_count];
-	//int mat_size=z_count-(z_start-1);
-	complex<double>** mat=alloc_zmatrix(z_count);
-	complex<double>* special_solution=new complex<double>[z_count];
-	complex<double>* general_solution=new complex<double>[z_count];
-	int* ipiv=new int[z_count];
-	double kpg[3];
-	for(int ig=0; ig<g_count; ig++){
-		if(ig==V00_index){
-			continue;
-		}
-		for(int p=0; p<3; p++){
-			kpg[p]=k_para[p]+g_vec[ig][p];
-		}
-		for(int iz=0; iz<z_count; iz++){
-			pot_vector[iz]=2.0*Ekin-inner_product(kpg, kpg)-2.0*Vgg[V00_index][V00_index][iz];
-			rhs_vector[iz]=2.0*Vgg[ig][V00_index][iz]*FP_loc[V00_index][iz];
-		}
-
-		for(int iz1=0; iz1<z_count; iz1++){
-			for(int iz2=0; iz2<z_count; iz2++){
-				if(iz1==iz2){
-					mat[iz2][iz1]=-2.0/dz/dz+pot_vector[iz1];
-				}else if(abs(iz1-iz2)==1){
-					mat[iz2][iz1]=1.0/dz/dz;
-				}else{
-					mat[iz2][iz1]=0.0;
-				}
-			}
-		}
-		
-		// special solution
-		for(int iz=0; iz<z_count; iz++){
-			//if(iz==0){
-			//	special_solution[iz]=-1.0/dz/dz;
-			//}else{
-			//	special_solution[iz]=0.0;
-			//}
-			special_solution[iz]+=rhs_vector[iz];
-		}
-		int nrhs=1;
-		int info;
-		zgesv_(&z_count, &nrhs, &mat[0][0], &z_count, &ipiv[0], &special_solution[0], &z_count, &info);
-		if(info!=0){
-			write_log((char*)"Error: zgesv failed");
-			continue;
-		}
-		printf("#Special\n");
-		for(int iz=0; iz<z_count; iz++){
-			printf("%14.10f %14.10f\n", special_solution[iz].real(), special_solution[iz].imag());
-		}
-		printf("\n");
-
-		// general solution
-		/*
-		for(int iz=0; iz<mat_size; iz++){
-			if(iz==0){
-				general_solution[iz]=-1.0/dz/dz;
-			}else{
-				general_solution[iz]=0.0;
-			}
-		}
-		char notrans='N';
-		zgetrs_(&notrans, &mat_size, &nrhs, &mat[0][0], &mat_size, &ipiv[0], &general_solution[0], &mat_size, &info);
-		if(info!=0){
-			write_log((char*)"Error: zgesv failed");
-			continue;
-		}
-		printf("#General\n");
-		for(int iz=0; iz<mat_size; iz++){
-			printf("%14.10f %14.10f\n", general_solution[iz].real(), general_solution[iz].imag());
-		}
-		printf("\n");*/
-		
-	}
-
-	/*
-	for(int ig=0; ig<g_count; ig++){
-		printf("#%d\n", ig);
-		for(int iz=0; iz<z_count; iz++){
-			printf("%8.4f %8.4f\n", FP_loc[ig][iz].real(), FP_loc[ig][iz].imag());
-		}
-		printf("\n");
-		}*/
-	
-	
-	
-	delete[] pot_vector;
-	delete[] rhs_vector;
-	delete[] diff_vector;
-	delete[] sprintf_buffer2;
-	delete[] special_solution;
-	delete[] general_solution;
-	delete[] ipiv;
-	delete_zmatrix(mat);
-}
-	
-// calculate res=Ax-B
-void calc_residual_vector(int g_count, int v_count, double* A, double* B, double* x, double* res){
-	char notrans='N';
-	double alpha=1.0;
-	double beta=-1.0;
-	int inc=1;
-	for(int i=0; i<g_count; i++){
-		res[i]=B[i];
-	}
-	dgemv_(&notrans, &g_count, &v_count, &alpha, A, &g_count, x, &inc, &beta, res, &inc);
-}
-
-double calc_residual_error(int g_count, int v_count, double* A, double* B, double* x){
-	double* res=new double[g_count];
-	calc_residual_vector(g_count, v_count, A, B, x, &res[0]);
-	double re=0.0;
-	for(int i=0; i<g_count; i++){
-		re+=res[i]*res[i]/2.0;
-	}
-	delete[] res;
-	return re;
-}
-
-void calc_gradient_vector(int g_count, int v_count, double* A, double* B, double* x, double* gr){
-	double* res=new double[g_count];
-	calc_residual_vector(g_count, v_count, A, B, x, &res[0]);
-	double alpha=1.0;
-	double beta=0.0;
-	char trans='T';
-	int inc=1;
-	dgemv_(&trans, &g_count, &v_count, &alpha, A, &g_count, &res[0], &inc, &beta, gr, &inc);
-	delete[] res;
-}
-
-double calc_norm(int count, double* vector){
-	double re=0.0;
-	for(int i=0; i<count; i++){
-		re+=vector[i]*vector[i];
-	}
-	return re;
-}
-
-/*
-	int conv_index_2D(int i, int j, int* size);
-
-	void solve_final_state_real_space(double Ekin, double* k_para, double kz, double* atom_cell_buffer, int* VKS_count, double* VKS_buffer, complex<double>* FP_loc_buffer){
-	int z_size=VKS_count[0];
-	int x_size=VKS_count[1];
-	int y_size=VKS_count[2];
-	int xy_size=x_size*y_size;
-	// prepare the multi-dimension array
-	double** VKS=new double*[z_size];
-	for(int i=0; i<z_size; i++){
-	VKS[i]=&VKS_buffer[i*xy_size];
-	}
-	complex<double>** FP_loc=new complex<double>*[z_size];
-	for(int i=0; i<z_size; i++){
-	FP_loc[i]=&FP_loc_buffer[i*xy_size];
-	if(i==z_size-1 || i==z_size-2){
-	for(int j=0; j<xy_size; j++){
-	FP_loc[i][j]=complex<double>(1.0, 0.0);
-	}
-	}
-	}
-	double atom_cell[3][3];
-	for(int i=0; i<3; i++){
-	for(int j=0; j<3; j++){
-	atom_cell[i][j]=atom_cell_buffer[i*3+j];
-	}
-	}
-
-	// coefficients for the differential parts
-	double x1=atom_cell[1][0]/x_size;
-	double y1=atom_cell[1][1]/x_size;
-	double x2=atom_cell[2][0]/y_size;
-	double y2=atom_cell[2][1]/y_size;
-
-	double det2=x1*y2-x2*y1;
-	double t1=(y2*k_para[0]-x2*k_para[1])/det2;
-	double t2=(-y1*k_para[0]+x1*k_para[1])/det2;
-	// debug
-	// printf("t1=%10.2e, t2=%10.2e\n", t1, t2);
-
-	double s_matrix[3][3]; // inverted
-	s_matrix[0][0]=x1*x1;
-	s_matrix[1][0]=x2*x2;
-	s_matrix[2][0]=(x1+x2)*(x1+x2);
-	s_matrix[0][1]=2.0*x1*y1;
-	s_matrix[1][1]=2.0*x2*y2;
-	s_matrix[2][1]=2.0*(x1+x2)*(y1+y2);
-	s_matrix[0][2]=y1*y1;
-	s_matrix[1][2]=y2*y2;
-	s_matrix[2][2]=(y1+y2)*(y1+y2);
-
-	// LU decomposition
-	int info;
-	int ipiv[3];
-	int s_size=3;
-	int nrhs=1;
-	double s_vec[3];
-	double s1, s2, s3;
-	double s_matrix2[3][3];
-	for(int i=0; i<3; i++){
-	for(int j=0; j<3; j++){
-	s_matrix2[i][j]=s_matrix[i][j];
-	}
-	}
-		
-	s_vec[0]=1.0;
-	s_vec[1]=0.0;
-	s_vec[2]=1.0;
-	dgesv_(&s_size, &nrhs, &s_matrix2[0][0], &s_size, &ipiv[0], &s_vec[0], &s_size, &info);
-	if(info==0){
-	s1=s_vec[0];
-	s2=s_vec[1];
-	s3=s_vec[2];
-	}else{
-	write_log((char*)"dgesv failed");
-	return;
-	}
-
-	// debug
-	
-	// double test1=s_matrix[0][0]*s1+s_matrix[1][0]*s2+s_matrix[2][0]*s3;
-	// double test2=s_matrix[0][1]*s1+s_matrix[1][1]*s2+s_matrix[2][1]*s3;
-	// double test3=s_matrix[0][2]*s1+s_matrix[1][2]*s2+s_matrix[2][2]*s3;
-	// printf("s1=%10.2e, s2=%10.2e, s3=%10.2e\n", s1, s2, s3);
-	// printf("te1=%10.2e, te2=%10.2e, te3=%10.2e\n", test1, test2, test3);
-
-	// prepare the A matrix
-	double k_para_norm=inner_product(k_para, k_para);
-	complex<double> a_matrix_wo_V[xy_size][xy_size]; // transposed
-
-	/// diagonal
-	for(int i=0; i<xy_size; i++){
-	for(int j=0; j<xy_size; j++){
-	a_matrix_wo_V[j][i]=complex<double>(0.0, 0.0);
-	if(i==j){
-	a_matrix_wo_V[j][i]=-2.0*(-Ekin+k_para_norm/2.0);
-	}
-	}
-	}
-
-	/// derivative
-	
-	complex<double> im(0.0, 1.0);
-	for(int i=0; i<x_size; i++){
-	for(int j=0; j<y_size; j++){
-	int index_ij  =conv_index_2D(i  , j  , VKS_count);
-	int index_ipj =conv_index_2D(i+1, j  , VKS_count);
-	int index_imj =conv_index_2D(i-1, j  , VKS_count);
-	int index_ijp =conv_index_2D(i  , j+1, VKS_count);
-	int index_ijm =conv_index_2D(i  , j-1, VKS_count);
-	int index_ipjp=conv_index_2D(i+1, j+1, VKS_count);
-	int index_imjm=conv_index_2D(i-1, j-1, VKS_count);
-
-	/// second derivative
-	a_matrix_wo_V[index_ij][index_ij]-=2.0*(s1+s2+s3);
-	a_matrix_wo_V[index_ipj][index_ij]+=s1;
-	a_matrix_wo_V[index_imj][index_ij]+=s1;
-	a_matrix_wo_V[index_ijp][index_ij]+=s2;
-	a_matrix_wo_V[index_ijm][index_ij]+=s2;
-	a_matrix_wo_V[index_ipjp][index_ij]+=s3;
-	a_matrix_wo_V[index_imjm][index_ij]+=s3;
-
-	/// first derivative
-	a_matrix_wo_V[index_ipj][index_ij]+=t1*im;
-	a_matrix_wo_V[index_imj][index_ij]-=t1*im;
-	a_matrix_wo_V[index_ijp][index_ij]+=t2*im;
-	a_matrix_wo_V[index_ijm][index_ij]-=t2*im;
-	}
-	}
-
-	complex<double> left_matrix[xy_size][xy_size]; // transposed
-	complex<double> right_vector[xy_size];
-	double dz=atom_cell[0][2]/z_size;
-	// dz=0.0;
-	complex<double> alpha;
-	complex<double> beta(1.0, 0.0);
-	int inc=1;
-	char notrans='N';
-	int ipiv2[xy_size];
-	
-	for(int im1=z_size-3; im1>=0; im1--){
-	int i=im1+1;
-	int ip1=i+1;
-	// left matrix
-	for(int ixy1=0; ixy1<xy_size; ixy1++){
-	for(int ixy2=0; ixy2<xy_size; ixy2++){
-	left_matrix[ixy1][ixy2]=dz*dz/12.0*a_matrix_wo_V[ixy1][ixy2];
-	if(ixy1==ixy2){
-	left_matrix[ixy1][ixy2]+=1.0+dz*dz/12.0*(-2.0*VKS[im1][ixy1]);
-	}
-	}
-	}
-	// right vector
-	/// diagonal
-	for(int ixy=0; ixy<xy_size; ixy++){
-	right_vector[ixy]=2.0*(1.0-5.0/12.0*dz*dz*(-2.0*VKS[i][ixy]))*FP_loc[i][ixy];
-	right_vector[ixy]-=(1.0+1.0/12.0*dz*dz*(-2.0*VKS[ip1][ixy]))*FP_loc[ip1][ixy];
-	}
-	/// off-diagonal
-	alpha=complex<double>(-5.0/6.0*dz*dz, 0.0);
-	zgemv_(&notrans, &xy_size, &xy_size, &alpha, &a_matrix_wo_V[0][0], &xy_size, &FP_loc[i][0], &inc, &beta, &right_vector[0], &inc);
-		
-	alpha=complex<double>(-1.0/12.0*dz*dz, 0.0);
-	zgemv_(&notrans, &xy_size, &xy_size, &alpha, &a_matrix_wo_V[0][0], &xy_size, &FP_loc[ip1][0], &inc, &beta, &right_vector[0], &inc);
-
-	// solve
-	zgesv_(&xy_size, &nrhs, &left_matrix[0][0], &xy_size, &ipiv2[0], &right_vector[0], &xy_size, &info);
-	if(info==0){
-	// ok
-	for(int ixy=0; ixy<xy_size; ixy++){
-	FP_loc[im1][ixy]=right_vector[ixy];
-	printf("(%8.4f %8.4f) ", FP_loc[im1][ixy].real(), FP_loc[im1][ixy].imag());
-	}
-	printf("\n");
-	}else{
-	write_log((char*)"zgesv failed");
-	return;
-	}
-	}
-	}
-
-
-	int conv_index_2D(int i, int j, int* size){
-	// i is for size[1]
-	// j is for size[2]
-		while(i<0){
-			i+=size[1];
-		}
-		while(j<0){
-			j+=size[2];
-		}
-		i=i%size[1];
-		j=j%size[2];
-		return i*size[2]+j;
-	}*/
-
 
 complex<double> interpolate_fgz(double z, complex<double>* fgz, double dz, int z_count){
 	double index_d=z/dz;
@@ -2733,7 +2210,7 @@ int find_eigenstate(int g_count, int band_index, int band_index2, double Ekin, c
 	}
 	int eigen_real_count=0;
 	for(i=0; i<g_count; i++){
-		if(abs(w[i].imag())<PA_FPFS_complex_dispersion_criterion){
+		if(abs(w[i].imag())<PA_FPFS_real_eigenvalue_criterion){
 			band_order[i]=-1;
 			eigen_real_count++;
 		}
@@ -2852,71 +2329,117 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		  if(ikz==0 || (kz_count%2==0 && ikz==kz_count/2)){
 		  }else{
 		    // find local maxima just below EKin
-		    if(ib<g_count-1 && dispersion_r[ikz][ib]<Ekin && Ekin<dispersion_r[ikz][ib+1]){
+		    if(ib<g_count-1 && dispersion_r[ikz][ib]<Ekin /*&& Ekin<dispersion_r[ikz][ib+1]*/){
 		      int index_next=(ikz+1)%kz_count;
 		      int index_prev=(ikz+kz_count-1)%kz_count;
 		      double eigen_prev=dispersion_r[index_prev][ib];
 		      double eigen_curr=dispersion_r[ikz][ib];
 		      double eigen_next=dispersion_r[index_next][ib];
 		      if(eigen_prev < eigen_curr && eigen_curr > eigen_next){
-						sprintf(sprintf_buffer2, "Local maximum just below Ekin at kz=%8.4f", dispersion_kz[ikz]);
-						write_log(sprintf_buffer2);
-						for(int ikz2=ikz-PA_FPFS_cspace_offset; ikz2<=ikz+PA_FPFS_cspace_offset; ikz2++){
-							if(ikz2>=0 && ikz2<kz_count){
-								lmax_exist_flag[ikz2]=true;
+						bool below_flag=false;
+						for(int ikz2=ikz-PA_FPFS_kz_margin_index_size; ikz2<=ikz+PA_FPFS_kz_margin_index_size; ikz2++){
+							if(ikz2>=0 && ikz2<kz_count && Ekin < dispersion_r[ikz2][ib+1]){
+								below_flag=true;
+								break;
 							}
 						}
-						lmax_indices[lmax_count]=ikz;
-						lmax_eigen[lmax_count]=eigen_curr;
-						lmax_band[lmax_count]=ib;
-						lmax_listed[lmax_count]=false;
-						lmax_count++;
+						if(below_flag){
+							sprintf(sprintf_buffer2, "Local maximum below Ekin at kz=%8.4f", dispersion_kz[ikz]);
+							write_log(sprintf_buffer2);
+							for(int ikz2=ikz-PA_FPFS_kz_margin_index_size; ikz2<=ikz+PA_FPFS_kz_margin_index_size; ikz2++){
+								if(ikz2>=0 && ikz2<kz_count){
+									lmax_exist_flag[ikz2]=true;
+								}
+							}
+							lmax_indices[lmax_count]=ikz;
+							lmax_eigen[lmax_count]=eigen_curr;
+							lmax_band[lmax_count]=ib;
+							lmax_listed[lmax_count]=false;
+							lmax_count++;
+						}
 		      }
 		    }
 				// local minima just above Ekin
-		    if(ib>0 && dispersion_r[ikz][ib-1]<Ekin && Ekin<dispersion_r[ikz][ib]){
+		    if(ib>0 && /*dispersion_r[ikz][ib-1]<Ekin &&*/ Ekin<dispersion_r[ikz][ib]){
 		      int index_next=(ikz+1)%kz_count;
 		      int index_prev=(ikz+kz_count-1)%kz_count;
 		      double eigen_prev=dispersion_r[index_prev][ib];
 		      double eigen_curr=dispersion_r[ikz][ib];
 		      double eigen_next=dispersion_r[index_next][ib];
 		      if(eigen_prev > eigen_curr && eigen_curr < eigen_next){
-						if(lmax_exist_flag[ikz]){
-							int lmax_index=-1;
-							int lmax_distance_min=-1;
-							for(int il=0; il<lmax_count; il++){
-								int lmax_distance=abs(lmax_indices[il]-ikz);
-								if(lmax_distance<=PA_FPFS_cspace_offset && (lmax_index<0 || lmax_distance<lmax_distance_min)){
-									lmax_index=il;
-									lmax_distance_min=lmax_distance;
-								}
+						bool below_flag=false;
+						for(int ikz2=ikz-PA_FPFS_kz_margin_index_size; ikz2<=ikz+PA_FPFS_kz_margin_index_size; ikz2++){
+							if(ikz2>=0 && ikz2<kz_count && dispersion_r[ikz2][ib-1] < Ekin){
+								below_flag=true;
+								break;
 							}
-							if(lmax_index>=0){
-								double eigen_dn=dispersion_r[lmax_indices[lmax_index]][lmax_band[lmax_index]];
-								double eigen_gap=eigen_curr-eigen_dn;
-								sprintf(sprintf_buffer2, "Local minimum just above Ekin at kz=%8.4f, gap=%10.6f", dispersion_kz[ikz], eigen_gap);
-								write_log(sprintf_buffer2);
-								if(eigen_gap<PA_FPFS_bulk_tolerance){
-									solution_kz[solution_index]=dispersion_kz[ikz];
-									solution_kappaz[solution_index]=0.0;
-									solution_band_indices[solution_index]=ib;
-									solution_index++;
-									solution_count_real++;
-									if(lmax_listed[lmax_index]==false){
-										solution_kz[solution_index]=dispersion_kz[lmax_indices[lmax_index]];
+						}
+						if(below_flag){
+							if(lmax_exist_flag[ikz]){
+								int lmax_index=-1;
+								int lmax_distance_min=-1;
+								for(int il=0; il<lmax_count; il++){
+									int lmax_distance=abs(lmax_indices[il]-ikz);
+									if(lmax_distance<=PA_FPFS_kz_margin_index_size && (lmax_index<0 || lmax_distance<lmax_distance_min)){
+										lmax_index=il;
+										lmax_distance_min=lmax_distance;
+									}
+								}
+								if(lmax_index>=0){
+									double eigen_dn=dispersion_r[lmax_indices[lmax_index]][lmax_band[lmax_index]];
+									double eigen_gap=eigen_curr-eigen_dn;
+									sprintf(sprintf_buffer2, "Local minimum above Ekin at kz=%8.4f, gap=%10.6f", dispersion_kz[ikz], eigen_gap);
+									write_log(sprintf_buffer2);
+									if(eigen_gap<PA_FPFS_negligible_gap_size){
+										solution_kz[solution_index]=dispersion_kz[ikz];
 										solution_kappaz[solution_index]=0.0;
-										solution_band_indices[solution_index]=lmax_band[lmax_index];
+										solution_band_indices[solution_index]=ib;
 										solution_index++;
 										solution_count_real++;
-										sprintf(sprintf_buffer2, "Local maximum just above Ekin at kz=%8.4f is also listed", dispersion_kz[lmax_indices[lmax_index]]);
-										write_log(sprintf_buffer2);
-										lmax_listed[lmax_index]=true;
+										if(lmax_listed[lmax_index]==false){
+											solution_kz[solution_index]=dispersion_kz[lmax_indices[lmax_index]];
+											solution_kappaz[solution_index]=0.0;
+											solution_band_indices[solution_index]=lmax_band[lmax_index];
+											solution_index++;
+											solution_count_real++;
+											sprintf(sprintf_buffer2, "Local maximum above Ekin at kz=%8.4f is also listed", dispersion_kz[lmax_indices[lmax_index]]);
+											write_log(sprintf_buffer2);
+											lmax_listed[lmax_index]=true;
+										}else{
+											sprintf(sprintf_buffer2, "Local maximum above Ekin at kz=%8.4f was already listed", dispersion_kz[lmax_indices[lmax_index]]);
+											write_log(sprintf_buffer2);
+										}
 									}else{
-										sprintf(sprintf_buffer2, "Local maximum just above Ekin at kz=%8.4f was already listed", dispersion_kz[lmax_indices[lmax_index]]);
-										write_log(sprintf_buffer2);
+										for(int ikz2=ikz-PA_FPFS_kz_margin_index_size; ikz2<=ikz+PA_FPFS_kz_margin_index_size; ikz2++){
+											if(ikz2>=0 && ikz2<kz_count){
+												cspace_search_flag[ikz2]=true;
+											}
+										}
+										cspace_search_indices[cspace_count]=ikz;
+										cspace_search_scale[cspace_count]=eigen_gap;
+										cspace_count++;
 									}
+								}
+							}else{
+								double eigen_dn=dispersion_r[ikz][ib-1];
+								double eigen_gap=eigen_curr-eigen_dn;
+								double d_Gamma=abs(dispersion_kz[ikz]);
+								double d_pBZ=abs(dispersion_kz[ikz]-gz*0.5);
+								double d_mBZ=abs(dispersion_kz[ikz]+gz*0.5);
+								if(d_Gamma<PA_FPFS_kz_exclude_criterion){
+									sprintf(sprintf_buffer2, "Unpaired local minimum above Ekin at kz=%8.4f is not used because it is too close to kz=0", dispersion_kz[ikz]);
+									write_log(sprintf_buffer2);
+								}else if(d_pBZ<PA_FPFS_kz_exclude_criterion){
+									sprintf(sprintf_buffer2, "Unpaired local minimum above Ekin at kz=%8.4f is not used because it is too close to kz=pi/c", dispersion_kz[ikz]);
+									write_log(sprintf_buffer2);
+								}else if(d_mBZ<PA_FPFS_kz_exclude_criterion){
+									sprintf(sprintf_buffer2, "Unpaired local minimum above Ekin at kz=%8.4f is not used because it is too close to kz=-pi/c", dispersion_kz[ikz]);
+									write_log(sprintf_buffer2);
 								}else{
-									for(int ikz2=ikz-PA_FPFS_cspace_offset; ikz2<=ikz+PA_FPFS_cspace_offset; ikz2++){
+									sprintf(sprintf_buffer2, "Unpaired local minimum above Ekin at kz=%8.4f, gap=%10.6f", dispersion_kz[ikz], eigen_gap);
+									write_log(sprintf_buffer2);
+								
+									for(int ikz2=ikz-PA_FPFS_kz_margin_index_size; ikz2<=ikz+PA_FPFS_kz_margin_index_size; ikz2++){
 										if(ikz2>=0 && ikz2<kz_count){
 											cspace_search_flag[ikz2]=true;
 										}
@@ -2925,34 +2448,6 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 									cspace_search_scale[cspace_count]=eigen_gap;
 									cspace_count++;
 								}
-							}
-						}else{
-							double eigen_dn=dispersion_r[ikz][ib-1];
-							double eigen_gap=eigen_curr-eigen_dn;
-							double d_Gamma=abs(dispersion_kz[ikz]);
-							double d_pBZ=abs(dispersion_kz[ikz]-gz*0.5);
-							double d_mBZ=abs(dispersion_kz[ikz]+gz*0.5);
-							if(d_Gamma<PA_FPFS_kz_criterion){
-								sprintf(sprintf_buffer2, "Unpaired local minimum just above Ekin at kz=%8.4f is not used because it is too close to kz=0", dispersion_kz[ikz]);
-								write_log(sprintf_buffer2);
-							}else if(d_pBZ<PA_FPFS_kz_criterion){
-								sprintf(sprintf_buffer2, "Unpaired local minimum just above Ekin at kz=%8.4f is not used because it is too close to kz=pi/c", dispersion_kz[ikz]);
-								write_log(sprintf_buffer2);
-							}else if(d_mBZ<PA_FPFS_kz_criterion){
-								sprintf(sprintf_buffer2, "Unpaired local minimum just above Ekin at kz=%8.4f is not used because it is too close to kz=-pi/c", dispersion_kz[ikz]);
-								write_log(sprintf_buffer2);
-							}else{
-								sprintf(sprintf_buffer2, "Unpaired local minimum just above Ekin at kz=%8.4f, gap=%10.6f", dispersion_kz[ikz], eigen_gap);
-								write_log(sprintf_buffer2);
-								
-								for(int ikz2=ikz-PA_FPFS_cspace_offset; ikz2<=ikz+PA_FPFS_cspace_offset; ikz2++){
-									if(ikz2>=0 && ikz2<kz_count){
-										cspace_search_flag[ikz2]=true;
-									}
-								}
-								cspace_search_indices[cspace_count]=ikz;
-								cspace_search_scale[cspace_count]=eigen_gap;
-								cspace_count++;
 							}
 						}
 					}
@@ -3021,19 +2516,19 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 			double d_Gamma=abs(dispersion_kz[ikz]);
 			double d_pBZ=abs(dispersion_kz[ikz]-gz*0.5);
 			double d_mBZ=abs(dispersion_kz[ikz]+gz*0.5);
-			if(d_Gamma<PA_FPFS_kz_criterion){
-				sprintf(sprintf_buffer2, "Unpaired local maximum just above Ekin at kz=%8.4f is not used because it is too close to kz=0", dispersion_kz[ikz]);
+			if(d_Gamma<PA_FPFS_kz_exclude_criterion){
+				sprintf(sprintf_buffer2, "Unpaired local maximum above Ekin at kz=%8.4f is not used because it is too close to kz=0", dispersion_kz[ikz]);
 				write_log(sprintf_buffer2);
-			}else if(d_pBZ<PA_FPFS_kz_criterion){
-				sprintf(sprintf_buffer2, "Unpaired local maximum just above Ekin at kz=%8.4f is not used because it is too close to kz=pi/c", dispersion_kz[ikz]);
+			}else if(d_pBZ<PA_FPFS_kz_exclude_criterion){
+				sprintf(sprintf_buffer2, "Unpaired local maximum above Ekin at kz=%8.4f is not used because it is too close to kz=pi/c", dispersion_kz[ikz]);
 				write_log(sprintf_buffer2);
-			}else if(d_mBZ<PA_FPFS_kz_criterion){
-				sprintf(sprintf_buffer2, "Unpaired local maximum just above Ekin at kz=%8.4f is not used because it is too close to kz=-pi/c", dispersion_kz[ikz]);
+			}else if(d_mBZ<PA_FPFS_kz_exclude_criterion){
+				sprintf(sprintf_buffer2, "Unpaired local maximum above Ekin at kz=%8.4f is not used because it is too close to kz=-pi/c", dispersion_kz[ikz]);
 				write_log(sprintf_buffer2);
 			}else{
-				sprintf(sprintf_buffer2, "Unpaired local maximum just below Ekin at kz=%8.4f, gap=%10.6f", dispersion_kz[ikz], eigen_gap);
+				sprintf(sprintf_buffer2, "Unpaired local maximum below Ekin at kz=%8.4f, gap=%10.6f", dispersion_kz[ikz], eigen_gap);
 				write_log(sprintf_buffer2);
-				for(int ikz2=ikz-PA_FPFS_cspace_offset; ikz2<=ikz+PA_FPFS_cspace_offset; ikz2++){
+				for(int ikz2=ikz-PA_FPFS_kz_margin_index_size; ikz2<=ikz+PA_FPFS_kz_margin_index_size; ikz2++){
 					if(ikz2>=0 && ikz2<kz_count){
 						cspace_search_flag[ikz2]=true;
 					}
@@ -3725,7 +3220,7 @@ void calc_bulk_dispersion_complex(double* k_para, double kz_r, int kappaz_count,
 
 		dispersion_real_count=0;
 		for(int ig=0; ig<g_count; ig++){
-			if(abs(w[ig].imag())<PA_FPFS_complex_dispersion_criterion){
+			if(abs(w[ig].imag())<PA_FPFS_real_eigenvalue_criterion){
 				dispersion_real[dispersion_real_count]=0.5*w[ig];
 				dispersion_real_count++;
 			}

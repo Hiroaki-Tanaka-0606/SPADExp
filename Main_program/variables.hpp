@@ -207,45 +207,53 @@ bool PA_add_nonorth_term; // include the \tau_i \cdot e < psi_F | psi_I> term
 bool PA_add_nonorth_term_set;
 bool PA_calc_all_nonloc;     // calculate the nonlocal wave functions for all atoms which can have zero weights
 bool PA_calc_all_nonloc_set;
-bool PA_calc_all_loc;        // calculate the local wave functions for the whole range
-bool PA_calc_all_loc_set;
+//bool PA_calc_all_loc;        // calculate the local wave functions for the whole range
+//bool PA_calc_all_loc_set;
 bool PA_orth_correction;  // apply the orthgonality correction
 bool PA_orth_correction_set;
 bool PA_ignore_nonlocal;  // ignore the nonlocal part of the pseudopotential
 bool PA_ignore_nonlocal_set;
 bool PA_FPFS_Numerov;  // perform the nonlocal wfn calculation using the Numerov method
 bool PA_FPFS_Numerov_set;
-double PA_FPFS_margin;   // margin to determine the calculation range of local wfn if PA_calc_all_wfn=false
-bool PA_FPFS_edge_smoothing; // perform the box smoothing of the edge values
-bool PA_FPFS_edge_smoothing_set;
-int PA_FPFS_smoothing_E; // smoothing width (half-side)
-bool PA_FPFS_smoothing_E_set;
-int PA_FPFS_smoothing_k; // smoothing width (half-side)
-bool PA_FPFS_smoothing_k_set;
-double PA_FPFS_bulk_min_ang; // bulk range (Ang)
-double PA_FPFS_bulk_max_ang; // 
-int PA_FPFS_bulk_count;  // number of bulk layers in the bulk range
-bool PA_FPFS_bulk_set;
-int PA_FPFS_bulk_kz_steps;
-int PA_FPFS_bulk_kappaz_steps_left;
-int PA_FPFS_bulk_kappaz_steps_right;
+//double PA_FPFS_margin;   // margin to determine the calculation range of local wfn if PA_calc_all_wfn=false
+//bool PA_FPFS_edge_smoothing; // perform the box smoothing of the edge values
+//bool PA_FPFS_edge_smoothing_set;
+//int PA_FPFS_smoothing_E; // smoothing width (half-side)
+//bool PA_FPFS_smoothing_E_set;
+//int PA_FPFS_smoothing_k; // smoothing width (half-side)
+//bool PA_FPFS_smoothing_k_set;
 bool PA_interpolate_wfn; // reduce the number of points in radial wave functions
 bool PA_interpolate_wfn_set;
-double PA_interpolate_wfn_coef;
+double PA_interpolate_wfn_coef; // dz*coef becomes delta r
 bool PA_interpolate_wfn_coef_set;
-double PA_FPFS_bulk_tolerance;
+double PA_FPFS_bulk_min_ang; // bulk range (Ang)
+double PA_FPFS_bulk_max_ang; // 
+int PA_FPFS_bulk_count;      // number of bulk layers in the bulk range
+bool PA_FPFS_bulk_set;
+int PA_FPFS_bulk_kz_steps; // steps to calculate bulk band dispersion along kz
+int PA_FPFS_bulk_kappaz_steps_left; // 2pi/c/steps is the delta kappaz 
+int PA_FPFS_bulk_kappaz_steps_right;
+
+double PA_FPFS_negligible_gap_size;
+bool PA_FPFS_negligible_gap_size_set;
 int PA_FPFS_bulk_buffer_size;
-bool PA_FPFS_perturbation; // Apply perturbation method in surface calculations
-bool PA_FPFS_perturbation_set;
-bool PA_calc_complex_dispersion;
-bool PA_calc_complex_dispersion_set;
-double PA_FPFS_complex_dispersion_criterion;
+//bool PA_FPFS_perturbation; // Apply perturbation method in surface calculations
+//bool PA_FPFS_perturbation_set;
+//bool PA_calc_complex_dispersion;
+//bool PA_calc_complex_dispersion_set;
+double PA_FPFS_real_eigenvalue_criterion;
+bool PA_FPFS_real_eigenvalue_criterion_set;
 double PA_FPFS_dispersion_group_criterion_left;
+bool PA_FPFS_dispersion_group_criterion_left_set;
 double PA_FPFS_dispersion_group_criterion_right;
+bool PA_FPFS_dispersion_group_criterion_right_set;
 double PA_FPFS_gap_coefficient;
-int PA_FPFS_cspace_offset;
+int PA_FPFS_kz_margin_index_size;
+bool PA_FPFS_kz_margin_index_size_set;
 double PA_FPFS_cspace_size;
-double PA_FPFS_kz_criterion;
+bool PA_FPFS_cspace_size_set;
+double PA_FPFS_kz_exclude_criterion;
+bool PA_FPFS_kz_exclude_criterion_set;
 
 /// files
 FILE* Log_file_obj;            // log file object

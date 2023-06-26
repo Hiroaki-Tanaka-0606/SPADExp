@@ -126,22 +126,6 @@ int validation_PAD(){
 				write_log((char*)"Error: Reflection cannot be used in FP_PAO and FP_AO");
 				status=0; goto FINALIZATION;
 			}
-			if(!PA_FPFS_Numerov){
-				sprintf(sprintf_buffer,"%32s = %s", "FPFS_edge_smoothing", PA_FPFS_edge_smoothing?"true":"false");
-				write_log(sprintf_buffer);
-				if(PA_FPFS_edge_smoothing){
-					if(PA_FPFS_smoothing_E<0){
-						write_log((char*)"Error: FPFS_smoothing_E cannot be negative");
-						status=0; goto FINALIZATION;
-					}
-					if(PA_FPFS_smoothing_k<0){
-						write_log((char*)"Error: FPFS_smoothing_k cannot be negative");
-						status=0; goto FINALIZATION;
-					}
-					sprintf(sprintf_buffer, "%32s = (%d, %d)", "FPFS_smoothing (E, k)", PA_FPFS_smoothing_E, PA_FPFS_smoothing_k);
-					write_log(sprintf_buffer);
-				}
-			}
 			/// Excitation energy
 			if(PA_excitation_energy_set==false){
 				write_log((char*)"Error: Excitation_energy is necessary");
@@ -173,12 +157,6 @@ int validation_PAD(){
 					write_log((char*)"Error: FPFS_Numerov = true and FPFS_bulk are incompatible");
 					status=0; goto FINALIZATION;
 				}
-				if(PA_calc_all_loc){
-					PA_calc_all_loc=false;
-					write_log((char*)"Note: FPFS_calc_all_loc is set to false");
-				}
-				sprintf(sprintf_buffer, "%32s = %s", "FPFS_perturbation", PA_FPFS_perturbation?"true":"false");
-				write_log(sprintf_buffer);
 			}
 			/// FPFS_kRange
 			sprintf(sprintf_buffer, "%32s = %.3f", "FPFS_kRange", PA_FPFS_kRange);
@@ -315,10 +293,8 @@ int validation_PAD(){
 	sprintf(sprintf_buffer, "%32s = %s", "Orth_correction", PA_orth_correction?"true":"false");
 	write_log(sprintf_buffer);
 	if(PA_FPFS){
-		/// Calc_all_(non)loc
+		/// Calc_all_nonloc
 		sprintf(sprintf_buffer, "%32s = %s", "Calc_all_nonloc", PA_calc_all_nonloc?"true":"false");
-		write_log(sprintf_buffer);
-		sprintf(sprintf_buffer, "%32s = %s", "Calc_all_loc", PA_calc_all_loc?"true":"false");
 		write_log(sprintf_buffer);
 	}
 	/// 
