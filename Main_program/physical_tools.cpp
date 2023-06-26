@@ -3018,16 +3018,30 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 			double eigen_curr=lmax_eigen[il];
 			double eigen_up=dispersion_r[ikz][ib+1];
 			double eigen_gap=eigen_up-eigen_curr;
-			sprintf(sprintf_buffer2, "Unpaired local maximum just below Ekin at kz=%8.4f, gap=%10.6f", dispersion_kz[ikz], eigen_gap);
-			write_log(sprintf_buffer2);
-			for(int ikz2=ikz-PA_FPFS_cspace_offset; ikz2<=ikz+PA_FPFS_cspace_offset; ikz2++){
-				if(ikz2>=0 && ikz2<kz_count){
-					cspace_search_flag[ikz2]=true;
+			double d_Gamma=abs(dispersion_kz[ikz]);
+			double d_pBZ=abs(dispersion_kz[ikz]-gz*0.5);
+			double d_mBZ=abs(dispersion_kz[ikz]+gz*0.5);
+			if(d_Gamma<PA_FPFS_kz_criterion){
+				sprintf(sprintf_buffer2, "Unpaired local maximum just above Ekin at kz=%8.4f is not used because it is too close to kz=0", dispersion_kz[ikz]);
+				write_log(sprintf_buffer2);
+			}else if(d_pBZ<PA_FPFS_kz_criterion){
+				sprintf(sprintf_buffer2, "Unpaired local maximum just above Ekin at kz=%8.4f is not used because it is too close to kz=pi/c", dispersion_kz[ikz]);
+				write_log(sprintf_buffer2);
+			}else if(d_mBZ<PA_FPFS_kz_criterion){
+				sprintf(sprintf_buffer2, "Unpaired local maximum just above Ekin at kz=%8.4f is not used because it is too close to kz=-pi/c", dispersion_kz[ikz]);
+				write_log(sprintf_buffer2);
+			}else{
+				sprintf(sprintf_buffer2, "Unpaired local maximum just below Ekin at kz=%8.4f, gap=%10.6f", dispersion_kz[ikz], eigen_gap);
+				write_log(sprintf_buffer2);
+				for(int ikz2=ikz-PA_FPFS_cspace_offset; ikz2<=ikz+PA_FPFS_cspace_offset; ikz2++){
+					if(ikz2>=0 && ikz2<kz_count){
+						cspace_search_flag[ikz2]=true;
+					}
 				}
+				cspace_search_indices[cspace_count]=ikz;
+				cspace_search_scale[cspace_count]=eigen_gap;
+				cspace_count++;
 			}
-			cspace_search_indices[cspace_count]=ikz;
-			cspace_search_scale[cspace_count]=eigen_gap;
-			cspace_count++;
 		}
 	}
 
