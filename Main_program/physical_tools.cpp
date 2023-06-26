@@ -1664,7 +1664,7 @@ void solve_final_state_from_bulk_perturbation(double Ekin, double* k_para, doubl
 	for(int iz=0; iz<z_count; iz++){
 		pot_vector[iz]=2.0*Ekin-inner_product(k_para, k_para)-2.0*Vgg[V00_index][V00_index][iz];
 	}
-	for(int iz=z_count-2; iz>=z_start; iz--){
+	for(int iz=z_count-2; iz>=0; iz--){
 		int izm1=iz-1;
 		int izp1=iz+1;
 		FP_loc[V00_index][izm1]=(2.0*(1.0-5.0/12.0*dz*dz*pot_vector[iz])*FP_loc[V00_index][iz]-(1.0+1.0/12.0*dz*dz*pot_vector[izp1])*FP_loc[V00_index][izp1])
@@ -1678,11 +1678,11 @@ void solve_final_state_from_bulk_perturbation(double Ekin, double* k_para, doubl
 
 	complex<double>* rhs_vector=new complex<double>[z_count];
 	complex<double>* diff_vector=new complex<double>[z_count];
-	int mat_size=z_count-(z_start-1);
-	complex<double>** mat=alloc_zmatrix(mat_size);
-	complex<double>* special_solution=new complex<double>[mat_size];
-	complex<double>* general_solution=new complex<double>[mat_size];
-	int* ipiv=new int[mat_size];
+	//int mat_size=z_count-(z_start-1);
+	complex<double>** mat=alloc_zmatrix(z_count);
+	complex<double>* special_solution=new complex<double>[z_count];
+	complex<double>* general_solution=new complex<double>[z_count];
+	int* ipiv=new int[z_count];
 	double kpg[3];
 	for(int ig=0; ig<g_count; ig++){
 		if(ig==V00_index){
@@ -1696,10 +1696,10 @@ void solve_final_state_from_bulk_perturbation(double Ekin, double* k_para, doubl
 			rhs_vector[iz]=2.0*Vgg[ig][V00_index][iz]*FP_loc[V00_index][iz];
 		}
 
-		for(int iz1=0; iz1<mat_size; iz1++){
-			for(int iz2=0; iz2<mat_size; iz2++){
+		for(int iz1=0; iz1<z_count; iz1++){
+			for(int iz2=0; iz2<z_count; iz2++){
 				if(iz1==iz2){
-					mat[iz2][iz1]=-2.0/dz/dz+pot_vector[iz1+z_start-1];
+					mat[iz2][iz1]=-2.0/dz/dz+pot_vector[iz1];
 				}else if(abs(iz1-iz2)==1){
 					mat[iz2][iz1]=1.0/dz/dz;
 				}else{
@@ -1709,28 +1709,29 @@ void solve_final_state_from_bulk_perturbation(double Ekin, double* k_para, doubl
 		}
 		
 		// special solution
-		for(int iz=0; iz<mat_size; iz++){
-			if(iz==0){
-				special_solution[iz]=-1.0/dz/dz;
-			}else{
-				special_solution[iz]=0.0;
-			}
-			special_solution[iz]+=rhs_vector[iz+z_start-1];
+		for(int iz=0; iz<z_count; iz++){
+			//if(iz==0){
+			//	special_solution[iz]=-1.0/dz/dz;
+			//}else{
+			//	special_solution[iz]=0.0;
+			//}
+			special_solution[iz]+=rhs_vector[iz];
 		}
 		int nrhs=1;
 		int info;
-		zgesv_(&mat_size, &nrhs, &mat[0][0], &mat_size, &ipiv[0], &special_solution[0], &mat_size, &info);
+		zgesv_(&z_count, &nrhs, &mat[0][0], &z_count, &ipiv[0], &special_solution[0], &z_count, &info);
 		if(info!=0){
 			write_log((char*)"Error: zgesv failed");
 			continue;
 		}
 		printf("#Special\n");
-		for(int iz=0; iz<mat_size; iz++){
+		for(int iz=0; iz<z_count; iz++){
 			printf("%14.10f %14.10f\n", special_solution[iz].real(), special_solution[iz].imag());
 		}
 		printf("\n");
 
 		// general solution
+		/*
 		for(int iz=0; iz<mat_size; iz++){
 			if(iz==0){
 				general_solution[iz]=-1.0/dz/dz;
@@ -1748,11 +1749,8 @@ void solve_final_state_from_bulk_perturbation(double Ekin, double* k_para, doubl
 		for(int iz=0; iz<mat_size; iz++){
 			printf("%14.10f %14.10f\n", general_solution[iz].real(), general_solution[iz].imag());
 		}
-		printf("\n");
+		printf("\n");*/
 		
-		
-
-		// general solution
 	}
 
 	/*
@@ -2861,7 +2859,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		      double eigen_curr=dispersion_r[ikz][ib];
 		      double eigen_next=dispersion_r[index_next][ib];
 		      if(eigen_prev < eigen_curr && eigen_curr > eigen_next){
-						sprintf(sprintf_buffer2, "Local maxima just below Ekin at kz=%8.4f", dispersion_kz[ikz]);
+						sprintf(sprintf_buffer2, "Local maximum just below Ekin at kz=%8.4f", dispersion_kz[ikz]);
 						write_log(sprintf_buffer2);
 						for(int ikz2=ikz-PA_FPFS_cspace_offset; ikz2<=ikz+PA_FPFS_cspace_offset; ikz2++){
 							if(ikz2>=0 && ikz2<kz_count){
@@ -2883,7 +2881,6 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		      double eigen_curr=dispersion_r[ikz][ib];
 		      double eigen_next=dispersion_r[index_next][ib];
 		      if(eigen_prev > eigen_curr && eigen_curr < eigen_next){
-						sprintf(sprintf_buffer2, "Local minima just above Ekin at kz=%8.4f", dispersion_kz[ikz]);
 						if(lmax_exist_flag[ikz]){
 							int lmax_index=-1;
 							int lmax_distance_min=-1;
@@ -2897,7 +2894,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 							if(lmax_index>=0){
 								double eigen_dn=dispersion_r[lmax_indices[lmax_index]][lmax_band[lmax_index]];
 								double eigen_gap=eigen_curr-eigen_dn;
-								sprintf(sprintf_buffer2, "Local minima just above Ekin at kz=%8.4f, gap=%10.6f", dispersion_kz[ikz], eigen_gap);
+								sprintf(sprintf_buffer2, "Local minimum just above Ekin at kz=%8.4f, gap=%10.6f", dispersion_kz[ikz], eigen_gap);
 								write_log(sprintf_buffer2);
 								if(eigen_gap<PA_FPFS_bulk_tolerance){
 									solution_kz[solution_index]=dispersion_kz[ikz];
@@ -2911,11 +2908,11 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 										solution_band_indices[solution_index]=lmax_band[lmax_index];
 										solution_index++;
 										solution_count_real++;
-										sprintf(sprintf_buffer2, "Local maxima just above Ekin at kz=%8.4f is also listed", dispersion_kz[lmax_indices[lmax_index]]);
+										sprintf(sprintf_buffer2, "Local maximum just above Ekin at kz=%8.4f is also listed", dispersion_kz[lmax_indices[lmax_index]]);
 										write_log(sprintf_buffer2);
 										lmax_listed[lmax_index]=true;
 									}else{
-										sprintf(sprintf_buffer2, "Local maxima just above Ekin at kz=%8.4f was already listed", dispersion_kz[lmax_indices[lmax_index]]);
+										sprintf(sprintf_buffer2, "Local maximum just above Ekin at kz=%8.4f was already listed", dispersion_kz[lmax_indices[lmax_index]]);
 										write_log(sprintf_buffer2);
 									}
 								}else{
@@ -2928,11 +2925,26 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 									cspace_search_scale[cspace_count]=eigen_gap;
 									cspace_count++;
 								}
-							}else{
-								double eigen_dn=dispersion_r[ikz][ib-1];
-								double eigen_gap=eigen_curr-eigen_dn;
-								sprintf(sprintf_buffer2, "Unpaired local minima just above Ekin at kz=%8.4f, gap=%10.6f", dispersion_kz[ikz], eigen_gap);
+							}
+						}else{
+							double eigen_dn=dispersion_r[ikz][ib-1];
+							double eigen_gap=eigen_curr-eigen_dn;
+							double d_Gamma=abs(dispersion_kz[ikz]);
+							double d_pBZ=abs(dispersion_kz[ikz]-gz*0.5);
+							double d_mBZ=abs(dispersion_kz[ikz]+gz*0.5);
+							if(d_Gamma<PA_FPFS_kz_criterion){
+								sprintf(sprintf_buffer2, "Unpaired local minimum just above Ekin at kz=%8.4f is not used because it is too close to kz=0", dispersion_kz[ikz]);
 								write_log(sprintf_buffer2);
+							}else if(d_pBZ<PA_FPFS_kz_criterion){
+								sprintf(sprintf_buffer2, "Unpaired local minimum just above Ekin at kz=%8.4f is not used because it is too close to kz=pi/c", dispersion_kz[ikz]);
+								write_log(sprintf_buffer2);
+							}else if(d_mBZ<PA_FPFS_kz_criterion){
+								sprintf(sprintf_buffer2, "Unpaired local minimum just above Ekin at kz=%8.4f is not used because it is too close to kz=-pi/c", dispersion_kz[ikz]);
+								write_log(sprintf_buffer2);
+							}else{
+								sprintf(sprintf_buffer2, "Unpaired local minimum just above Ekin at kz=%8.4f, gap=%10.6f", dispersion_kz[ikz], eigen_gap);
+								write_log(sprintf_buffer2);
+								
 								for(int ikz2=ikz-PA_FPFS_cspace_offset; ikz2<=ikz+PA_FPFS_cspace_offset; ikz2++){
 									if(ikz2>=0 && ikz2<kz_count){
 										cspace_search_flag[ikz2]=true;
@@ -2943,7 +2955,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 								cspace_count++;
 							}
 						}
-		      }
+					}
 		    }
 		  }
 			// find bands crossing Ekin
@@ -3006,7 +3018,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 			double eigen_curr=lmax_eigen[il];
 			double eigen_up=dispersion_r[ikz][ib+1];
 			double eigen_gap=eigen_up-eigen_curr;
-			sprintf(sprintf_buffer2, "Unpaired local maxima just below Ekin at kz=%8.4f, gap=%10.6f", dispersion_kz[ikz], eigen_gap);
+			sprintf(sprintf_buffer2, "Unpaired local maximum just below Ekin at kz=%8.4f, gap=%10.6f", dispersion_kz[ikz], eigen_gap);
 			write_log(sprintf_buffer2);
 			for(int ikz2=ikz-PA_FPFS_cspace_offset; ikz2<=ikz+PA_FPFS_cspace_offset; ikz2++){
 				if(ikz2>=0 && ikz2<kz_count){

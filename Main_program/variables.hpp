@@ -245,6 +245,7 @@ double PA_FPFS_dispersion_group_criterion_right;
 double PA_FPFS_gap_coefficient;
 int PA_FPFS_cspace_offset;
 double PA_FPFS_cspace_size;
+double PA_FPFS_kz_criterion;
 
 /// files
 FILE* Log_file_obj;            // log file object

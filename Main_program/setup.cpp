@@ -205,6 +205,7 @@ void initialize(){
 	PA_FPFS_gap_coefficient=0.3;
 	PA_FPFS_cspace_offset=10;
 	PA_FPFS_cspace_size=5;
+	PA_FPFS_kz_criterion=0.005;
 }
 
 void finalize(){
