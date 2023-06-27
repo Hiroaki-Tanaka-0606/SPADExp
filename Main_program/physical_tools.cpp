@@ -2345,7 +2345,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 							if(Ekin < dispersion_r[index2_curr][ib+1]){
 								below_flag=true;
 							}
-							if(dispersion_r[index2_prev][ib+1] > dispersion_r[index2_curr][ib+1] && dispersion_r[index2_curr][ib+1] < dispersion_r[index2_next][ib+1]){
+							if(dispersion_r[index2_prev][ib+1] > dispersion_r[index2_curr][ib+1] && dispersion_r[index2_curr][ib+1] < dispersion_r[index2_next][ib+1] && dispersion_r[index2_curr][ib+1]<Ekin){
 								local_minimum_flag=true;
 								break;
 							}
@@ -2381,7 +2381,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 							if(dispersion_r[index2_curr][ib-1] < Ekin){
 								below_flag=true;
 							}
-							if(dispersion_r[index2_prev][ib+1] < dispersion_r[index2_curr][ib+1] && dispersion_r[index2_curr][ib+1] > dispersion_r[index2_next][ib+1]){
+							if(dispersion_r[index2_prev][ib+1] < dispersion_r[index2_curr][ib+1] && dispersion_r[index2_curr][ib+1] > dispersion_r[index2_next][ib+1] && dispersion_r[index2_curr][ib+1]>Ekin){
 								local_maximum_flag=true;
 								break;
 							}
@@ -2692,8 +2692,15 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		}
 		// close to another removed point
 		for(int is=0; is<solution_count_complex[ikzr]; is++){
+		  if(passed[is]==false){
+		    continue;
+		  }
+		      
 			int is_offset=is+solution_index_offset;
 			for(int is_prev=0; is_prev<solution_count_complex[ikzr]; is_prev++){
+			  if(is==is_prev){
+			    continue;
+			  }
 				int is_prev_offset=is_prev+solution_index_offset;
 				if(passed[is_prev]==false){
 					if(abs(solution_band_indices[is_prev_offset]-solution_band_indices[is_offset])<=1 &&
