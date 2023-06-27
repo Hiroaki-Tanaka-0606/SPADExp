@@ -32,15 +32,6 @@ extern "C"{
 							 int* INCX,
 							 double* CY,
 							 int* INCY);
-	void zgesv_(
-							int* N,
-							int* NRHS,
-							complex<double>* A,
-							int* LDA,
-							int* IPIV,
-							complex<double>* B,
-							int* LDB,
-							int* INFO);
 }
 
 double ddot(int* N, double* X, double* Y){
@@ -48,20 +39,6 @@ double ddot(int* N, double* X, double* Y){
 	return ddot_(N, &X[0], &INC, &Y[0], &INC);
 }
 
-bool zgesv_1_0(int* N, complex<double>* A, complex<double>* B){
-	for(int i=0; i<*N; i++){
-		B[i]=complex<double>(i==0?1:0, 0);
-	}
-	int INFO=0;
-	int NRHS=1;
-	int IPIV[*N];
-	zgesv_(N, &NRHS, &A[0], N, &IPIV[0], &B[0], N, &INFO);
-	if(INFO==0){
-		return true;
-	}else{
-		return false;
-	}
-}
 
 void calculate_PAD(){
 	// 1. load input
@@ -891,6 +868,32 @@ void calculate_PAD(){
 	double* FP_bulk_dispersion_kappaz; // [ikappaz]
 	double* FP_bulk_dispersion_mkappaz;
 	int FP_bulk_kappaz_count=0;
+	int FP_bulk_kappaz_border=0;
+	complex<double>*** FP_bulk_dispersion_c_up; // [total_count_ext][ikappaz, ib]
+	complex<double>*** FP_bulk_dispersion_c_dn;
+	complex<double>*** FP_bulk_dispersion_c_BZ_up;
+	complex<double>*** FP_bulk_dispersion_c_BZ_dn;
+	complex<double>*** FP_bulk_dispersion_mc_up;
+	complex<double>*** FP_bulk_dispersion_mc_dn;
+	complex<double>*** FP_bulk_dispersion_mc_BZ_up;
+	complex<double>*** FP_bulk_dispersion_mc_BZ_dn;
+	int** FP_bulk_dispersion_c_count_up; // [total_count_ext][ikappaz]=ib size
+	int** FP_bulk_dispersion_c_count_dn;
+	int** FP_bulk_dispersion_c_BZ_count_up;
+	int** FP_bulk_dispersion_c_BZ_count_dn;
+	int** FP_bulk_dispersion_mc_count_up;
+	int** FP_bulk_dispersion_mc_count_dn;
+	int** FP_bulk_dispersion_mc_BZ_count_up;
+	int** FP_bulk_dispersion_mc_BZ_count_dn;
+	int*** FP_bulk_connection_c_up; // [total_count_ext][ikappaz, ib]=connected ib at ikappaz+1
+	int*** FP_bulk_connection_c_dn;
+	int*** FP_bulk_connection_c_BZ_up;
+	int*** FP_bulk_connection_c_BZ_dn;
+	int*** FP_bulk_connection_mc_up;
+	int*** FP_bulk_connection_mc_dn;
+	int*** FP_bulk_connection_mc_BZ_up;
+	int*** FP_bulk_connection_mc_BZ_dn;
+	
 	//// VPS-related variables
 	int VPS_l_length[atom_spec_length];       // [is]=il value
 	int VPS_r_length[atom_spec_length];       // [is]=ir value
@@ -1477,6 +1480,34 @@ void calculate_PAD(){
 			final_states_FP_bulk_kz=new double**[total_count_ext];
 			final_states_FP_bulk_kappaz=new double**[total_count_ext];
 			final_states_FP_bulk_coefs=new complex<double>**[total_count_ext];
+			if(PA_FPFS_file_set){
+				FP_bulk_dispersion_c_up=new complex<double>**[total_count_ext];
+				FP_bulk_dispersion_c_BZ_up=new complex<double>**[total_count_ext];
+				FP_bulk_dispersion_mc_up=new complex<double>**[total_count_ext];
+				FP_bulk_dispersion_mc_BZ_up=new complex<double>**[total_count_ext];
+				FP_bulk_dispersion_c_count_up=new int*[total_count_ext];
+				FP_bulk_dispersion_c_BZ_count_up=new int*[total_count_ext];
+				FP_bulk_dispersion_mc_count_up=new int*[total_count_ext];
+				FP_bulk_dispersion_mc_BZ_count_up=new int*[total_count_ext];
+				FP_bulk_connection_c_up=new int**[total_count_ext];
+				FP_bulk_connection_c_BZ_up=new int**[total_count_ext];
+				FP_bulk_connection_mc_up=new int**[total_count_ext];
+				FP_bulk_connection_mc_BZ_up=new int**[total_count_ext];
+				if(spin_i>0){
+					FP_bulk_dispersion_c_dn=new complex<double>**[total_count_ext];
+					FP_bulk_dispersion_c_BZ_dn=new complex<double>**[total_count_ext];
+					FP_bulk_dispersion_mc_dn=new complex<double>**[total_count_ext];
+					FP_bulk_dispersion_mc_BZ_dn=new complex<double>**[total_count_ext];
+					FP_bulk_dispersion_c_count_dn=new int*[total_count_ext];
+					FP_bulk_dispersion_c_BZ_count_dn=new int*[total_count_ext];
+					FP_bulk_dispersion_mc_count_dn=new int*[total_count_ext];
+					FP_bulk_dispersion_mc_BZ_count_dn=new int*[total_count_ext];
+					FP_bulk_connection_c_dn=new int**[total_count_ext];
+					FP_bulk_connection_c_BZ_dn=new int**[total_count_ext];
+					FP_bulk_connection_mc_dn=new int**[total_count_ext];
+					FP_bulk_connection_mc_BZ_dn=new int**[total_count_ext];
+				}
+			}
 		}
 		if(!PA_FPFS_Numerov){
 			final_states_zgels_norm=new double*[total_count_ext];
@@ -1589,7 +1620,7 @@ void calculate_PAD(){
 			}
 
 			// kappaz
-			kappaz_border=PA_FPFS_gap_coefficient/khn_approx;
+			kappaz_border=PA_FPFS_gap_upper_limit/khn_approx;
 			double dkappaz1=kappaz_border/(PA_FPFS_bulk_kappaz_steps_left*1.0);
 			int kappaz_count1=PA_FPFS_bulk_kappaz_steps_left;
 			double dkappaz2=FPFS_gz_length/(PA_FPFS_bulk_kappaz_steps_right*1.0);
@@ -1597,6 +1628,7 @@ void calculate_PAD(){
 			
 			FP_bulk_kappaz_count=kappaz_count1+kappaz_count2;
 			kappaz_border_index=kappaz_count1;
+			FP_bulk_kappaz_border=kappaz_border_index;
 			sprintf(sprintf_buffer, "kappaz count: %d", FP_bulk_kappaz_count);
 			write_log(sprintf_buffer);
 			FP_bulk_dispersion_kappaz=new double[FP_bulk_kappaz_count];
@@ -1967,7 +1999,6 @@ void calculate_PAD(){
 																			 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix);
 
 					// BZ, negative kappaz
-						
 					if(sp==0){
 						Vgg_use=Vgg0_matrix_bulk;
 						dispersion_c_pointer=&dispersion_mc_BZ_up;
@@ -2266,35 +2297,64 @@ void calculate_PAD(){
 				}
 				delete_zpmatrix(Vgg_matrix);
 				// printf("k=%4d, FPIndex=%3d, nonlocal part\n", i, j);
-			} // for(FPIndex_size)
+			} // for(j<FPIndex_size)
 			if(PA_FPFS_bulk_set){
 				if(FPIndex_size>0){
-					delete_zmatrix(dispersion_c_up);
-					delete_imatrix(connection_c_up);
-					delete_zmatrix(dispersion_c_BZ_up);
-					delete_imatrix(connection_c_BZ_up);
-					//delete_zmatrix(dispersion_mc_up);
-					//delete_imatrix(connection_mc_up);
-					//delete_zmatrix(dispersion_mc_BZ_up);
-					//delete_imatrix(connection_mc_BZ_up);
-					if(spin_i>0){
-						delete_zmatrix(dispersion_c_dn);
-						delete_imatrix(connection_c_dn);
-						delete_zmatrix(dispersion_c_BZ_dn);
-						delete_imatrix(connection_c_BZ_dn);
-						//delete_zmatrix(dispersion_mc_dn);
-						//delete_imatrix(connection_mc_dn);
-						//delete_zmatrix(dispersion_mc_BZ_dn);
-						//delete_imatrix(connection_mc_BZ_dn);
+					if(!PA_FPFS_file_set){
+						delete_zmatrix(dispersion_c_up);
+						delete_imatrix(connection_c_up);
+						delete_zmatrix(dispersion_c_BZ_up);
+						delete_imatrix(connection_c_BZ_up);
+						delete_zmatrix(dispersion_mc_up);
+						delete_imatrix(connection_mc_up);
+						delete_zmatrix(dispersion_mc_BZ_up);
+						delete_imatrix(connection_mc_BZ_up);
+						if(spin_i>0){
+							delete_zmatrix(dispersion_c_dn);
+							delete_imatrix(connection_c_dn);
+							delete_zmatrix(dispersion_c_BZ_dn);
+							delete_imatrix(connection_c_BZ_dn);
+							delete_zmatrix(dispersion_mc_dn);
+							delete_imatrix(connection_mc_dn);
+							delete_zmatrix(dispersion_mc_BZ_dn);
+							delete_imatrix(connection_mc_BZ_dn);
+						}
+						delete[] dispersion_c_count_up;
+						delete[] dispersion_c_count_dn;
+						delete[] dispersion_c_BZ_count_up;
+						delete[] dispersion_c_BZ_count_dn;
+						delete[] dispersion_mc_count_up;
+						delete[] dispersion_mc_count_dn;
+						delete[] dispersion_mc_BZ_count_up;
+						delete[] dispersion_mc_BZ_count_dn;
+					}else{
+						FP_bulk_dispersion_c_up[i]    =dispersion_c_up;
+						FP_bulk_dispersion_c_BZ_up[i] =dispersion_c_BZ_up;
+						FP_bulk_dispersion_mc_up[i]   =dispersion_mc_up;
+						FP_bulk_dispersion_mc_BZ_up[i]=dispersion_mc_BZ_up;
+						FP_bulk_dispersion_c_count_up[i]    =dispersion_c_count_up;
+						FP_bulk_dispersion_c_BZ_count_up[i] =dispersion_c_BZ_count_up;
+						FP_bulk_dispersion_mc_count_up[i]   =dispersion_mc_count_up;
+						FP_bulk_dispersion_mc_BZ_count_up[i]=dispersion_mc_BZ_count_up;
+						FP_bulk_connection_c_up[i]    =connection_c_up;
+						FP_bulk_connection_c_BZ_up[i] =connection_c_BZ_up;
+						FP_bulk_connection_mc_up[i]   =connection_mc_up;
+						FP_bulk_connection_mc_BZ_up[i]=connection_mc_BZ_up;
+						if(spin_i>0){
+							FP_bulk_dispersion_c_dn[i]    =dispersion_c_dn;
+							FP_bulk_dispersion_c_BZ_dn[i] =dispersion_c_BZ_dn;
+							FP_bulk_dispersion_mc_dn[i]   =dispersion_mc_dn;
+							FP_bulk_dispersion_mc_BZ_dn[i]=dispersion_mc_BZ_dn;
+							FP_bulk_dispersion_c_count_dn[i]    =dispersion_c_count_dn;
+							FP_bulk_dispersion_c_BZ_count_dn[i] =dispersion_c_BZ_count_dn;
+							FP_bulk_dispersion_mc_count_dn[i]   =dispersion_mc_count_dn;
+							FP_bulk_dispersion_mc_BZ_count_dn[i]=dispersion_mc_BZ_count_dn;
+							FP_bulk_connection_c_dn[i]    =connection_c_dn;
+							FP_bulk_connection_c_BZ_dn[i] =connection_c_BZ_dn;
+							FP_bulk_connection_mc_dn[i]   =connection_mc_dn;
+							FP_bulk_connection_mc_BZ_dn[i]=connection_mc_BZ_dn;
+						}
 					}
-					delete[] dispersion_c_count_up;
-					delete[] dispersion_c_count_dn;
-					delete[] dispersion_c_BZ_count_up;
-					delete[] dispersion_c_BZ_count_dn;
-					//delete[] dispersion_mc_count_up;
-					//delete[] dispersion_mc_count_dn;
-					//delete[] dispersion_mc_BZ_count_up;
-					//delete[] dispersion_mc_BZ_count_dn;
 				}
 			}
 			delete[] sprintf_buffer2;
@@ -3760,7 +3820,9 @@ void calculate_PAD(){
 			if(spin_i>0){
 				w_data_3d(FPFSG, "bulk_dispersion_dn", total_count_ext, PA_FPFS_bulk_kz_steps, final_states_FP_g_size_bulk, (double***)&FP_bulk_dispersion_dn[0][0][0]);
 			}
-			w_att_1d(FPFSG, "bulk_dispersion_kz", PA_FPFS_bulk_kz_steps, FP_bulk_dispersion_kz);
+			w_data_1d(FPFSG, "bulk_dispersion_kz", PA_FPFS_bulk_kz_steps, FP_bulk_dispersion_kz);
+			w_data_1d(FPFSG, "bulk_dispersion_kappaz", FP_bulk_kappaz_count, FP_bulk_dispersion_kappaz);
+			w_data_1d(FPFSG, "bulk_dispersion_mkappaz", FP_bulk_kappaz_border, FP_bulk_dispersion_mkappaz);
 		}
 		
 		for(i=0; i<total_count_ext; i++){
@@ -3774,7 +3836,107 @@ void calculate_PAD(){
 			Group FPFSG_k(FPFSG.createGroup(group_name));
 			w_att_int(FPFSG_k, "Count", final_states_FP_size[i]);
 			w_att_1i(FPFSG_k, "Spin", final_states_FP_size[i], &final_states_spin[i][0]);
-			w_att_1i(FPFSG_k, "Energy_scale", final_states_FP_size[i], &final_states_EScale[i][0]);
+			w_data_1i(FPFSG_k, "Energy_scale", final_states_FP_size[i], &final_states_EScale[i][0]);
+			if(final_states_FP_size[i]>0){
+				w_data_1i(FPFSG_k, "Dispersion_c_count_up",     FP_bulk_kappaz_count,  &FP_bulk_dispersion_c_count_up[i][0]);
+				w_data_1i(FPFSG_k, "Dispersion_c_BZ_count_up",  FP_bulk_kappaz_border, &FP_bulk_dispersion_c_BZ_count_up[i][0]);
+				w_data_1i(FPFSG_k, "Dispersion_mc_count_up",    FP_bulk_kappaz_border, &FP_bulk_dispersion_mc_count_up[i][0]);
+				w_data_1i(FPFSG_k, "Dispersion_mc_BZ_count_up", FP_bulk_kappaz_border, &FP_bulk_dispersion_mc_BZ_count_up[i][0]);
+				w_data_2i(FPFSG_k, "Connection_c_up",     FP_bulk_kappaz_count,  FP_bulk_dispersion_c_count_up[i][0],     (int**)&FP_bulk_connection_c_up[i][0][0]);
+				w_data_2i(FPFSG_k, "Connection_c_BZ_up",  FP_bulk_kappaz_border, FP_bulk_dispersion_c_BZ_count_up[i][0],  (int**)&FP_bulk_connection_c_BZ_up[i][0][0]);
+				w_data_2i(FPFSG_k, "Connection_mc_up",    FP_bulk_kappaz_border, FP_bulk_dispersion_mc_count_up[i][0],    (int**)&FP_bulk_connection_mc_up[i][0][0]);
+				w_data_2i(FPFSG_k, "Connection_mc_BZ_up", FP_bulk_kappaz_border, FP_bulk_dispersion_mc_BZ_count_up[i][0], (int**)&FP_bulk_connection_mc_BZ_up[i][0][0]);
+				double*** dispersion_c_up;
+				dispersion_c_up=alloc_dcube(FP_bulk_kappaz_count, FP_bulk_dispersion_c_count_up[i][0], 2);
+				for(int ikappaz=0; ikappaz<FP_bulk_kappaz_count; ikappaz++){
+					for(int ib=0; ib<FP_bulk_dispersion_c_count_up[i][ikappaz]; ib++){
+						dispersion_c_up[ikappaz][ib][0]=FP_bulk_dispersion_c_up[i][ikappaz][ib].real();
+						dispersion_c_up[ikappaz][ib][1]=FP_bulk_dispersion_c_up[i][ikappaz][ib].imag();
+					}
+				}
+				w_data_3d(FPFSG_k, "Dispersion_c_up", FP_bulk_kappaz_count, FP_bulk_dispersion_c_count_up[i][0], 2, (double***)&dispersion_c_up[0][0][0]);
+				delete_dcube(dispersion_c_up);
+				
+				dispersion_c_up=alloc_dcube(FP_bulk_kappaz_border, FP_bulk_dispersion_c_BZ_count_up[i][0], 2);
+				for(int ikappaz=0; ikappaz<FP_bulk_kappaz_border; ikappaz++){
+					for(int ib=0; ib<FP_bulk_dispersion_c_BZ_count_up[i][ikappaz]; ib++){
+						dispersion_c_up[ikappaz][ib][0]=FP_bulk_dispersion_c_BZ_up[i][ikappaz][ib].real();
+						dispersion_c_up[ikappaz][ib][1]=FP_bulk_dispersion_c_BZ_up[i][ikappaz][ib].imag();
+					}
+				}
+				w_data_3d(FPFSG_k, "Dispersion_c_BZ_up", FP_bulk_kappaz_border, FP_bulk_dispersion_c_BZ_count_up[i][0], 2, (double***)&dispersion_c_up[0][0][0]);
+				delete_dcube(dispersion_c_up);
+
+				dispersion_c_up=alloc_dcube(FP_bulk_kappaz_border, FP_bulk_dispersion_mc_count_up[i][0], 2);
+				for(int ikappaz=0; ikappaz<FP_bulk_kappaz_border; ikappaz++){
+					for(int ib=0; ib<FP_bulk_dispersion_mc_count_up[i][ikappaz]; ib++){
+						dispersion_c_up[ikappaz][ib][0]=FP_bulk_dispersion_mc_up[i][ikappaz][ib].real();
+						dispersion_c_up[ikappaz][ib][1]=FP_bulk_dispersion_mc_up[i][ikappaz][ib].imag();
+					}
+				}
+				w_data_3d(FPFSG_k, "Dispersion_mc_up", FP_bulk_kappaz_border, FP_bulk_dispersion_mc_count_up[i][0], 2, (double***)&dispersion_c_up[0][0][0]);
+				delete_dcube(dispersion_c_up);
+				
+				dispersion_c_up=alloc_dcube(FP_bulk_kappaz_border, FP_bulk_dispersion_mc_BZ_count_up[i][0], 2);
+				for(int ikappaz=0; ikappaz<FP_bulk_kappaz_border; ikappaz++){
+					for(int ib=0; ib<FP_bulk_dispersion_mc_BZ_count_up[i][ikappaz]; ib++){
+						dispersion_c_up[ikappaz][ib][0]=FP_bulk_dispersion_mc_BZ_up[i][ikappaz][ib].real();
+						dispersion_c_up[ikappaz][ib][1]=FP_bulk_dispersion_mc_BZ_up[i][ikappaz][ib].imag();
+					}
+				}
+				w_data_3d(FPFSG_k, "Dispersion_mc_BZ_up", FP_bulk_kappaz_border, FP_bulk_dispersion_mc_BZ_count_up[i][0], 2, (double***)&dispersion_c_up[0][0][0]);
+				delete_dcube(dispersion_c_up);
+				if(spin_i>0){
+					w_data_1i(FPFSG_k, "Dispersion_c_count_dn",     FP_bulk_kappaz_count,  &FP_bulk_dispersion_c_count_dn[i][0]);
+					w_data_1i(FPFSG_k, "Dispersion_c_BZ_count_dn",  FP_bulk_kappaz_border, &FP_bulk_dispersion_c_BZ_count_dn[i][0]);
+					w_data_1i(FPFSG_k, "Dispersion_mc_count_dn",    FP_bulk_kappaz_border, &FP_bulk_dispersion_mc_count_dn[i][0]);
+					w_data_1i(FPFSG_k, "Dispersion_mc_BZ_count_dn", FP_bulk_kappaz_border, &FP_bulk_dispersion_mc_BZ_count_dn[i][0]);
+					w_data_2i(FPFSG_k, "Connection_c_dn",     FP_bulk_kappaz_count,  FP_bulk_dispersion_c_count_dn[i][0],     (int**)&FP_bulk_connection_c_dn[i][0][0]);
+					w_data_2i(FPFSG_k, "Connection_c_BZ_dn",  FP_bulk_kappaz_border, FP_bulk_dispersion_c_BZ_count_dn[i][0],  (int**)&FP_bulk_connection_c_BZ_dn[i][0][0]);
+					w_data_2i(FPFSG_k, "Connection_mc_dn",    FP_bulk_kappaz_border, FP_bulk_dispersion_mc_count_dn[i][0],    (int**)&FP_bulk_connection_mc_dn[i][0][0]);
+					w_data_2i(FPFSG_k, "Connection_mc_BZ_dn", FP_bulk_kappaz_border, FP_bulk_dispersion_mc_BZ_count_dn[i][0], (int**)&FP_bulk_connection_mc_BZ_dn[i][0][0]);
+					double*** dispersion_c_dn;
+					dispersion_c_dn=alloc_dcube(FP_bulk_kappaz_count, FP_bulk_dispersion_c_count_dn[i][0], 2);
+					for(int ikappaz=0; ikappaz<FP_bulk_kappaz_count; ikappaz++){
+						for(int ib=0; ib<FP_bulk_dispersion_c_count_dn[i][ikappaz]; ib++){
+							dispersion_c_dn[ikappaz][ib][0]=FP_bulk_dispersion_c_dn[i][ikappaz][ib].real();
+							dispersion_c_dn[ikappaz][ib][1]=FP_bulk_dispersion_c_dn[i][ikappaz][ib].imag();
+						}
+					}
+					w_data_3d(FPFSG_k, "Dispersion_c_dn", FP_bulk_kappaz_count, FP_bulk_dispersion_c_count_dn[i][0], 2, (double***)&dispersion_c_dn[0][0][0]);
+					delete_dcube(dispersion_c_dn);
+				
+					dispersion_c_dn=alloc_dcube(FP_bulk_kappaz_border, FP_bulk_dispersion_c_BZ_count_dn[i][0], 2);
+					for(int ikappaz=0; ikappaz<FP_bulk_kappaz_border; ikappaz++){
+						for(int ib=0; ib<FP_bulk_dispersion_c_BZ_count_dn[i][ikappaz]; ib++){
+							dispersion_c_dn[ikappaz][ib][0]=FP_bulk_dispersion_c_BZ_dn[i][ikappaz][ib].real();
+							dispersion_c_dn[ikappaz][ib][1]=FP_bulk_dispersion_c_BZ_dn[i][ikappaz][ib].imag();
+						}
+					}
+					w_data_3d(FPFSG_k, "Dispersion_c_BZ_dn", FP_bulk_kappaz_border, FP_bulk_dispersion_c_BZ_count_dn[i][0], 2, (double***)&dispersion_c_dn[0][0][0]);
+					delete_dcube(dispersion_c_dn);
+
+					dispersion_c_dn=alloc_dcube(FP_bulk_kappaz_border, FP_bulk_dispersion_mc_count_dn[i][0], 2);
+					for(int ikappaz=0; ikappaz<FP_bulk_kappaz_border; ikappaz++){
+						for(int ib=0; ib<FP_bulk_dispersion_mc_count_dn[i][ikappaz]; ib++){
+							dispersion_c_dn[ikappaz][ib][0]=FP_bulk_dispersion_mc_dn[i][ikappaz][ib].real();
+							dispersion_c_dn[ikappaz][ib][1]=FP_bulk_dispersion_mc_dn[i][ikappaz][ib].imag();
+						}
+					}
+					w_data_3d(FPFSG_k, "Dispersion_mc_dn", FP_bulk_kappaz_border, FP_bulk_dispersion_mc_count_dn[i][0], 2, (double***)&dispersion_c_dn[0][0][0]);
+					delete_dcube(dispersion_c_dn);
+				
+					dispersion_c_dn=alloc_dcube(FP_bulk_kappaz_border, FP_bulk_dispersion_mc_BZ_count_dn[i][0], 2);
+					for(int ikappaz=0; ikappaz<FP_bulk_kappaz_border; ikappaz++){
+						for(int ib=0; ib<FP_bulk_dispersion_mc_BZ_count_dn[i][ikappaz]; ib++){
+							dispersion_c_dn[ikappaz][ib][0]=FP_bulk_dispersion_mc_BZ_dn[i][ikappaz][ib].real();
+							dispersion_c_dn[ikappaz][ib][1]=FP_bulk_dispersion_mc_BZ_dn[i][ikappaz][ib].imag();
+						}
+					}
+					w_data_3d(FPFSG_k, "Dispersion_mc_BZ_dn", FP_bulk_kappaz_border, FP_bulk_dispersion_mc_BZ_count_dn[i][0], 2, (double***)&dispersion_c_dn[0][0][0]);
+					delete_dcube(dispersion_c_dn);
+				}
+			}
 			for(j=0; j<final_states_FP_size[i]; j++){
 				sprintf(group_name, "%d", j);
 				Group FPFSG_ke(FPFSG_k.createGroup(group_name));

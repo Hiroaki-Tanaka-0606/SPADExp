@@ -189,7 +189,7 @@ void initialize(){
 	PA_FPFS_real_eigenvalue_criterion=0.02;
 	PA_FPFS_dispersion_group_criterion_left=0.01;
 	PA_FPFS_dispersion_group_criterion_right=0.1;
-	PA_FPFS_gap_coefficient=0.3;
+	PA_FPFS_gap_upper_limit=0.4;
 	PA_FPFS_kz_margin_index_size=10;
 	PA_FPFS_cspace_size=5;
 	PA_FPFS_kz_exclude_criterion=0.005;

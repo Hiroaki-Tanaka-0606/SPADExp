@@ -1019,6 +1019,17 @@ int load_input(){
 				}
 			  PA_FPFS_kz_exclude_criterion_set=true; continue;
 			}
+			/// FPFS_gap_upper_limit: double
+			if(strcmp(keyword_buffer, "FPFS_gap_upper_limit")==0){
+				if(PA_FPFS_gap_upper_limit_set){
+					output_error(line_number, (char*)"keyword FPFS_gap_upper_limit already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PA_FPFS_gap_upper_limit);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of FPFS_gap_upper_limit"); status=0; goto FINALIZATION;
+				}
+			  PA_FPFS_gap_upper_limit_set=true; continue;
+			}
 			/// FPFS_file: char
 			if(strcmp(keyword_buffer, "FPFS_file")==0){
 				if(PA_FPFS_file_set){

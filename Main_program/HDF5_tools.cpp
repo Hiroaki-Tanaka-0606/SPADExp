@@ -71,6 +71,12 @@ void w_data_1d(Group g, const char* key, int size, double* value){
 	DataSet dse=g.createDataSet(key, PredType::NATIVE_DOUBLE, dsp);
 	dse.write(value, PredType::NATIVE_DOUBLE);
 }
+void w_data_1i(Group g, const char* key, int size, int* value){
+	hsize_t dims[1]={(hsize_t)size};
+	DataSpace dsp(1, dims);
+	DataSet dse=g.createDataSet(key, PredType::NATIVE_INT, dsp);
+	dse.write(value, PredType::NATIVE_INT);
+}
 
 void w_data_2d(Group g, const char* key, int size1, int size2, double** value){
 	hsize_t dims[2]={(hsize_t)size1, (hsize_t)size2};

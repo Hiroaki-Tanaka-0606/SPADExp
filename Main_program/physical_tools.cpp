@@ -2338,7 +2338,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		      if(eigen_prev < eigen_curr && eigen_curr > eigen_next){
 						bool below_flag=false;
 						for(int ikz2=ikz-PA_FPFS_kz_margin_index_size; ikz2<=ikz+PA_FPFS_kz_margin_index_size; ikz2++){
-							if(ikz2>=0 && ikz2<kz_count && Ekin < dispersion_r[ikz2][ib+1]){
+							if(Ekin < dispersion_r[(ikz2+kz_count)%kz_count][ib+1]){
 								below_flag=true;
 								break;
 							}
@@ -2347,9 +2347,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 							sprintf(sprintf_buffer2, "Local maximum below Ekin at kz=%8.4f", dispersion_kz[ikz]);
 							write_log(sprintf_buffer2);
 							for(int ikz2=ikz-PA_FPFS_kz_margin_index_size; ikz2<=ikz+PA_FPFS_kz_margin_index_size; ikz2++){
-								if(ikz2>=0 && ikz2<kz_count){
-									lmax_exist_flag[ikz2]=true;
-								}
+								lmax_exist_flag[(ikz2+kz_count)%kz_count]=true;
 							}
 							lmax_indices[lmax_count]=ikz;
 							lmax_eigen[lmax_count]=eigen_curr;
@@ -2369,7 +2367,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		      if(eigen_prev > eigen_curr && eigen_curr < eigen_next){
 						bool below_flag=false;
 						for(int ikz2=ikz-PA_FPFS_kz_margin_index_size; ikz2<=ikz+PA_FPFS_kz_margin_index_size; ikz2++){
-							if(ikz2>=0 && ikz2<kz_count && dispersion_r[ikz2][ib-1] < Ekin){
+							if(dispersion_r[(ikz2+kz_count)%kz_count][ib-1] < Ekin){
 								below_flag=true;
 								break;
 							}
@@ -2379,7 +2377,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 								int lmax_index=-1;
 								int lmax_distance_min=-1;
 								for(int il=0; il<lmax_count; il++){
-									int lmax_distance=abs(lmax_indices[il]-ikz);
+									int lmax_distance=min(min(abs(lmax_indices[il]-ikz), abs(lmax_indices[il]-ikz-kz_count)), abs(lmax_indices[il]-ikz+kz_count));
 									if(lmax_distance<=PA_FPFS_kz_margin_index_size && (lmax_index<0 || lmax_distance<lmax_distance_min)){
 										lmax_index=il;
 										lmax_distance_min=lmax_distance;
@@ -2440,9 +2438,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 									write_log(sprintf_buffer2);
 								
 									for(int ikz2=ikz-PA_FPFS_kz_margin_index_size; ikz2<=ikz+PA_FPFS_kz_margin_index_size; ikz2++){
-										if(ikz2>=0 && ikz2<kz_count){
-											cspace_search_flag[ikz2]=true;
-										}
+										cspace_search_flag[(ikz2+kz_count)%kz_count]=true;
 									}
 									cspace_search_indices[cspace_count]=ikz;
 									cspace_search_scale[cspace_count]=eigen_gap;
@@ -2529,9 +2525,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 				sprintf(sprintf_buffer2, "Unpaired local maximum below Ekin at kz=%8.4f, gap=%10.6f", dispersion_kz[ikz], eigen_gap);
 				write_log(sprintf_buffer2);
 				for(int ikz2=ikz-PA_FPFS_kz_margin_index_size; ikz2<=ikz+PA_FPFS_kz_margin_index_size; ikz2++){
-					if(ikz2>=0 && ikz2<kz_count){
-						cspace_search_flag[ikz2]=true;
-					}
+					cspace_search_flag[(ikz2+kz_count)%kz_count]=true;
 				}
 				cspace_search_indices[cspace_count]=ikz;
 				cspace_search_scale[cspace_count]=eigen_gap;
@@ -2673,7 +2667,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		}
 		int area_min=ikz;
 		int area_max=ikz;
-		for(; area_min>0; area_min--){
+		for(; area_min>=0; area_min--){
 			if(cspace_search_flag[area_min]==false){
 				break;
 			}
@@ -2688,7 +2682,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 			}
 		}
 		area_min++;
-		for(; area_max<kz_count-1; area_max++){
+		for(; area_max<kz_count; area_max++){
 			if(cspace_search_flag[area_max]==false){
 				break;
 			}
