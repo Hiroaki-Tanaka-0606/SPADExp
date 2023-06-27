@@ -186,11 +186,11 @@ void initialize(){
 	PA_interpolate_wfn_coef=0.5;
 	PA_FPFS_negligible_gap_size=0.003;
 	PA_FPFS_bulk_buffer_size=1024;
-	PA_FPFS_real_eigenvalue_criterion=0.02;
+	PA_FPFS_real_eigenvalue_criterion=0.01;
 	PA_FPFS_dispersion_group_criterion_left=0.01;
 	PA_FPFS_dispersion_group_criterion_right=0.1;
 	PA_FPFS_gap_upper_limit=0.4;
-	PA_FPFS_kz_margin_index_size=10;
+	PA_FPFS_kz_margin_index_size=5;
 	PA_FPFS_cspace_size=5;
 	PA_FPFS_kz_exclude_criterion=0.005;
 }

@@ -2210,7 +2210,7 @@ int find_eigenstate(int g_count, int band_index, int band_index2, double Ekin, c
 	}
 	int eigen_real_count=0;
 	for(i=0; i<g_count; i++){
-		if(abs(w[i].imag())<PA_FPFS_real_eigenvalue_criterion){
+		if(abs(w[i].imag())*0.5<PA_FPFS_real_eigenvalue_criterion){
 			band_order[i]=-1;
 			eigen_real_count++;
 		}
@@ -2337,13 +2337,20 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		      double eigen_next=dispersion_r[index_next][ib];
 		      if(eigen_prev < eigen_curr && eigen_curr > eigen_next){
 						bool below_flag=false;
+						bool local_minimum_flag=false;
 						for(int ikz2=ikz-PA_FPFS_kz_margin_index_size; ikz2<=ikz+PA_FPFS_kz_margin_index_size; ikz2++){
-							if(Ekin < dispersion_r[(ikz2+kz_count)%kz_count][ib+1]){
+							int index2_curr=(ikz2+kz_count)%kz_count;
+							int index2_next=(ikz2+kz_count+1)%kz_count;
+							int index2_prev=(ikz2+kz_count-1)%kz_count;
+							if(Ekin < dispersion_r[index2_curr][ib+1]){
 								below_flag=true;
+							}
+							if(dispersion_r[index2_prev][ib+1] > dispersion_r[index2_curr][ib+1] && dispersion_r[index2_curr][ib+1] < dispersion_r[index2_next][ib+1]){
+								local_minimum_flag=true;
 								break;
 							}
 						}
-						if(below_flag){
+						if(below_flag && !local_minimum_flag){
 							sprintf(sprintf_buffer2, "Local maximum below Ekin at kz=%8.4f", dispersion_kz[ikz]);
 							write_log(sprintf_buffer2);
 							for(int ikz2=ikz-PA_FPFS_kz_margin_index_size; ikz2<=ikz+PA_FPFS_kz_margin_index_size; ikz2++){
@@ -2366,13 +2373,20 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		      double eigen_next=dispersion_r[index_next][ib];
 		      if(eigen_prev > eigen_curr && eigen_curr < eigen_next){
 						bool below_flag=false;
+						bool local_maximum_flag=false;
 						for(int ikz2=ikz-PA_FPFS_kz_margin_index_size; ikz2<=ikz+PA_FPFS_kz_margin_index_size; ikz2++){
-							if(dispersion_r[(ikz2+kz_count)%kz_count][ib-1] < Ekin){
+							int index2_curr=(ikz2+kz_count)%kz_count;
+							int index2_next=(ikz2+kz_count+1)%kz_count;
+							int index2_prev=(ikz2+kz_count-1)%kz_count;
+							if(dispersion_r[index2_curr][ib-1] < Ekin){
 								below_flag=true;
+							}
+							if(dispersion_r[index2_prev][ib+1] < dispersion_r[index2_curr][ib+1] && dispersion_r[index2_curr][ib+1] > dispersion_r[index2_next][ib+1]){
+								local_maximum_flag=true;
 								break;
 							}
 						}
-						if(below_flag){
+						if(below_flag && !local_maximum_flag){
 							if(lmax_exist_flag[ikz]){
 								int lmax_index=-1;
 								int lmax_distance_min=-1;
@@ -2551,6 +2565,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 	int** connection_use;
 	int* dispersion_count_use;
 	double* dispersion_kappaz_use;
+	int* solution_ikappaz=new int[buffer_size];
 	for(int ikzr=0; ikzr<4; ikzr++){
 		int kappaz_count_temp;
 		if(ikzr==0){
@@ -2625,6 +2640,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 
 					solution_kz[solution_index]=kz_r[ikzr];
 					solution_kappaz[solution_index]=kappaz_interp;
+					solution_ikappaz[solution_index]=ikappaz;
 
 					solution_kappaz_alt[solution_index]=(kappaz_left+kappaz_right)*0.5;
 					solution_alt_use[solution_index]=true;
@@ -2639,9 +2655,84 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 					solution_index++;
 					solution_count_complex[ikzr]++;
 				}
+			} // end of for(ib)
+		} // end of for(ikappaz)
+		// check
+		int solution_index_offset=solution_index-solution_count_complex[ikzr];
+		bool* passed=new bool[solution_count_complex[ikzr]];
+		for(int is=0; is<solution_count_complex[ikzr]; is++){
+			passed[is]=true;
+		}
+		int removed_count=0;
+		// connected to another
+		for(int is=0; is<solution_count_complex[ikzr]; is++){
+			int is_offset=is+solution_index_offset;
+			for(int is_prev=0; is_prev<solution_count_complex[ikzr]; is_prev++){
+				int is_prev_offset=is_prev+solution_index_offset;
+				if(is_prev!=is && solution_ikappaz[is_prev_offset] < solution_ikappaz[is_offset]){
+					int band_index=solution_band_indices[is_prev_offset];
+					bool terminated=false;
+					for(int ikappaz_path=solution_ikappaz[is_prev_offset]; ikappaz_path < solution_ikappaz[is_offset]; ikappaz_path++){
+						band_index=connection_use[ikappaz_path][band_index];
+						if(band_index<0){
+							terminated=true;
+							break;
+						}
+					}
+					if(!terminated && band_index==solution_band_indices[is_offset]){
+						passed[is]=false;
+						removed_count++;
+						sprintf(sprintf_buffer2, "Complex axis: kz=%8.4f, kappaz=%8.4f is removed because it is connected to another point",
+										solution_kz[is_offset], solution_kappaz[is_offset]);
+						write_log(sprintf_buffer2);
+						break;
+					}
+				}
 			}
 		}
+		// close to another removed point
+		for(int is=0; is<solution_count_complex[ikzr]; is++){
+			int is_offset=is+solution_index_offset;
+			for(int is_prev=0; is_prev<solution_count_complex[ikzr]; is_prev++){
+				int is_prev_offset=is_prev+solution_index_offset;
+				if(passed[is_prev]==false){
+					if(abs(solution_band_indices[is_prev_offset]-solution_band_indices[is_offset])<=1 &&
+						 abs(solution_ikappaz[is_prev_offset]-solution_ikappaz[is_offset])<=2){
+						passed[is]=false;
+						sprintf(sprintf_buffer2, "Complex axis: kz=%8.4f, kappaz=%8.4f is removed because it is close to another removed point",
+										solution_kz[is_offset], solution_kappaz[is_offset]);
+						write_log(sprintf_buffer2);
+						removed_count++;
+						break;
+					}
+				}
+			}
+		}
+		// re-fill
+		if(removed_count>0){
+			solution_index=solution_index_offset;
+			for(int is=0; is<solution_count_complex[ikzr]; is++){
+				int is_offset=is+solution_index_offset;
+				if(passed[is]){
+					solution_kz[solution_index]=solution_kz[is_offset];
+					solution_kappaz[solution_index]=solution_kappaz[is_offset];
+
+					solution_kappaz_alt[solution_index]=solution_kappaz_alt[is_offset];
+					solution_alt_use[solution_index]=solution_alt_use[is_offset];
+
+					solution_band_indices[solution_index]=solution_band_indices[is_offset];
+					solution_band_indices2[solution_index]=solution_band_indices2[is_offset];
+
+					solution_index++;
+				}
+			}
+			sprintf(sprintf_buffer2, "Complex axis: %2d points are removed from %2d candidates", removed_count, solution_count_complex[ikzr]);
+			write_log(sprintf_buffer2);
+			solution_count_complex[ikzr]-=removed_count;
+		}
+		delete[] passed;
 	}
+	delete[] solution_ikappaz;
 	solution_count_complex_sum=solution_count_complex[0]+solution_count_complex[1]
 		+solution_count_complex[2]+solution_count_complex[3];
 
@@ -3214,7 +3305,7 @@ void calc_bulk_dispersion_complex(double* k_para, double kz_r, int kappaz_count,
 
 		dispersion_real_count=0;
 		for(int ig=0; ig<g_count; ig++){
-			if(abs(w[ig].imag())<PA_FPFS_real_eigenvalue_criterion){
+			if(abs(w[ig].imag())*0.5<PA_FPFS_real_eigenvalue_criterion){
 				dispersion_real[dispersion_real_count]=0.5*w[ig];
 				dispersion_real_count++;
 			}
