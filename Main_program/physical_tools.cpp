@@ -2379,7 +2379,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 						if(dispersion_r[index2_curr][ib-1] < Ekin){
 							below_flag=true;
 						}
-						if(dispersion_r[index2_prev][ib+1] < dispersion_r[index2_curr][ib+1] && dispersion_r[index2_curr][ib+1] > dispersion_r[index2_next][ib+1] && dispersion_r[index2_curr][ib+1]>Ekin){
+						if(dispersion_r[index2_prev][ib-1] < dispersion_r[index2_curr][ib-1] && dispersion_r[index2_curr][ib-1] > dispersion_r[index2_next][ib-1] && dispersion_r[index2_curr][ib-1]>Ekin){
 							local_maximum_flag=true;
 							break;
 						}
