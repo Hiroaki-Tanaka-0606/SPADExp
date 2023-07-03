@@ -2272,10 +2272,14 @@ void calculate_PAD(){
 				// prepare the solution buffer
 				final_states_FP_loc[i][j]=alloc_zmatrix(FP_g_count, VKS_count[0]);
 				if(PA_FPFS_Numerov){
-					// solve the differential equation by the Numerov method
-					solve_final_state_Numerov(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0],
-																		final_states_dz, FPFS_z_start, V00_index, Vgg_matrix, final_states_FP_g_vec[i][j],
-																		final_states_FP_loc[i][j]);
+					if(FP_g_count<1){
+						write_log((char*)"Warning: No g vector is found");
+					}else{
+						// solve the differential equation by the Numerov method
+						solve_final_state_Numerov(kinetic_energy_Eh, k_au, kz, FP_g_count, VKS_count[0],
+																			final_states_dz, FPFS_z_start, V00_index, Vgg_matrix, final_states_FP_g_vec[i][j],
+																			final_states_FP_loc[i][j]);
+					}
 				}else{
 					if(!PA_FPFS_bulk_set){
 						final_states_zgels_norm[i][j]
@@ -2295,7 +2299,9 @@ void calculate_PAD(){
 						delete_zcube(final_states_FP_bulk_z);
 					}
 				}
-				delete_zpmatrix(Vgg_matrix);
+				if(FP_g_count>0){
+					delete_zpmatrix(Vgg_matrix);
+				}
 				// printf("k=%4d, FPIndex=%3d, nonlocal part\n", i, j);
 			} // for(j<FPIndex_size)
 			if(PA_FPFS_bulk_set){
@@ -3564,7 +3570,7 @@ void calculate_PAD(){
 		}
 		FP_loc_edge_export_re=new double***[sp_max];
 		FP_loc_edge_export_im=new double***[sp_max];
-		if(!PA_FPFS_bulk_set){
+		if(!PA_FPFS_bulk_set && !PA_FPFS_Numerov){
 			for(int sp=0; sp<sp_max; sp++){
 				double* buffer_re=new double[g_count*EScale_count*total_count_ext];
 				FP_loc_edge_export_re[sp]=new double**[g_count];
@@ -3641,7 +3647,7 @@ void calculate_PAD(){
 		w_att_int(FPFSG, "E_min_scale", E_min_scale);
 		w_att_int(FPFSG, "E_max_scale", E_max_scale);
 		w_att_double(FPFSG, "FPFS_energy_step", PA_FPFS_energy_step);
-		if(!PA_FPFS_bulk_set){
+		if(!PA_FPFS_bulk_set && !PA_FPFS_Numerov){
 			for(int sp=0; sp<sp_max; sp++){
 				if(spin_i==1){
 					sprintf(group_name, "Local_edge_%s_real", sp==0?"Up":"Dn");
@@ -3824,7 +3830,7 @@ void calculate_PAD(){
 			w_data_1d(FPFSG, "bulk_dispersion_kappaz", FP_bulk_kappaz_count, FP_bulk_dispersion_kappaz);
 			w_data_1d(FPFSG, "bulk_dispersion_mkappaz", FP_bulk_kappaz_border, FP_bulk_dispersion_mkappaz);
 		}
-		
+
 		for(i=0; i<total_count_ext; i++){
 			if(dimension==2){
 				int kx=i%kx_count_ext;
@@ -3837,7 +3843,7 @@ void calculate_PAD(){
 			w_att_int(FPFSG_k, "Count", final_states_FP_size[i]);
 			w_att_1i(FPFSG_k, "Spin", final_states_FP_size[i], &final_states_spin[i][0]);
 			w_data_1i(FPFSG_k, "Energy_scale", final_states_FP_size[i], &final_states_EScale[i][0]);
-			if(final_states_FP_size[i]>0){
+			if(PA_FPFS_bulk_set && final_states_FP_size[i]>0){
 				w_data_1i(FPFSG_k, "Dispersion_c_count_up",     FP_bulk_kappaz_count,  &FP_bulk_dispersion_c_count_up[i][0]);
 				w_data_1i(FPFSG_k, "Dispersion_c_BZ_count_up",  FP_bulk_kappaz_border, &FP_bulk_dispersion_c_BZ_count_up[i][0]);
 				w_data_1i(FPFSG_k, "Dispersion_mc_count_up",    FP_bulk_kappaz_border, &FP_bulk_dispersion_mc_count_up[i][0]);
@@ -4001,7 +4007,7 @@ void calculate_PAD(){
 					}*/
 			}
 		}
-		if(!PA_FPFS_bulk_set){
+		if(!PA_FPFS_bulk_set && !PA_FPFS_Numerov){
 			for(int sp=0; sp<sp_max; sp++){
 				if(spin_i==1){
 					sprintf(group_name, "Local_edge_%s_real", sp==0?"Up":"Dn");
