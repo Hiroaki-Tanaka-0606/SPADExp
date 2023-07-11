@@ -1958,7 +1958,7 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 		}
 		cg_norm_prev=cg_norm;
 	}
-	sprintf(sprintf_buffer2, "CG trials: %6d, CG norm: %10.4e\n", trial, cg_norm);
+	sprintf(sprintf_buffer2, "CG trials: %6d, CG norm: %10.4e", trial, cg_norm);
 	write_log(sprintf_buffer2);
 
 	dgemv_(&no_trans, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &psi_vector[0], &inc, &beta, &hpsi_vector[0], &inc);

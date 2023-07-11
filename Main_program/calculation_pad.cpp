@@ -2415,6 +2415,9 @@ void calculate_PAD(){
 						if(empty_atoms[is]){
 							continue;
 						}
+						if(!PA_calc_all_nonloc && !atom_weighting_flag[ia]){
+							continue;
+						}		
 						double tau_z=atom_coordinates[ia][2];
 						double g_vec[3];
 						double gp_vec[3];
