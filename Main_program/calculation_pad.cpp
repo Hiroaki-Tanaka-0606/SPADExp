@@ -1531,11 +1531,7 @@ void calculate_PAD(){
 					if(!PA_calc_all_nonloc && !atom_weighting_flag[ia]){
 						continue;
 					}		
-					final_states_FP_nonloc_r[ie][sp][ia]=new double*[5];
-					double* buffer2=new double[5*wfn_cutoff_index[is]];
-					for(int il=0; il<5; il++){
-						final_states_FP_nonloc_r[ie][sp][ia][il]=&buffer2[wfn_cutoff_index[is]*il];
-					}
+					final_states_FP_nonloc_r[ie][sp][ia]=alloc_dmatrix(5, wfn_cutoff_index[is]);
 					org_indices[org_indices_count][0]=ie;
 					org_indices[org_indices_count][1]=sp;
 					org_indices[org_indices_count][2]=ia;
@@ -1819,7 +1815,7 @@ void calculate_PAD(){
 
 			for(j=0; j<FPIndex_size; j++){
 				final_states_k[i][j]=new double[3];
-				final_states_FP_nonloc[i][j]=new complex<double>**[atom_length];
+				final_states_FP_nonloc[i][j]=alloc_zcube(atom_length, 5, 9);
 				final_states_FP_norm1[i][j]=new double[atom_length];
 				final_states_FP_norm2[i][j]=new double[atom_length];
 				if(!PA_FPFS_Numerov){
@@ -1829,11 +1825,6 @@ void calculate_PAD(){
 					int is=atom_spec_index[ia];
 					if(empty_atoms[is]){
 						continue;
-					}
-					complex<double>* buffer=new complex<double>[45];
-					final_states_FP_nonloc[i][j][ia]=new complex<double>*[5];
-					for(int il=0; il<5; il++){
-						final_states_FP_nonloc[i][j][ia][il]=&buffer[9*il];
 					}
 				}
 			}
@@ -3774,17 +3765,17 @@ void calculate_PAD(){
 		}
 		w_att_1i(FPFSG, "Atom_props", atom_length, &atom_props[0]);
 		// orbitals
-		for(is=0; is<atom_spec_length; is++){
-			sprintf(group_name, "%d_%s", is+1, atom_spec_label[is]);
-			Group FPFSG_is(FPFSG.createGroup(group_name));
+		//for(is=0; is<atom_spec_length; is++){
+			//sprintf(group_name, "%d_%s", is+1, atom_spec_label[is]);
+			//Group FPFSG_is(FPFSG.createGroup(group_name));
 			// w_att_1i(FPFSG_is, "l_list", num_orbits[is], &l_list[is][0]);
-			w_att_1d(FPFSG_is, "r", wfn_length[is], &wfn_r[is][0]);
+			// w_att_1d(FPFSG_is, "r", wfn_length[is], &wfn_r[is][0]);
 			/*
 				for(io=0; io<num_orbits[is]; io++){
 				sprintf(group_name, "orbital_%d", io);
 				w_data_1d(FPFSG_is, group_name, wfn_length[is], &wfn_phi[is][io][0]);
 				}*/
-		}
+		//}
 
 		// potentials
 		Group PotG(FPFSG.createGroup("Potential"));
@@ -3797,16 +3788,18 @@ void calculate_PAD(){
 		if(spin_i>0){
 			w_data_2d(PotG, "Vgg1_abs", Vgg_count, VKS_count[0], (double**)&Vgg1_abs[0][0]);
 		}
-		for(ia=0; ia<atom_length; ia++){
-			is=atom_spec_index[ia];
-			sprintf(group_name, "%d_%s", ia+1, atom_spec_label[is]);
-			Group PotG_ia(PotG.createGroup(group_name));
-			w_data_1d(PotG_ia, "r", VPS_r_length[is], &VPS_r[is][0]);
-			w_data_1d(PotG_ia, "V0", VPS_r_length[is], &VKS0_r[ia][0]);
-			w_data_1d(PotG_ia, "V0_stdev", VPS_r_length[is], &dVKS0_r[ia][0]);
-			if(spin_i>0){
-				w_data_1d(PotG_ia, "V1", VPS_r_length[is], &VKS1_r[ia][0]);
-				w_data_1d(PotG_ia, "V1_stdev", VPS_r_length[is], &dVKS1_r[ia][0]);
+		if(!PA_ignore_core && !PA_ignore_nonlocal){
+			for(ia=0; ia<atom_length; ia++){
+				is=atom_spec_index[ia];
+				sprintf(group_name, "%d_%s", ia+1, atom_spec_label[is]);
+				Group PotG_ia(PotG.createGroup(group_name));
+				w_data_1d(PotG_ia, "r", VPS_r_length[is], &VPS_r[is][0]);
+				w_data_1d(PotG_ia, "V0", VPS_r_length[is], &VKS0_r[ia][0]);
+				w_data_1d(PotG_ia, "V0_stdev", VPS_r_length[is], &dVKS0_r[ia][0]);
+				if(spin_i>0){
+					w_data_1d(PotG_ia, "V1", VPS_r_length[is], &VKS1_r[ia][0]);
+					w_data_1d(PotG_ia, "V1_stdev", VPS_r_length[is], &dVKS1_r[ia][0]);
+				}
 			}
 		}
 		if(PA_FPFS_bulk_set){
@@ -3986,6 +3979,27 @@ void calculate_PAD(){
 						w_data_1d(FPFSG_ke, "FP_bulk_kappaz", FP_size_bulk, &final_states_FP_bulk_kappaz[i][j][0]);
 					}
 				}
+				if(!PA_ignore_core && !PA_ignore_nonlocal){
+					double*** FP_nonloc_export=alloc_dcube(5, 9, 2);
+					for(int ia=0; ia<atom_length; ia++){
+						int is=atom_spec_index[ia];
+						if(empty_atoms[is]){
+							continue;
+						}
+						if(!PA_calc_all_nonloc && !atom_weighting_flag[ia]){
+							continue;
+						}
+						for(int il=0; il<5; il++){
+							for(int mpl=0; mpl<=il*2; mpl++){
+								FP_nonloc_export[il][mpl][0]=final_states_FP_nonloc[i][j][ia][il][mpl].real();
+								FP_nonloc_export[il][mpl][1]=final_states_FP_nonloc[i][j][ia][il][mpl].imag();
+							}
+						}
+						sprintf(group_name, "Nonloc_%d_%s", ia+1, atom_spec_label[is]);
+						w_data_3d(FPFSG_ke, group_name, 5, 9, 2, (double***)&FP_nonloc_export[0][0][0]);
+					}
+					delete_dcube(FP_nonloc_export);
+				}
 				/*
 					for(ia=0; ia<atom_length; ia++){
 					int is=atom_spec_index[ia];
@@ -4025,6 +4039,33 @@ void calculate_PAD(){
 					sprintf(group_name, "Local_edge_imag");
 				}
 				w_data_3d(FPFSG, group_name, g_count, EScale_count, total_count_ext, (double***)&FP_loc_edge_export_im[sp][0][0][0]);
+			}
+		}
+		
+		if(!PA_ignore_core && !PA_ignore_nonlocal){
+			Group NonlocG(FPFSG.createGroup("Nonlocal"));
+			for(int ie=0; ie<EScale_count; ie++){
+				sprintf(group_name, "%d", ie);
+				Group NonlocG_e(NonlocG.createGroup(group_name));
+				for(int sp=0; sp<sp_max; sp++){
+					sprintf(group_name, "%s", sp==0 ? "Up" : "Dn");
+					Group NonlocG_es(NonlocG_e.createGroup(group_name));
+					for(int ia=0; ia<atom_length; ia++){
+						int is=atom_spec_index[ia];
+						if(empty_atoms[is]){
+							continue;
+						}
+						if(!PA_calc_all_nonloc && !atom_weighting_flag[ia]){
+							continue;
+						}		
+						sprintf(group_name, "%d_%s", ia+1, atom_spec_label[is]);
+						w_data_2d(NonlocG_es, group_name, 5, wfn_cutoff_index[is], (double**)&final_states_FP_nonloc_r[ie][sp][ia][0][0]);
+					}
+				}
+			}
+			for(int is=0; is<atom_spec_length; is++){
+				sprintf(group_name, "%s_r", atom_spec_label[is]);
+				w_data_1d(NonlocG, group_name, wfn_cutoff_index[is], &wfn_r_use[is][0]);
 			}
 		}
 	}
