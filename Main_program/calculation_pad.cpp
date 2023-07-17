@@ -2037,6 +2037,9 @@ void calculate_PAD(){
 				if(kz_square<0){
 					write_log((char*)"Warning: negative kz^2");
 					final_states_FP_g_size[i][j]=0;
+					if(PA_FPFS_bulk_set){
+						final_states_FP_bulk_count[i][j]=0;
+					}
 					continue;
 				}
 				double kz=sqrt(kz_square);
@@ -3566,28 +3569,14 @@ void calculate_PAD(){
 		FP_loc_edge_export_im=new double***[sp_max];
 		if(!PA_FPFS_bulk_set && !PA_FPFS_Numerov){
 			for(int sp=0; sp<sp_max; sp++){
-				double* buffer_re=new double[g_count*EScale_count*total_count_ext];
-				FP_loc_edge_export_re[sp]=new double**[g_count];
-				double* buffer_im=new double[g_count*EScale_count*total_count_ext];
-				FP_loc_edge_export_im[sp]=new double**[g_count];
-				for(int ig=0; ig<g_count; ig++){
-					FP_loc_edge_export_re[sp][ig]=new double*[EScale_count];
-					FP_loc_edge_export_im[sp][ig]=new double*[EScale_count];
-					for(int ie=0; ie<EScale_count; ie++){
-						FP_loc_edge_export_re[sp][ig][ie]=&buffer_re[ig*EScale_count*total_count_ext+ie*total_count_ext];
-						FP_loc_edge_export_im[sp][ig][ie]=&buffer_im[ig*EScale_count*total_count_ext+ie*total_count_ext];
-						for(int ik=0; ik<total_count_ext; ik++){
-							FP_loc_edge_export_re[sp][ig][ie][ik]=0.0;
-							FP_loc_edge_export_im[sp][ig][ie][ik]=0.0;
-						}
-					}
-				}
+				FP_loc_edge_export_re[sp]=alloc_dcube(g_count, EScale_count, total_count_ext);
+				FP_loc_edge_export_im[sp]=alloc_dcube(g_count, EScale_count, total_count_ext);
 			}
 			for(int ik=0; ik<total_count_ext; ik++){
 				for(int ifp=0; ifp<final_states_FP_size[ik]; ifp++){
 					int ie=final_states_EScale[ik][ifp]-E_min_scale;
 					int sp=final_states_spin[ik][ifp];
-					for(int ig=0; ig<g_count; ig++){
+					for(int ig=0; ig<final_states_FP_g_size[ik][ifp]; ig++){
 						FP_loc_edge_export_re[sp][ig][ie][ik]=final_states_FP_loc_edge[ik][ifp][ig].real();
 						FP_loc_edge_export_im[sp][ig][ie][ik]=final_states_FP_loc_edge[ik][ifp][ig].imag();
 					}
