@@ -1080,19 +1080,9 @@ void calculate_PAD(){
 			VPS_l[is]=new int[VPS_l_length[is]];
 			VPS_r[is]=new double[VPS_r_length[is]];
 			VPS_loc[is]=new double[VPS_r_length[is]];
-			double* buffer=new double[VPS_l_length[is]*VPS_j_length[is]]; // for VPS_E
-			VPS_E[is]=new double*[VPS_l_length[is]];
+			VPS_E[is]=alloc_dmatrix(VPS_l_length[is], VPS_j_length[is]);
 			VPS_E_ave[is]=new double[VPS_l_length[is]];
-			double* buffer2=new double[VPS_l_length[is]*VPS_j_length[is]*VPS_r_length[is]]; // for VPS_nonloc
-			VPS_nonloc[is]=new double**[VPS_l_length[is]];
-			VPS_nonloc_ave[is]=new double*[VPS_l_length[is]];
-			for(int il=0; il<VPS_l_length[is]; il++){
-				VPS_E[is][il]=&(buffer[il*VPS_j_length[is]]);
-				VPS_nonloc[is][il]=new double*[VPS_j_length[is]];
-				for(int ij=0; ij<VPS_j_length[is]; ij++){
-					VPS_nonloc[is][il][ij]=&(buffer2[il*VPS_j_length[is]*VPS_r_length[is]+ij*VPS_r_length[is]]);
-				}
-			}
+			VPS_nonloc[is]=alloc_dcube(VPS_l_length[is], VPS_j_length[is], VPS_r_length[is]);
 			// printf("l %d j %d r %d\n", VPS_l_length[is], VPS_j_length[is], VPS_r_length[is]);
 			r_att_1d(VPSG, "r", VPS_r_length[is], &VPS_r[is][0]);
 			r_data_1i(VPSG, "orbital_angular_momenta", VPS_l_length[is], &VPS_l[is][0]);
@@ -1128,16 +1118,14 @@ void calculate_PAD(){
 			if(empty_atoms[is]){
 				continue;
 			}
-			for(int il=0; il<VPS_l_length[is]; il++){
-				VPS_nonloc_ave[is][il]=new double[vps_cutoff_index[is]];
-			}
-			// averaging
+			VPS_nonloc_ave[is]=alloc_dmatrix(VPS_l_length[is], vps_cutoff_index[is]);
+			// averaging & multiple r
 			for(int il=0; il<VPS_l_length[is]; il++){
 				if(VPS_j_length[is]==1){
 					// l-dependent
 					VPS_E_ave[is][il]=VPS_E[is][il][0];
 					for(int ir=0; ir<vps_cutoff_index[is]; ir++){
-						VPS_nonloc_ave[is][il][ir]=VPS_nonloc[is][il][0][ir];
+						VPS_nonloc_ave[is][il][ir]=VPS_nonloc[is][il][0][ir]*VPS_r[is][ir];
 					}
 				}else{
 					// j-dependent
@@ -1145,7 +1133,7 @@ void calculate_PAD(){
 					VPS_E_ave[is][il]=((ld+1.0)*VPS_E[is][il][0]+ld*VPS_E[is][il][1])/(2.0*ld+1.0);
 					// printf("%6.2f %6.2f %6.2f\n", VPS_E[is][il][0], VPS_E[is][il][1], VPS_E_ave[is][il]);
 					for(int ir=0; ir<vps_cutoff_index[is]; ir++){
-						VPS_nonloc_ave[is][il][ir]=((ld+1.0)*VPS_nonloc[is][il][0][ir]+ld*VPS_nonloc[is][il][1][ir])/(2.0*ld+1.0);
+						VPS_nonloc_ave[is][il][ir]=((ld+1.0)*VPS_nonloc[is][il][0][ir]+ld*VPS_nonloc[is][il][1][ir])/(2.0*ld+1.0)*VPS_r[is][ir];
 					}
 				}
 			}
