@@ -108,13 +108,14 @@ int validation_PAD(){
 				}
 	
 			}
-		}else if(strcmp(PA_final_state, "FP_PAO")==0 || strcmp(PA_final_state, "FP_AO")==0){
+		}else if(strcmp(PA_final_state, "FP_PAO")==0 /* || strcmp(PA_final_state, "FP_AO")==0*/){
 			PA_FPFS=true;
 			sprintf(sprintf_buffer, "%32s = %s", "Final_state", PA_final_state);
 			write_log(sprintf_buffer);
 			// weighting axis and origin are used to determine empty atoms
 			if(PA_weighting==false){
-				write_log((char*)"Error: Weighting should be set to true in FP_PAO or FP_AO");
+				//write_log((char*)"Error: Weighting should be set to true in FP_PAO or FP_AO");
+				write_log((char*)"Error: Weighting should be set to true in FP_PAO");
 				status=0; goto FINALIZATION;
 			}
 			sprintf(sprintf_buffer, "%32s = %s", "Ignore_nonlocal", PA_ignore_nonlocal?"true":"false");
@@ -123,7 +124,8 @@ int validation_PAD(){
 			write_log(sprintf_buffer);
 			// reflection cannot be used
 			if(PA_reflection==true){
-				write_log((char*)"Error: Reflection cannot be used in FP_PAO and FP_AO");
+				//write_log((char*)"Error: Reflection cannot be used in FP_PAO and FP_AO");
+				write_log((char*)"Error: Reflection cannot be used in FP_PAO");
 				status=0; goto FINALIZATION;
 			}
 			/// Excitation energy
@@ -167,7 +169,8 @@ int validation_PAD(){
 				write_log(sprintf_buffer);
 			}
 		}else{
-			write_log((char*)"Error: Final_state should be 'PW', 'Calc', 'FP_PAO', or 'FP_AO'");
+			//write_log((char*)"Error: Final_state should be 'PW', 'Calc', 'FP_PAO', or 'FP_AO'");
+			write_log((char*)"Error: Final_state should be 'PW', 'Calc', 'FP_PAO'");
 			status=0; goto FINALIZATION;
 		}
 	}

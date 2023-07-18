@@ -841,7 +841,7 @@ void calculate_PAD(){
 	int E_min_scale;                          // round(E_min_tail/PA_FPFS_energy_step);
 	int E_max_scale;                          // round(E_max_tail/PA_FPFS_energy_step);
 	//// for local part
-	complex<double>**** final_states_FP_loc;  // [total_count_ext][FPIndex][ig][iz] for FP_PAO and FP_AO
+	complex<double>**** final_states_FP_loc;  // [total_count_ext][FPIndex][ig][iz] for FP_PAO
 	int** final_states_FP_g_size;             // [total_count_ext][FPIndex]=ig size
 	int**** final_states_FP_g;                // [total_count_ext][FPIndex][ig][2]=[n1,n2]
 	double**** final_states_FP_g_vec;         // [total_count_ext][FPIndex][ig][3]=g vector
