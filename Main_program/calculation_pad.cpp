@@ -402,6 +402,10 @@ void calculate_PAD(){
 	double** wfn_r=new double*[atom_spec_length]; // [is][r] original values
 	double** wfn_r_reduced=new double*[atom_spec_length];
 	double** wfn_r_use=new double*[atom_spec_length];
+	double*** wfn_phi_PAO_all=new double**[atom_spec_length]; // [is][io_all][r] for FP_AO
+	double*** wfn_phi_AO_all=new double**[atom_spec_length];  // [is][io_all][r] for FP_AO
+	int* wfn_count_all=new int[atom_spec_length];             // [is] = io_all value
+	int** wfn_l_all=new int*[atom_spec_length];               // [is][io_all] = l
 	char AO_group_name[item_size*2];
 	int wfn_length[atom_spec_length];
 	int wfn_length_reduced[atom_spec_length];
@@ -467,13 +471,13 @@ void calculate_PAD(){
 			wfn_r_use[is][j]=PA_interpolate_wfn?wfn_r_reduced[is][j]:wfn_r[is][j];
 		}
 		// load wfn_phi
+		double wfn_both[2][wfn_length[is]];
 		for(io=0; io<num_orbits[is]; io++){
 			s_data_2d(AOG, orbital_list[is][io], &size1, &size2);
 			if(size2!=wfn_length[is]){
 				cout << "Size error" << endl;
 				return;
 			}
-			double wfn_both[2][wfn_length[is]];
 			r_data_2d(AOG, orbital_list[is][io], 2, wfn_length[is], (double**) wfn_both);
 			if(PA_interpolate_wfn){
 				wfn_phi_PAO[is][io]=interpolate_wfn(wfn_length[is], &wfn_both[0][0], &wfn_r[is][0], wfn_length_reduced[is], wfn_interpolate_dz);
@@ -511,7 +515,64 @@ void calculate_PAD(){
 			/*for(j=0; j<wfn_length[is]; j++){
 				printf("%f %f\n", wfn_r[is][j], wfn_phi_rdr[is][io][j]);
 				}*/
-		} 
+		}
+		if(strcmp(PA_final_state, "FP_AO")==0 && !empty_atom){
+			// prepare wfn_phi_PAO_all and wfn_phi_AO_all
+			char orbital[4]={'s', 'p', 'd', 'f'};
+			char orbital_label[item_size];
+			int orbital_count=0;
+			for(int il=0; il<4; il++){
+				int mul=0;
+				while(true){
+					sprintf(orbital_label, "%c%d", orbital[il], mul);
+					if(AOG.nameExists(orbital_label)){
+						mul++;
+					}else{
+						break;
+					}
+				}
+				printf("%c: %d\n", orbital[il], mul);
+				orbital_count+=mul;
+			}
+			wfn_count_all[is]=orbital_count;
+			wfn_l_all[is]=new int[orbital_count];
+			wfn_phi_PAO_all[is]=new double*[orbital_count];
+			wfn_phi_AO_all[is]=new double*[orbital_count];
+
+			int orbital_index=0;
+			for(int il=0; il<4; il++){
+				int mul=0;
+				while(true){
+					sprintf(orbital_label, "%c%d", orbital[il], mul);
+					if(!AOG.nameExists(orbital_label)){
+						break;
+					}
+					wfn_l_all[is][orbital_index]=il;
+					// size check
+					s_data_2d(AOG, orbital_label, &size1, &size2);
+					if(size2!=wfn_length[is]){
+						cout << "Size error" << endl;
+						return;
+					}
+					// read
+					r_data_2d(AOG, orbital_label, 2, wfn_length[is], (double**) wfn_both);
+					// interpolate
+					if(PA_interpolate_wfn){
+						wfn_phi_PAO_all[is][orbital_index]=interpolate_wfn(wfn_length[is], &wfn_both[0][0], &wfn_r[is][0], wfn_length_reduced[is], wfn_interpolate_dz);
+						wfn_phi_AO_all[is][orbital_index]=interpolate_wfn(wfn_length[is], &wfn_both[1][0], &wfn_r[is][0], wfn_length_reduced[is], wfn_interpolate_dz);
+					}else{
+						wfn_phi_PAO_all[is][orbital_index]=new double[wfn_length_use[is]];
+						wfn_phi_AO_all[is][orbital_index]=new double[wfn_length_use[is]];
+						for(j=0; j<wfn_length_use[is]; j++){
+							wfn_phi_PAO_all[is][orbital_index][j]=wfn_both[0][j];
+							wfn_phi_AO_all[is][orbital_index][j]=wfn_both[1][j];
+						}
+					}
+					mul++;
+					orbital_index++;
+				}
+			}
+		}
 	}
 
 	// 3. pad calculation
@@ -1136,6 +1197,10 @@ void calculate_PAD(){
 						VPS_nonloc_ave[is][il][ir]=((ld+1.0)*VPS_nonloc[is][il][0][ir]+ld*VPS_nonloc[is][il][1][ir])/(2.0*ld+1.0)*VPS_r[is][ir];
 					}
 				}
+				
+				for(int ir=0; ir<vps_cutoff_index[is]; ir++){
+					//printf("%7.4f %8.4f\n", VPS_r[is][ir], VPS_nonloc_ave[is][il][ir]);
+					}
 			}
 		}
 		write_log((char*)"----Load Kohn-Sham potentials----");
@@ -2609,6 +2674,45 @@ void calculate_PAD(){
 								final_states_FP_nonloc_r[ie][sp][ia][l][ir]=(wfn_buffer[irp]*(VPS_r[is][irp+1]-wfn_r_use[is][ir])+
 																														 wfn_buffer[irp+1]*(wfn_r_use[is][ir]-VPS_r[is][irp]))/(VPS_r[is][irp+1]-VPS_r[is][irp]);
 							}
+						}
+					}
+					if(strcmp(PA_final_state, "FP_AO")==0){
+						// conversion from PAO to AO
+						double AO_buffer[wfn_cutoff_index[is]];
+						double PAO_buffer[wfn_cutoff_index[is]];
+						double wfn_orig_buffer[wfn_cutoff_index[is]];
+						for(int ir=0; ir<wfn_cutoff_index[is]; ir++){
+							AO_buffer[ir]=0.0;
+							PAO_buffer[ir]=0.0;
+							wfn_orig_buffer[ir]=final_states_FP_nonloc_r[ie][sp][ia][l][ir];
+						}
+						int orbital_count=0;
+						double wfn_norm=ddot(&wfn_cutoff_index[is], &wfn_orig_buffer[0], &wfn_orig_buffer[0]);
+						for(int io=0; io<wfn_count_all[is]; io++){
+							if(wfn_l_all[is][io]!=l){
+								continue;
+							}
+							double PAO_norm=ddot(&wfn_cutoff_index[is], &wfn_phi_PAO_all[is][io][0], &wfn_phi_PAO_all[is][io][0]);
+							double inner=ddot(&wfn_cutoff_index[is], &wfn_phi_PAO_all[is][io][0], &wfn_orig_buffer[0]);
+							double coef=inner/PAO_norm;
+							for(int ir=0; ir<wfn_cutoff_index[is]; ir++){
+								AO_buffer[ir]+=coef*wfn_phi_AO_all[is][io][ir];
+								PAO_buffer[ir]+=coef*wfn_phi_PAO_all[is][io][ir];
+							  wfn_orig_buffer[ir]-=coef*wfn_phi_PAO_all[is][io][ir];
+							}
+							orbital_count++;
+						}
+						if(orbital_count>0){
+							double wfn_repro_norm=ddot(&wfn_cutoff_index[is], &PAO_buffer[0], &PAO_buffer[0]);
+							sprintf(sprintf_buffer, "wfn_reproduced/wfn = %.4f", wfn_repro_norm/wfn_norm);
+							write_log(sprintf_buffer);
+							
+							for(int ir=0; ir<wfn_cutoff_index[is]; ir++){
+								final_states_FP_nonloc_r[ie][sp][ia][l][ir]=PAO_buffer[ir]/PAO_buffer[wfn_cutoff_index[is]-1];
+								//printf("%12.6f %12.6f\n", wfn_r_use[is][ir], final_states_FP_nonloc_r[ie][sp][ia][l][ir]);
+							}
+						}else{
+							write_log((char*)"PAO -> AO conversion skipped");
 						}
 					}
 				}
