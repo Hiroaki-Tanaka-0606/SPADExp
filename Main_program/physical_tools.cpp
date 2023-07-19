@@ -1845,7 +1845,8 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 	double psi_vector[r_count];
 	double hpsi_vector[r_count];
 	for(int ir=0; ir<r_count; ir++){
-		psi_vector[ir]=r_arr[ir];
+	  //psi_vector[ir]=r_arr[ir];
+	  psi_vector[ir]=1.0;
 	}
 	psi_normalize(r_count, dr, psi_vector);
 	/*
