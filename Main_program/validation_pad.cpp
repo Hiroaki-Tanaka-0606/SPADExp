@@ -142,6 +142,9 @@ int validation_PAD(){
 			}
 			sprintf(sprintf_buffer, "%32s = %s", "VPS_file", PA_VPS_file);
 			write_log(sprintf_buffer);
+			/// Nonloc_offset
+			sprintf(sprintf_buffer, "%32s = %.2f Bohr", "Nonloc_offset", PA_FPFS_nonloc_offset);
+			write_log(sprintf_buffer);
 			/// FPFS_energy_step
 			sprintf(sprintf_buffer, "%32s = %.3f eV", "FPFS_energy_step", PA_FPFS_energy_step);
 			write_log(sprintf_buffer);

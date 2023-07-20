@@ -1151,6 +1151,17 @@ int load_input(){
 				}
 				PA_interpolate_wfn_coef_set=true; continue;
 			}
+			/// FPFS_nonloc_offset: double
+			if(strcmp(keyword_buffer, "FPFS_nonloc_offset")==0){
+				if(PA_FPFS_nonloc_offset_set){
+					output_error(line_number, (char*)"keyword FPFS_nonloc_offset already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_double(input_line_c, &PA_FPFS_nonloc_offset);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of FPFS_nonloc_offset"); status=0; goto FINALIZATION;
+				}
+			  PA_FPFS_nonloc_offset_set=true; continue;
+			}
 		}else if(*block_name==string("Phase-shift")){
 			// Ph block
 			/// Skip_points (Ph_skip_points): int

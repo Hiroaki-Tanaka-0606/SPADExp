@@ -1137,7 +1137,7 @@ void calculate_PAD(){
 			VPS_l_length[is]=r_att_int(VPSG, "num_vps_proj");
 			VPS_r_length[is]=r_att_int(VPSG, "num_grid");
 			VPS_j_length[is]=(r_att_bool(VPSG, "j_dependent")) ? 2:1;
-			VPS_cutoff[is]=r_att_double(VPSG, "max_cutoff");
+			VPS_cutoff[is]=r_att_double(VPSG, "max_cutoff")+PA_FPFS_nonloc_offset;
 			VPS_l[is]=new int[VPS_l_length[is]];
 			VPS_r[is]=new double[VPS_r_length[is]];
 			VPS_loc[is]=new double[VPS_r_length[is]];
