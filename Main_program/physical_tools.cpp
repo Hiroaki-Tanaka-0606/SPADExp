@@ -1713,13 +1713,12 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 		for(int iy=0; iy<r_count; iy++){
 			matrix[iy][ix]=0.0;
 			// (-1) * second derivative
-			if(ix==0){
-				/*
+			/*if(ix==0){
 					if(iy==0 || iy==2){
 					matrix[iy][ix]-=1.0/dx/dx;
 					}else if(iy==1){
 					matrix[iy][ix]-=-2.0/dx/dx;
-					}*/
+					}
 				if(iy==-1 || iy==1){
 					matrix[iy][ix]-=1.0/dx/dx;
 				}else if(iy==0){
@@ -1731,20 +1730,20 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 				}else if(iy==r_count-2){
 					matrix[iy][ix]-=-2.0/dx/dx;
 				}
-			}else{
-				if(iy==ix-1 || iy==ix+1){
-					matrix[iy][ix]-=1.0/dx/dx;
-				}else if(iy==ix){
-					matrix[iy][ix]-=-2.0/dx/dx;
-				}
+				}else{*/
+			if(iy==ix-1 || iy==ix+1){
+				matrix[iy][ix]-=1.0/dx/dx;
+			}else if(iy==ix){
+				matrix[iy][ix]-=-2.0/dx/dx;
 			}
+				//}
 			// first derivative
-			if(ix==0){/*
+			/*if(ix==0){
 									if(iy==0){
 									matrix[iy][ix]+=-1.0/dx;
 									}else if(iy==1){
 									matrix[iy][ix]+=1.0/dx;
-									}*/
+									}
 				if(iy==-1){
 					matrix[iy][ix]+=-0.5/dx;
 				}else if(iy==1){
@@ -1756,13 +1755,13 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 				}else if(iy==r_count-1){
 					matrix[iy][ix]+=1.0/dx;
 				}
-			}else{
-				if(iy==ix-1){
-					matrix[iy][ix]+=-0.5/dx;
-				}else if(iy==ix+1){
-					matrix[iy][ix]+=0.5/dx;
-				}
+			}else{*/
+			if(iy==ix-1){
+				matrix[iy][ix]+=-0.5/dx;
+			}else if(iy==ix+1){
+				matrix[iy][ix]+=0.5/dx;
 			}
+				//}
 			// l(l+1)+2r^2(V-E)
 			if(iy==ix){
 				matrix[iy][ix]+=l*(l+1)*1.0+2.0*r_arr[ix]*r_arr[ix]*(V_loc[ix]-Ekin);
@@ -1793,29 +1792,47 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 		}*/
 
 	// copy
-	double** inverse=alloc_dmatrix(r_count);
-	for(int ix=0; ix<r_count; ix++){
-		for(int iy=0; iy<r_count; iy++){
-			inverse[iy][ix]=matrix[iy][ix];
+	//double** inverse=alloc_dmatrix(r_count);
+	//for(int ix=0; ix<r_count; ix++){
+	//	for(int iy=0; iy<r_count; iy++){
+	//		inverse[iy][ix]=matrix[iy][ix];
+	//	}
+	//}
+	
+	double* right_vector=new double[r_count];
+	for(int ir=0; ir<r_count; ir++){
+		if(ir==r_count-1){
+			right_vector[ir]=1.0/dx/dx+0.5/dx;
+		}else{
+			right_vector[ir]=0.0;
 		}
 	}
 
-	// LU decomposition
-	int info;
+	int nrhs=1;
 	int ipiv[r_count];
+	int info;
+	dgesv_(&r_count, &nrhs, &matrix[0][0], &r_count, &ipiv[0], &right_vector[0], &r_count, &info);
+
+	//for(int ir=0; ir<r_count; ir++){
+	//	printf("%10.6f %10.6f\n", r_arr[ir], right_vector[ir]);
+	//}
+
+	/*
+	// LU decomposition
+	//int info;
+	//int ipiv[r_count];
 	dgetrf_(&r_count, &r_count, &inverse[0][0], &r_count, &ipiv[0], &info);
 	if(info!=0){
-		write_log((char*)"LU decomposition failed");
-		return;
+	write_log((char*)"LU decomposition failed");
+	return;
 	}
-
 	// work space calculation for inverse matrix
 	int lwork=-1;
 	double work_dummy;
 	dgetri_(&r_count, &inverse[0][0], &r_count, &ipiv[0], &work_dummy, &lwork, &info);
 	if(info!=0){
-		write_log((char*)"Work space calculation failed");
-		return;
+	write_log((char*)"Work space calculation failed");
+	return;
 	}
 	lwork=round(work_dummy);
 	// printf("Work space size: %d\n", lwork);
@@ -1823,24 +1840,21 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 	
 	dgetri_(&r_count, &inverse[0][0], &r_count, &ipiv[0], &work[0], &lwork, &info);
 	if(info!=0){
-		write_log((char*)"Inverse matrix calculation failed");
-		return;
+	write_log((char*)"Inverse matrix calculation failed");
+	return;
 	}
-
 	// check
-	/*
-		double mm[r_count][r_count];
-		double alpha=1.0;
-		double beta=0.0;
-		char trans='N';
-		dgemm_(&trans, &trans, &r_count, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &inverse[0][0], &r_count, &beta, &mm[0][0], &r_count);
-		for(int ix=0; ix<r_count; ix++){
-		for(int iy=0; iy<r_count; iy++){
-		printf("%4.1f ", mm[iy][ix]);
-		}
-		printf("\n");
-		}*/
-
+	//double mm[r_count][r_count];
+	//double alpha=1.0;
+	//double beta=0.0;
+	//char trans='N';
+	//dgemm_(&trans, &trans, &r_count, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &inverse[0][0], &r_count, &beta, &mm[0][0], &r_count);
+	//for(int ix=0; ix<r_count; ix++){
+	//for(int iy=0; iy<r_count; iy++){
+	//printf("%4.1f ", mm[iy][ix]);
+	//}
+	//printf("\n");
+	//}
 	// initial vector
 	double psi_vector[r_count];
 	double hpsi_vector[r_count];
@@ -1849,15 +1863,11 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 	  psi_vector[ir]=1.0;
 	}
 	psi_normalize(r_count, dr, psi_vector);
-	/*
-		for(int ir=0; ir<r_count; ir++){
-		printf("%10.6f %10.6f\n", r_arr[ir], psi_vector[ir]);
-		}*/
-
+	//for(int ir=0; ir<r_count; ir++){
+	//printf("%10.6f %10.6f\n", r_arr[ir], psi_vector[ir]);
+	//	}
 	double expect=expectation_value(r_count, &matrix[0][0], psi_vector, dr);
 	// printf("Expect: %f\n", expect);
-
-
 	char no_trans='N';
 	double alpha=1.0;
 	int inc=1;
@@ -1877,20 +1887,16 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 		}
 	}
 	// printf("Power iteration trials: %3d, Expectation value: %8.4f\n", trial, expect);
-
-	/*
-		double hpsi_norm=0.0;
-		dgemv_(&trans, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &psi_vector[0], &inc, &beta, &hpsi_vector[0], &inc);
-		for(int ir=0; ir<r_count; ir++){
-		hpsi_norm+=hpsi_vector[ir]*hpsi_vector[ir]*dr[ir];
-		}
-		printf("Norm: %f\n", hpsi_norm);*/
-
+	//double hpsi_norm=0.0;
+	//dgemv_(&trans, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &psi_vector[0], &inc, &beta, &hpsi_vector[0], &inc);
+	//	for(int ir=0; ir<r_count; ir++){
+	//hpsi_norm+=hpsi_vector[ir]*hpsi_vector[ir]*dr[ir];
+	//}
+	//printf("Norm: %f\n", hpsi_norm);
 	// prepare H^t * diag(dr) * H
 	double** dr_matrix=alloc_dmatrix(r_count);
 	double** drH_matrix=alloc_dmatrix(r_count);
 	double** A_matrix=alloc_dmatrix(r_count);
-
 	for(int ix=0; ix<r_count; ix++){
 		for(int iy=0; iy<r_count; iy++){
 			if(ix==iy){
@@ -1900,15 +1906,11 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 			}
 		}
 	}
-
 	// approx solution search by conjugate gradient method
 	char trans='T';
 	dgemm_(&no_trans, &no_trans, &r_count, &r_count, &r_count, &alpha, &dr_matrix[0][0], &r_count, &matrix[0][0], &r_count, &beta, &drH_matrix[0][0], &r_count);
 	dgemm_(&trans, &no_trans, &r_count, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &drH_matrix[0][0], &r_count, &beta, &A_matrix[0][0], &r_count);
-
 	// printf("Norm: %f\n", matrix_element(r_count, psi_vector, &A_matrix[0][0], psi_vector));
-
-	
 	double mv[r_count];
 	double cg_p[r_count];
 	double cg_r[r_count];
@@ -1955,22 +1957,22 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 	}
 	sprintf(sprintf_buffer2, "CG trials: %6d, CG norm: %10.4e", trial, cg_norm);
 	write_log(sprintf_buffer2);
-
-	dgemv_(&no_trans, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &psi_vector[0], &inc, &beta, &hpsi_vector[0], &inc);
+	dgemv_(&no_trans, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &psi_vector[0], &inc, &beta, &hpsi_vector[0], &inc);*/
 	// copy & normalization so that the edge is 1.0
-	double psi_edge=psi_vector[r_count-1];
+	double psi_edge=right_vector[r_count-1];
 	for(int ir=0; ir<r_count; ir++){
-		psi[ir]=psi_vector[ir]/psi_edge;
+		psi[ir]=right_vector[ir]/psi_edge;
 		//printf("%10.6f %10.6f %10.6f\n", r_arr[ir], psi[ir], hpsi_vector[ir]/psi_edge);
 	}
 	delete[] VPS_E;
 	delete[] VPS_nonloc;
 	delete[] sprintf_buffer2;
+	delete[] right_vector;
 	delete_dmatrix(matrix);
-	delete_dmatrix(inverse);
-	delete_dmatrix(dr_matrix);
-	delete_dmatrix(drH_matrix);
-	delete_dmatrix(A_matrix);
+	//delete_dmatrix(inverse);
+	//delete_dmatrix(dr_matrix);
+	//delete_dmatrix(drH_matrix);
+	//delete_dmatrix(A_matrix);
 }
 
 void psi_normalize(int count, double* dr, double* psi){

@@ -1500,7 +1500,7 @@ void calculate_PAD(){
 
 		} // end of if(PA_FPFS_bulk_set)
 		
-		write_log((char*)"----Energy scale calculations----");
+		write_log((char*)"----Wavefunction calculations----");
 		sprintf(sprintf_buffer, "Fermi level = %.2f Eh = %.3f eV", EF_Eh, EF_Eh*Eh);
 		write_log(sprintf_buffer);
 		double E_min_tail=PA_E_min-PA_E_pixel*(tail_index+0.5);
@@ -2440,7 +2440,7 @@ void calculate_PAD(){
 		}
 
 		if(!PA_ignore_core && !PA_ignore_nonlocal){
-			write_log((char*)"---- Connection calculations between the core and valence ----");
+			write_log((char*)"----Connection calculations between the core and valence----");
 #pragma omp parallel firstprivate(atom_length, PA_lp_max, PA_theta_points, PA_ext_set) private(j)
 #pragma omp for
 			for(i=0; i<total_count_ext; i++){
@@ -2641,6 +2641,7 @@ void calculate_PAD(){
 
 		// nonlocal core part
 		if(!PA_ignore_core && !PA_ignore_nonlocal){
+			write_log((char*)"----Nonlocal part calculations----");
 #pragma omp parallel firstprivate(E_min_scale, org_indices_count, EF_Eh, Eh, PA_excitation_energy)
 #pragma omp for
 			for(int iepa=0; iepa<org_indices_count; iepa++){
@@ -2650,8 +2651,8 @@ void calculate_PAD(){
 				int ia=org_indices[iepa][2];
 				int is=atom_spec_index[ia];
 				int eigen_scale=ie+E_min_scale;
-				sprintf(sprintf_buffer2, "Index %6d/%6d, EScale: %4d, Spin: %1d, Atom: %3d", iepa+1, org_indices_count, eigen_scale, sp, ia);
-				write_log(sprintf_buffer2);
+				// sprintf(sprintf_buffer2, "Index %6d/%6d, EScale: %4d, Spin: %1d, Atom: %3d", iepa+1, org_indices_count, eigen_scale, sp, ia);
+				// write_log(sprintf_buffer2);
 				double kinetic_energy_Eh=(eigen_scale*PA_FPFS_energy_step+PA_excitation_energy)/Eh+EF_Eh;
 				// obtain the nonlocal radial function
 				double wfn_buffer[vps_cutoff_index[is]];
