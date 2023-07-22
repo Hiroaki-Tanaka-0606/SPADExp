@@ -1662,7 +1662,7 @@ void psi_normalize(int count, double* dr, double* psi);
 double expectation_value(int count, double* matrix, double* psi, double* dr);
 double matrix_element(int count, double* left, double* center, double* right);
 
-void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* V_loc, int VPS_l_length, int* VPS_l, double* VPS_E_buffer, double** VPS_nonloc_buffer, double* psi){
+void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* V_loc, int VPS_l_length, int* VPS_l, double* VPS_E_buffer, double** VPS_nonloc_buffer, double** psi){
 	char* sprintf_buffer2=new char[Log_length+1];
 	int N=2;
 	// printf("Ekin %f, l %d\n", Ekin, l);
@@ -1799,23 +1799,29 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 	//	}
 	//}
 	
-	double* right_vector=new double[r_count];
+	//double** right_vector=alloc_dmatrix(2, r_count);
 	for(int ir=0; ir<r_count; ir++){
 		if(ir==r_count-1){
-			right_vector[ir]=1.0/dx/dx+0.5/dx;
+			psi[0][ir]=1.0/dx/dx-0.5/dx;
+			psi[1][ir]=1.0/dx/dx-0.5/dx;
+		}else if(ir==0){
+			psi[0][ir]=0.0;
+			psi[1][ir]=1.0/dx/dx+0.5/dx;
 		}else{
-			right_vector[ir]=0.0;
+			psi[0][ir]=0.0;
+			psi[1][ir]=0.0;
 		}
 	}
 
-	int nrhs=1;
+	int nrhs=2;
 	int ipiv[r_count];
 	int info;
-	dgesv_(&r_count, &nrhs, &matrix[0][0], &r_count, &ipiv[0], &right_vector[0], &r_count, &info);
+	dgesv_(&r_count, &nrhs, &matrix[0][0], &r_count, &ipiv[0], &psi[0][0], &r_count, &info);
 
 	//for(int ir=0; ir<r_count; ir++){
-	//	printf("%10.6f %10.6f\n", r_arr[ir], right_vector[ir]);
+	//	printf("%10.6f %10.6f %10.6f\n", r_arr[ir], psi[0][ir], psi[1][ir]);
 	//}
+	//printf("\n");
 
 	/*
 	// LU decomposition
@@ -1959,16 +1965,16 @@ void solve_nonlocal_wfn(double Ekin, int l, int r_count, double* r_arr, double* 
 	write_log(sprintf_buffer2);
 	dgemv_(&no_trans, &r_count, &r_count, &alpha, &matrix[0][0], &r_count, &psi_vector[0], &inc, &beta, &hpsi_vector[0], &inc);*/
 	// copy & normalization so that the edge is 1.0
-	double psi_edge=right_vector[r_count-1];
-	for(int ir=0; ir<r_count; ir++){
-		psi[ir]=right_vector[ir]/psi_edge;
-		//printf("%10.6f %10.6f %10.6f\n", r_arr[ir], psi[ir], hpsi_vector[ir]/psi_edge);
-	}
+	//double psi_edge=right_vector[0][r_count-1];
+	//for(int ir=0; ir<r_count; ir++){
+	//	psi[ir]=right_vector[0][ir]/psi_edge;
+	//printf("%10.6f %10.6f %10.6f\n", r_arr[ir], psi[ir], hpsi_vector[ir]/psi_edge);
+	//}
 	delete[] VPS_E;
 	delete[] VPS_nonloc;
 	delete[] sprintf_buffer2;
-	delete[] right_vector;
 	delete_dmatrix(matrix);
+	//delete_dmatrix(right_vector);
 	//delete_dmatrix(inverse);
 	//delete_dmatrix(dr_matrix);
 	//delete_dmatrix(drH_matrix);
