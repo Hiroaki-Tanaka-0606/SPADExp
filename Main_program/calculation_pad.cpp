@@ -3314,6 +3314,7 @@ void calculate_PAD(){
 								int ie=eigen_scale-E_min_scale;
 								
 								// connection check
+								/*
 								complex<double> coef_s_0;
 								complex<double> coef_s_1;
 								for(int lp=0; lp<5; lp++){
@@ -3353,7 +3354,7 @@ void calculate_PAD(){
 											//printf("Adjusted left  %10.6f %10.6f\n", inner_left.real(), inner_left.imag());
 										}
 									}
-								}
+									}*/
 								
 								int num_orbits2=num_orbits[is];
 								if(spin_i==1){
@@ -3385,7 +3386,7 @@ void calculate_PAD(){
 										}
 										
 										double radial_part_0=ddot(&wfn_cutoff_index[is], &final_states_FP_nonloc_r[ie][sp][ia][lp][0][0], &wfn_phi_rdr[is][io2][0]);
-										double radial_part_1=ddot(&wfn_cutoff_index[is], &final_states_FP_nonloc_r[ie][sp][ia][lp][1][0], &wfn_phi_rdr[is][io2][0]);
+										//double radial_part_1=ddot(&wfn_cutoff_index[is], &final_states_FP_nonloc_r[ie][sp][ia][lp][1][0], &wfn_phi_rdr[is][io2][0]);
 										//printf("Radial: %f\n", radial_part);
 										int mpl;
 										complex<double> coeff2_0(0, 0);
@@ -3396,30 +3397,30 @@ void calculate_PAD(){
 											int jp1En=min(1, lp-m)+2; // not include
 											int jp1;
 											complex<double> coeff1_0(0, 0);
-											complex<double> coeff1_1(0, 0);
+											//complex<double> coeff1_1(0, 0);
 											for(jp1=jp1St; jp1<jp1En; jp1++){
 												int mpplp=jp1-1+m+lp;
 												// printf("l m lp mp: %2d %2d %2d %2d\n", l, m, lp, mpplp-lp);
 												// printf("Edge: %f %f\n", final_states_FP_nonloc[ik][FPIndex_1][ia][lp][mpplp].real(), final_states_FP_nonloc[ik][FPIndex_1][ia][lp][mpplp].imag());
-												if(lp!=0){
-													coeff1_0+=Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1]*conj(final_states_FP_nonloc[ik][FPIndex_1][ia][lp][mpplp][0]);
-												}else{
-													coeff1_0+=Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1]*conj(coef_s_0);
-													coeff1_1+=Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1]*conj(coef_s_1);
-												}
+												//if(lp!=0){
+												coeff1_0+=Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1]*conj(final_states_FP_nonloc[ik][FPIndex_1][ia][lp][mpplp][0]);
+												//}else{
+												//coeff1_0+=Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1]*conj(coef_s_0);
+												//coeff1_1+=Gaunt_arr[l][mpl][lp][mpplp]*Y_coeff[jp1]*conj(coef_s_1);
+												//}
 												// cout << Ylm_k[lp][mpplp] << " ";
 											}
 											// cout << coeff1 << endl;
 											coeff2_0+=LCAO_use[mpl][0]*coeff1_0;
-											if(lp==0){
-												coeff2_1+=LCAO_use[mpl][0]*coeff1_1;
-											}
+											//if(lp==0){
+											//	coeff2_1+=LCAO_use[mpl][0]*coeff1_1;
+											//}
 										}
 										// cout << endl;
 										PAD_1+=radial_part_0*coeff2_0*atom_weight/(4.0*M_PI);
-										if(lp==0){
-											PAD_1+=radial_part_1*coeff2_1*atom_weight/(4.0*M_PI);
-										}
+										//if(lp==0){
+										//	PAD_1+=radial_part_1*coeff2_1*atom_weight/(4.0*M_PI);
+										//}
 									} // end of for(dl)
 									if(PA_add_nonorth_term || PA_orth_correction){
 										double e_vec_re[3];
@@ -3432,31 +3433,31 @@ void calculate_PAD(){
 										double et_imag=inner_product(e_vec_im, atom_coordinates[ia]);
 										complex<double> et(et_real, et_imag);
 										double radial_part_0=ddot(&wfn_cutoff_index[is], &final_states_FP_nonloc_r[ie][sp][ia][l][0][0], &wfn_phi_dr[is][io2][0]);
-										double radial_part_1=ddot(&wfn_cutoff_index[is], &final_states_FP_nonloc_r[ie][sp][ia][l][1][0], &wfn_phi_dr[is][io2][0]);
+										//double radial_part_1=ddot(&wfn_cutoff_index[is], &final_states_FP_nonloc_r[ie][sp][ia][l][1][0], &wfn_phi_dr[is][io2][0]);
 										complex<double> coeff2_0(0, 0);
-										complex<double> coeff2_1(0, 0);
+										//complex<double> coeff2_1(0, 0);
 										int mpl;
 										for(mpl=0; mpl<=2*l; mpl++){
 											int m=mpl-l;
-											if(l!=0){
-												coeff2_0+=LCAO_use[mpl][0]*conj(final_states_FP_nonloc[ik][FPIndex_1][ia][l][mpl][0]);
-											}else{
-												coeff2_0+=LCAO_use[mpl][0]*conj(coef_s_0);
-												coeff2_1+=LCAO_use[mpl][0]*conj(coef_s_1);
-											}
+											//if(l!=0){
+											coeff2_0+=LCAO_use[mpl][0]*conj(final_states_FP_nonloc[ik][FPIndex_1][ia][l][mpl][0]);
+											//}else{
+											//coeff2_0+=LCAO_use[mpl][0]*conj(coef_s_0);
+											//coeff2_1+=LCAO_use[mpl][0]*conj(coef_s_1);
+											//}
 										}
 										// cout << endl;
 										if(PA_add_nonorth_term){
 											PAD_1+=radial_part_0*coeff2_0*et*atom_weight/(4.0*M_PI);
-											if(l==0){
-												PAD_1+=radial_part_1*coeff2_1*et*atom_weight/(4.0*M_PI);
-											}
+											//if(l==0){
+											//	PAD_1+=radial_part_1*coeff2_1*et*atom_weight/(4.0*M_PI);
+											//}
 										}
 										if(PA_orth_correction){
 											Norm_FI_1+=radial_part_0*coeff2_0*atom_weight/(4.0*M_PI);
-											if(l==0){
-												Norm_FI_1+=radial_part_1*coeff2_1*atom_weight/(4.0*M_PI);
-											}
+											//if(l==0){
+											//	Norm_FI_1+=radial_part_1*coeff2_1*atom_weight/(4.0*M_PI);
+											//}
 										}
 									} // end of add_nonorth_term
 								} // end of for(io)
