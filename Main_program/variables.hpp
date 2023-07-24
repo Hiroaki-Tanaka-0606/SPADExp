@@ -233,6 +233,8 @@ bool PA_FPFS_bulk_set;
 int PA_FPFS_bulk_kz_steps; // steps to calculate bulk band dispersion along kz
 int PA_FPFS_bulk_kappaz_steps_left; // 2pi/c/steps is the delta kappaz 
 int PA_FPFS_bulk_kappaz_steps_right;
+double PA_FPFS_nonloc_offset; // radial offset
+bool PA_FPFS_nonloc_offset_set;
 
 double PA_FPFS_negligible_gap_size;
 bool PA_FPFS_negligible_gap_size_set;

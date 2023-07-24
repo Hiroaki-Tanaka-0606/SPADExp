@@ -193,6 +193,8 @@ void initialize(){
 	PA_FPFS_kz_margin_index_size=5;
 	PA_FPFS_cspace_size=5;
 	PA_FPFS_kz_exclude_criterion=0.005;
+	PA_FPFS_nonloc_offset=0.0;
+	PA_FPFS_nonloc_offset_set=false;
 }
 
 void finalize(){

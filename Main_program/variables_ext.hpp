@@ -253,6 +253,8 @@ extern double PA_FPFS_cspace_size;
 extern bool PA_FPFS_cspace_size_set;
 extern double PA_FPFS_kz_exclude_criterion;
 extern bool PA_FPFS_kz_exclude_criterion_set;
+extern double PA_FPFS_nonloc_offset;
+extern bool PA_FPFS_nonloc_offset_set;
 
 /// files
 extern FILE* Log_file_obj;
