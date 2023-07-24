@@ -1,0 +1,24 @@
+&Control
+Calculation PAD
+Log_file NbS2_LPWPAD_FWD_Sqrt_1.2nm.log
+Console_log false
+Output_file NbS2_LPWPAD_FWD_Sqrt_1.2nm.hdf5
+/
+&PAD
+Input_file NbS2_slab_nc_AL.hdf5
+E_min -6
+E_max 0.5
+E_pixel 0.02
+dE 0.05
+Initial_state AO
+Final_state PW
+Polarization RCircular
+Theta 5
+Phi 180
+Atomic_orbitals_file /home/p0084/p008400/PAO_and_AO_after_opt.hdf5
+Weighting True
+Weighting_shape Sqrt
+Weighting_axis 1 0 0
+Weighting_origin 154.57
+Weighting_width -12
+/

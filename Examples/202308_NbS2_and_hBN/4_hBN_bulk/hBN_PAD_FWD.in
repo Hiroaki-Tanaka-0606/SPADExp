@@ -1,0 +1,19 @@
+&Control
+Calculation PAD
+Log_file hBN_LPWPAD_FWD_bulk.log
+Console_log false
+Output_file hBN_LPWPAD_FWD_bulk.hdf5
+/
+&PAD
+Input_file hBN_bulk_off_AL.hdf5
+E_min -10
+E_max 0.5
+E_pixel 0.02
+dE 0.05
+Initial_state AO
+Final_state PW
+Polarization LCircular
+Theta 95
+Phi 270
+Atomic_orbitals_file /path/to/PAO_and_AO_after_opt.hdf5
+/

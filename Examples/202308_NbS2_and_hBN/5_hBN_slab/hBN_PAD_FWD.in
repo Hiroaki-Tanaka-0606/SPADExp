@@ -1,0 +1,24 @@
+&Control
+Calculation PAD
+Log_file hBN_PWPAD_FWD_Sqrt_1.2nm.log
+Console_log false
+Output_file hBN_PWPAD_FWD_Sqrt_1.2nm.hdf5
+/
+&PAD
+Input_file hBN_slab_ML.hdf5
+E_min -10
+E_max 0.5
+E_pixel 0.05
+dE 0.1
+Initial_state AO
+Final_state PW
+Polarization LCircular
+Theta 175
+Phi 180
+Atomic_orbitals_file /path/to/PAO_and_AO_after_opt.hdf5
+Weighting True
+Weighting_shape Sqrt
+Weighting_axis 1 0 0
+Weighting_origin 286.38
+Weighting_width -12
+/
