@@ -17,57 +17,57 @@ class MainWindow(QtWidgets.QMainWindow):
         super(MainWindow, self).__init__(*args, **kwargs)
         self.setWindowTitle("OpenMX viewer")
         
-        vbox=QtGui.QVBoxLayout()
+        vbox=QtWidgets.QVBoxLayout()
         vbox.setContentsMargins(*Config.ContentsMargins)
         vbox.setAlignment(QtCore.Qt.AlignTop)
 
 
-        mainWidget=QtGui.QWidget()
+        mainWidget=QtWidgets.QWidget()
         mainWidget.setLayout(vbox)
         self.setCentralWidget(mainWidget)
 
         # Row 1: Open file button
-        row1=QtGui.QHBoxLayout()
+        row1=QtWidgets.QHBoxLayout()
         row1.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row1)
-        self.openFileButton=QtGui.QPushButton("Open file")
+        self.openFileButton=QtWidgets.QPushButton("Open file")
         row1.addWidget(self.openFileButton)
 
-        self.filePath=QtGui.QLabel()
+        self.filePath=QtWidgets.QLabel()
         row1.addWidget(self.filePath)
 
         # Row 2: select data block
-        row2=QtGui.QHBoxLayout()
+        row2=QtWidgets.QHBoxLayout()
         row2.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row2)
-        label2A=QtGui.QLabel("Data block")
+        label2A=QtWidgets.QLabel("Data block")
         row2.addWidget(label2A)
-        self.selectDataBlock=QtGui.QComboBox()
+        self.selectDataBlock=QtWidgets.QComboBox()
         self.selectDataBlock.addItem("---- The choices are displayed after the file is opened ----")
         row2.addWidget(self.selectDataBlock)
 
         # Row 3: select x axis and y axes
-        row3=QtGui.QHBoxLayout()
+        row3=QtWidgets.QHBoxLayout()
         row3.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row3)
         # Column 3A: x axis
-        self.xCol=QtGui.QVBoxLayout()
+        self.xCol=QtWidgets.QVBoxLayout()
         self.xCol.setAlignment(QtCore.Qt.AlignTop)
         row3.addLayout(self.xCol)
-        label3AA=QtGui.QLabel("X axis")
+        label3AA=QtWidgets.QLabel("X axis")
         self.xCol.addWidget(label3AA)
-        self.xAxis=QtGui.QButtonGroup()
+        self.xAxis=QtWidgets.QButtonGroup()
         # Column 3B: y axes
-        self.yCol=QtGui.QVBoxLayout()
+        self.yCol=QtWidgets.QVBoxLayout()
         self.yCol.setAlignment(QtCore.Qt.AlignTop)
         row3.addLayout(self.yCol)
-        label3BA=QtGui.QLabel("Y axes")
+        label3BA=QtWidgets.QLabel("Y axes")
         self.yCol.addWidget(label3BA)
-        self.yAxes=QtGui.QButtonGroup()
+        self.yAxes=QtWidgets.QButtonGroup()
         self.yAxes.setExclusive(False)
 
         # Row 4: graph
-        row4=QtGui.QVBoxLayout()
+        row4=QtWidgets.QVBoxLayout()
         row4.setAlignment(QtCore.Qt.AlignTop)
         row3.addLayout(row4)
 
@@ -75,15 +75,15 @@ class MainWindow(QtWidgets.QMainWindow):
         row4.addWidget(self.graphPlot)
 
         # Row 5: export to hdf5
-        row5=QtGui.QVBoxLayout()
+        row5=QtWidgets.QVBoxLayout()
         row5.setAlignment(QtCore.Qt.AlignTop)
         vbox.addLayout(row5)
 
-        self.exportHDF5=QtGui.QPushButton("Export to HDF5")
+        self.exportHDF5=QtWidgets.QPushButton("Export to HDF5")
         row5.addWidget(self.exportHDF5)
 
 
-app=QtGui.QApplication([])
+app=QtWidgets.QApplication([])
 # win: MainWindow object
 win=MainWindow()
 font=QtGui.QFont()

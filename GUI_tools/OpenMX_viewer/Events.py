@@ -8,7 +8,7 @@ import h5py
 
 def openFile(win):
     currentFile=win.filePath.text()
-    selectedFile, _filter=QtGui.QFileDialog.getOpenFileName(caption="Open file", directory=currentFile)
+    selectedFile, _filter=QtWidgets.QFileDialog.getOpenFileName(caption="Open file", directory=currentFile)
     if selectedFile!="":
         # valid
         win.filePath.setText(selectedFile)
@@ -90,7 +90,7 @@ def setDataBlock(win):
         win.xCol.removeWidget(win.xAxis.buttons()[0])
         
     for i in range(len(blockData[index])):
-        xButton=QtGui.QRadioButton(str(i+1))
+        xButton=QtWidgets.QRadioButton(str(i+1))
         win.xAxis.addButton(xButton)
         win.xCol.addWidget(xButton)
 
@@ -99,7 +99,7 @@ def setDataBlock(win):
         win.yCol.removeWidget(win.yAxes.buttons()[0])
 
     for i in range(len(blockData[index])):
-        yButton=QtGui.QCheckBox(str(i+1))
+        yButton=QtWidgets.QCheckBox(str(i+1))
         win.yAxes.addButton(yButton)
         win.yCol.addWidget(yButton)
 
@@ -125,7 +125,7 @@ def setGraph(win):
 def exportData(win):
     currentFile=win.filePath.text()
     blockIndex=win.selectDataBlock.currentIndex()    
-    selectedFile, _filter=QtGui.QFileDialog.getSaveFileName(caption="Export to HDF5", directory=currentFile)
+    selectedFile, _filter=QtWidgets.QFileDialog.getSaveFileName(caption="Export to HDF5", directory=currentFile)
     if selectedFile!="":
         with h5py.File(selectedFile, "w") as f:
             f.create_dataset("data", data=blockData[blockIndex])

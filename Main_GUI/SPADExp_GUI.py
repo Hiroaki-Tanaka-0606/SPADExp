@@ -22,80 +22,80 @@ class MainWindow(QtWidgets.QMainWindow):
         bFont=QtGui.QFont(font)
         bFont.setBold(True)
         
-        vbox=QtGui.QVBoxLayout()
+        vbox=QtWidgets.QVBoxLayout()
         vbox.setContentsMargins(*Config.ContentsMargins)
         vbox.setAlignment(QtCore.Qt.AlignTop)
 
 
-        mainWidget=QtGui.QWidget()
+        mainWidget=QtWidgets.QWidget()
         mainWidget.setLayout(vbox)
         self.setCentralWidget(mainWidget)
 
         # Row 1: Open file button
-        row1=QtGui.QHBoxLayout()
+        row1=QtWidgets.QHBoxLayout()
         row1.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row1)
-        self.openFileButton=QtGui.QPushButton("Open file")
+        self.openFileButton=QtWidgets.QPushButton("Open file")
         row1.addWidget(self.openFileButton)
 
-        self.filePath=QtGui.QLabel()
+        self.filePath=QtWidgets.QLabel()
         row1.addWidget(self.filePath)
 
         # Row 2: configuration (energy)
-        row2=QtGui.QHBoxLayout()
+        row2=QtWidgets.QHBoxLayout()
         row2.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row2)
 
         ## Energy min and max
-        label2A=QtGui.QLabel("E-EF (min and max, eV):")
+        label2A=QtWidgets.QLabel("E-EF (min and max, eV):")
         label2A.setFont(bFont)
         row2.addWidget(label2A)
-        self.EMin=QtGui.QLineEdit()
+        self.EMin=QtWidgets.QLineEdit()
         self.EMin.setText("-6.0")
-        self.EMax=QtGui.QLineEdit()
+        self.EMax=QtWidgets.QLineEdit()
         self.EMax.setText("+2.0")
         row2.addWidget(self.EMin)
         row2.addWidget(self.EMax)
 
         ## Gauss width 
-        label2B=QtGui.QLabel("dE (eV):")
+        label2B=QtWidgets.QLabel("dE (eV):")
         label2B.setFont(bFont)
         row2.addWidget(label2B)
-        self.dE=QtGui.QLineEdit()
+        self.dE=QtWidgets.QLineEdit()
         self.dE.setText("0.1")
         row2.addWidget(self.dE)
 
         ## pixel size (along the energy)
-        label2C=QtGui.QLabel("Pixel (eV):")
+        label2C=QtWidgets.QLabel("Pixel (eV):")
         label2C.setFont(bFont)
         row2.addWidget(label2C)
-        self.EPixel=QtGui.QLineEdit()
+        self.EPixel=QtWidgets.QLineEdit()
         self.EPixel.setText("0.05")
         row2.addWidget(self.EPixel)
 
         # Row 3: configuration (initial and final states)
-        row3=QtGui.QHBoxLayout()
+        row3=QtWidgets.QHBoxLayout()
         row3.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row3)
 
-        label3A=QtGui.QLabel("Initial state:")
+        label3A=QtWidgets.QLabel("Initial state:")
         label3A.setFont(bFont)
         row3.addWidget(label3A)
-        self.initialState=QtGui.QButtonGroup()
-        self.PAOButton=QtGui.QRadioButton("PAO")
-        self.AOButton=QtGui.QRadioButton("AO")
+        self.initialState=QtWidgets.QButtonGroup()
+        self.PAOButton=QtWidgets.QRadioButton("PAO")
+        self.AOButton=QtWidgets.QRadioButton("AO")
         row3.addWidget(self.PAOButton)
         row3.addWidget(self.AOButton)
         self.initialState.addButton(self.PAOButton)
         self.initialState.addButton(self.AOButton)
         self.AOButton.setChecked(True)
 
-        label3B=QtGui.QLabel("Final state:")
+        label3B=QtWidgets.QLabel("Final state:")
         label3B.setFont(bFont)
         row3.addWidget(label3B)
-        self.finalState=QtGui.QButtonGroup()
-        self.PWButton=QtGui.QRadioButton("Plane wave")
-        self.CalcButton=QtGui.QRadioButton("Calculated")
+        self.finalState=QtWidgets.QButtonGroup()
+        self.PWButton=QtWidgets.QRadioButton("Plane wave")
+        self.CalcButton=QtWidgets.QRadioButton("Calculated")
         self.CalcButton.setEnabled(False)
         row3.addWidget(self.PWButton)
         row3.addWidget(self.CalcButton)
@@ -103,26 +103,26 @@ class MainWindow(QtWidgets.QMainWindow):
         self.finalState.addButton(self.CalcButton)
         self.PWButton.setChecked(True)
 
-        # label3C=QtGui.QLabel("Calc. step of the final states (a.u.^-1)")
+        # label3C=QtWidgets.QLabel("Calc. step of the final states (a.u.^-1)")
         # label3C.setFont(bFont)
         # row3.addWidget(label3C)
-        # self.finalStates_step=QtGui.QLineEdit()
+        # self.finalStates_step=QtWidgets.QLineEdit()
         # self.finalStates_step.setText("0.01")
         # row3.addWidget(self.finalStates_step)
 
         # Row 4: configuration (polarization)
-        row4=QtGui.QHBoxLayout()
+        row4=QtWidgets.QHBoxLayout()
         row4.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row4)
 
-        label4A=QtGui.QLabel("Polarization:")
+        label4A=QtWidgets.QLabel("Polarization:")
         label4A.setFont(bFont)
         row4.addWidget(label4A)
 
-        self.polarization=QtGui.QButtonGroup()
-        self.linear=QtGui.QRadioButton("Linear")
-        self.rCircular=QtGui.QRadioButton("Right circular")
-        self.lCircular=QtGui.QRadioButton("Left circular")
+        self.polarization=QtWidgets.QButtonGroup()
+        self.linear=QtWidgets.QRadioButton("Linear")
+        self.rCircular=QtWidgets.QRadioButton("Right circular")
+        self.lCircular=QtWidgets.QRadioButton("Left circular")
         row4.addWidget(self.linear)
         row4.addWidget(self.rCircular)
         row4.addWidget(self.lCircular)
@@ -131,81 +131,81 @@ class MainWindow(QtWidgets.QMainWindow):
         self.polarization.addButton(self.lCircular)
         self.linear.setChecked(True)
 
-        label4B=QtGui.QLabel("Theta (deg)")
+        label4B=QtWidgets.QLabel("Theta (deg)")
         row4.addWidget(label4B)
-        self.theta=QtGui.QLineEdit()
+        self.theta=QtWidgets.QLineEdit()
         self.theta.setText("0.0")
         row4.addWidget(self.theta)
-        label4C=QtGui.QLabel("Phi (deg)")
+        label4C=QtWidgets.QLabel("Phi (deg)")
         row4.addWidget(label4C)
-        self.phi=QtGui.QLineEdit()
+        self.phi=QtWidgets.QLineEdit()
         self.phi.setText("0.0")
         row4.addWidget(self.phi)
 
         # Row 5: configuration (plot)
-        row5=QtGui.QHBoxLayout()
+        row5=QtWidgets.QHBoxLayout()
         row5.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row5)
 
-        label5A=QtGui.QLabel("Data to plot:")
+        label5A=QtWidgets.QLabel("Data to plot:")
         label5A.setFont(bFont)
         row5.addWidget(label5A)
 
-        self.dataToPlot=QtGui.QButtonGroup()
-        self.plotDispersion=QtGui.QRadioButton("Band dispersion")
-        self.plotPAD=QtGui.QRadioButton("Photoemission angular distribution (PAD)")
+        self.dataToPlot=QtWidgets.QButtonGroup()
+        self.plotDispersion=QtWidgets.QRadioButton("Band dispersion")
+        self.plotPAD=QtWidgets.QRadioButton("Photoemission angular distribution (PAD)")
         row5.addWidget(self.plotDispersion)
         row5.addWidget(self.plotPAD)
         self.dataToPlot.addButton(self.plotDispersion)
         self.dataToPlot.addButton(self.plotPAD)
         self.plotDispersion.setChecked(True)
         
-        self.plotButton=QtGui.QPushButton("Plot")
+        self.plotButton=QtWidgets.QPushButton("Plot")
         row5.addWidget(self.plotButton)
 
-        self.exportButton=QtGui.QPushButton("Export")
+        self.exportButton=QtWidgets.QPushButton("Export")
         row5.addWidget(self.exportButton)
         
         # Row 6 left: real-space image
-        row6=QtGui.QHBoxLayout()
+        row6=QtWidgets.QHBoxLayout()
         row6.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row6)
 
-        row6l=QtGui.QVBoxLayout()
+        row6l=QtWidgets.QVBoxLayout()
         row6l.setAlignment(QtCore.Qt.AlignTop)
         row6.addLayout(row6l)
 
         ## Row 1: Boundaries
-        row6l1=QtGui.QHBoxLayout()
+        row6l1=QtWidgets.QHBoxLayout()
         row6l1.setAlignment(QtCore.Qt.AlignLeft)
         row6l.addLayout(row6l1)
 
-        label6l1A=QtGui.QLabel("Boundaries (a, b, c)")
+        label6l1A=QtWidgets.QLabel("Boundaries (a, b, c)")
         label6l1A.setFont(bFont)
         row6l1.addWidget(label6l1A)
-        self.boundaryA=QtGui.QSpinBox()
+        self.boundaryA=QtWidgets.QSpinBox()
         self.boundaryA.setMinimum(1)
         self.boundaryA.setValue(1)
         row6l1.addWidget(self.boundaryA)
-        self.boundaryB=QtGui.QSpinBox()
+        self.boundaryB=QtWidgets.QSpinBox()
         self.boundaryB.setMinimum(1)
         self.boundaryB.setValue(1)
         row6l1.addWidget(self.boundaryB)
-        self.boundaryC=QtGui.QSpinBox()
+        self.boundaryC=QtWidgets.QSpinBox()
         self.boundaryC.setMinimum(1)
         self.boundaryC.setValue(1)
         row6l1.addWidget(self.boundaryC)
 
 
         ## Row 3: plot button
-        row6l3=QtGui.QHBoxLayout()
+        row6l3=QtWidgets.QHBoxLayout()
         row6l3.setAlignment(QtCore.Qt.AlignLeft)
         row6l.addLayout(row6l3)
-        self.realSpacePlot=QtGui.QPushButton("Draw")
+        self.realSpacePlot=QtWidgets.QPushButton("Draw")
         row6l3.addWidget(self.realSpacePlot)
         
         ## Row 4: GLView
-        row6l4=QtGui.QHBoxLayout()
+        row6l4=QtWidgets.QHBoxLayout()
         row6l4.setAlignment(QtCore.Qt.AlignLeft)
         row6l.addLayout(row6l4)
         self.realSpace=gl.GLViewWidget()
@@ -214,7 +214,7 @@ class MainWindow(QtWidgets.QMainWindow):
         row6l4.addWidget(self.realSpace)
 
         # Row 6 center: graph (2D / 3D)
-        self.graphTab=QtGui.QTabWidget()
+        self.graphTab=QtWidgets.QTabWidget()
         row6.addWidget(self.graphTab, 3)
 
         ## 2D
@@ -257,10 +257,10 @@ class MainWindow(QtWidgets.QMainWindow):
         ## [3D] | [Ey] [xy]
         ##      |      [Ex]
 
-        row6_3d=QtGui.QHBoxLayout()
+        row6_3d=QtWidgets.QHBoxLayout()
         row6_3d.setAlignment(QtCore.Qt.AlignLeft)
 
-        tabWidget=QtGui.QWidget()
+        tabWidget=QtWidgets.QWidget()
         tabWidget.setLayout(row6_3d)
         self.graphTab.addTab(tabWidget, "3D")
         
@@ -394,107 +394,107 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plot3.keyPressEvent=changeKXYIndices
 
         # Row 6 right: properties
-        vbox2=QtGui.QVBoxLayout()
+        vbox2=QtWidgets.QVBoxLayout()
         vbox2.setAlignment(QtCore.Qt.AlignTop)
         row6.addLayout(vbox2, 1)
 
         ## row 1: k index
-        row6r1=QtGui.QHBoxLayout()
+        row6r1=QtWidgets.QHBoxLayout()
         row6r1.setAlignment(QtCore.Qt.AlignLeft)
         vbox2.addLayout(row6r1)
         
-        label6r1A=QtGui.QLabel("kx index")
+        label6r1A=QtWidgets.QLabel("kx index")
         row6r1.addWidget(label6r1A)
-        self.kxIndex=QtGui.QSpinBox()
+        self.kxIndex=QtWidgets.QSpinBox()
         self.kxIndex.setSingleStep(1)
         self.kxIndex.setMinimum(0)
         row6r1.addWidget(self.kxIndex)
 
-        self.kxValue=QtGui.QLabel()
+        self.kxValue=QtWidgets.QLabel()
         row6r1.addWidget(self.kxValue)
 
-        label6r1B=QtGui.QLabel("ky index")
+        label6r1B=QtWidgets.QLabel("ky index")
         row6r1.addWidget(label6r1B)
-        self.kyIndex=QtGui.QSpinBox()
+        self.kyIndex=QtWidgets.QSpinBox()
         self.kyIndex.setSingleStep(1)
         self.kyIndex.setMinimum(0)
         row6r1.addWidget(self.kyIndex)
 
-        self.kyValue=QtGui.QLabel()
+        self.kyValue=QtWidgets.QLabel()
         row6r1.addWidget(self.kyValue)
 
         ## row 2: band index and Constant energy index
-        row6r2=QtGui.QHBoxLayout()
+        row6r2=QtWidgets.QHBoxLayout()
         row6r2.setAlignment(QtCore.Qt.AlignLeft)
         vbox2.addLayout(row6r2)
         
-        label6r2A=QtGui.QLabel("Band index")
+        label6r2A=QtWidgets.QLabel("Band index")
         row6r2.addWidget(label6r2A)
-        self.bIndex=QtGui.QSpinBox()
+        self.bIndex=QtWidgets.QSpinBox()
         self.bIndex.setSingleStep(1)
         self.bIndex.setMinimum(0)
         row6r2.addWidget(self.bIndex)
-        self.bValue=QtGui.QLabel()
+        self.bValue=QtWidgets.QLabel()
         row6r2.addWidget(self.bValue)
 
-        label6r2B=QtGui.QLabel("Energy index")
+        label6r2B=QtWidgets.QLabel("Energy index")
         row6r2.addWidget(label6r2B)
-        self.eIndex=QtGui.QSpinBox()
+        self.eIndex=QtWidgets.QSpinBox()
         self.eIndex.setSingleStep(1)
         self.eIndex.setMinimum(0)
         row6r2.addWidget(self.eIndex)
-        self.eValue=QtGui.QLabel()
+        self.eValue=QtWidgets.QLabel()
         row6r2.addWidget(self.eValue)
 
         ## row 3: Up or Dn
-        row6r3=QtGui.QHBoxLayout()
+        row6r3=QtWidgets.QHBoxLayout()
         row6r3.setAlignment(QtCore.Qt.AlignLeft)
         vbox2.addLayout(row6r3)
 
-        self.UpDn=QtGui.QButtonGroup()
-        self.UpButton=QtGui.QRadioButton("Up")
-        self.DnButton=QtGui.QRadioButton("Dn")
+        self.UpDn=QtWidgets.QButtonGroup()
+        self.UpButton=QtWidgets.QRadioButton("Up")
+        self.DnButton=QtWidgets.QRadioButton("Dn")
         row6r3.addWidget(self.UpButton)
         row6r3.addWidget(self.DnButton)
         self.UpDn.addButton(self.UpButton)
         self.UpDn.addButton(self.DnButton)
 
         ## row 4: Atom
-        row6r4=QtGui.QHBoxLayout()
+        row6r4=QtWidgets.QHBoxLayout()
         row6r4.setAlignment(QtCore.Qt.AlignLeft)
         vbox2.addLayout(row6r4)
 
-        label6r4A=QtGui.QLabel("Atom")
+        label6r4A=QtWidgets.QLabel("Atom")
         row6r4.addWidget(label6r4A)
 
-        self.Atom=QtGui.QComboBox()
+        self.Atom=QtWidgets.QComboBox()
         self.Atom.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
         row6r4.addWidget(self.Atom)
 
         ## row 5: data tab
-        row5r5=QtGui.QTabWidget()
+        row5r5=QtWidgets.QTabWidget()
         vbox2.addWidget(row5r5)
         
         ### LCAO table
-        self.LCAOTable=QtGui.QTableWidget()
+        self.LCAOTable=QtWidgets.QTableWidget()
         row5r5.addTab(self.LCAOTable, "LCAO")
 
         ### radial wavefunction
-        row6wfn=QtGui.QVBoxLayout()
+        row6wfn=QtWidgets.QVBoxLayout()
         row6wfn.setAlignment(QtCore.Qt.AlignTop)
 
-        row6wfnWidget=QtGui.QWidget()
+        row6wfnWidget=QtWidgets.QWidget()
         row6wfnWidget.setLayout(row6wfn)
         row5r5.addTab(row6wfnWidget, "Wavefunction")
 
         #### row 1: select orbital
-        row6wfn1=QtGui.QHBoxLayout()
+        row6wfn1=QtWidgets.QHBoxLayout()
         row6wfn1.setAlignment(QtCore.Qt.AlignLeft)
         row6wfn.addLayout(row6wfn1)
 
-        label6wfn1A=QtGui.QLabel("Orbital")
+        label6wfn1A=QtWidgets.QLabel("Orbital")
         row6wfn1.addWidget(label6wfn1A)
-        self.orbitalToPlot=QtGui.QComboBox()
+        self.orbitalToPlot=QtWidgets.QComboBox()
         self.orbitalToPlot.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
         row6wfn1.addWidget(self.orbitalToPlot)
         
@@ -518,7 +518,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 
-app=QtGui.QApplication([])
+app=QtWidgets.QApplication([])
 # win: MainWindow object
 win=MainWindow()
 font=QtGui.QFont()

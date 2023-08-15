@@ -23,69 +23,69 @@ class MainWindow(QtWidgets.QMainWindow):
         bFont=QtGui.QFont(font)
         bFont.setBold(True)
         
-        vbox=QtGui.QVBoxLayout()
+        vbox=QtWidgets.QVBoxLayout()
         vbox.setContentsMargins(*Config.ContentsMargins)
         vbox.setAlignment(QtCore.Qt.AlignTop)
 
 
-        mainWidget=QtGui.QWidget()
+        mainWidget=QtWidgets.QWidget()
         mainWidget.setLayout(vbox)
         self.setCentralWidget(mainWidget)
 
         # Row 1: Open file button
-        row1=QtGui.QHBoxLayout()
+        row1=QtWidgets.QHBoxLayout()
         row1.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row1)
-        self.openFileButton=QtGui.QPushButton("Open file")
+        self.openFileButton=QtWidgets.QPushButton("Open file")
         row1.addWidget(self.openFileButton)
 
-        self.filePath=QtGui.QLabel()
+        self.filePath=QtWidgets.QLabel()
         row1.addWidget(self.filePath)
 
         # Row 6 left: real-space image
-        row6=QtGui.QHBoxLayout()
+        row6=QtWidgets.QHBoxLayout()
         row6.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row6)
 
-        row6l=QtGui.QVBoxLayout()
+        row6l=QtWidgets.QVBoxLayout()
         row6l.setAlignment(QtCore.Qt.AlignTop)
         row6.addLayout(row6l)
 
         ## Row 1: Boundaries
-        row6l1=QtGui.QHBoxLayout()
+        row6l1=QtWidgets.QHBoxLayout()
         row6l1.setAlignment(QtCore.Qt.AlignLeft)
         row6l.addLayout(row6l1)
 
-        label6l1A=QtGui.QLabel("Boundaries (a, b, c)")
+        label6l1A=QtWidgets.QLabel("Boundaries (a, b, c)")
         label6l1A.setFont(bFont)
         row6l1.addWidget(label6l1A)
-        self.boundaryA=QtGui.QSpinBox()
+        self.boundaryA=QtWidgets.QSpinBox()
         self.boundaryA.setMinimum(1)
         self.boundaryA.setValue(1)
         row6l1.addWidget(self.boundaryA)
-        self.boundaryB=QtGui.QSpinBox()
+        self.boundaryB=QtWidgets.QSpinBox()
         self.boundaryB.setMinimum(1)
         self.boundaryB.setValue(1)
         row6l1.addWidget(self.boundaryB)
-        self.boundaryC=QtGui.QSpinBox()
+        self.boundaryC=QtWidgets.QSpinBox()
         self.boundaryC.setMinimum(1)
         self.boundaryC.setValue(1)
         row6l1.addWidget(self.boundaryC)
 
         ## Row 2: Weighting
-        self.enableWeight=QtGui.QCheckBox("Enable weighting")
+        self.enableWeight=QtWidgets.QCheckBox("Enable weighting")
         row6l.addWidget(self.enableWeight)
 
         
         ## Row 3: plot button
-        row6l3=QtGui.QHBoxLayout()
+        row6l3=QtWidgets.QHBoxLayout()
         row6l3.setAlignment(QtCore.Qt.AlignLeft)
         row6l.addLayout(row6l3)
-        self.realSpacePlot=QtGui.QPushButton("Draw")
+        self.realSpacePlot=QtWidgets.QPushButton("Draw")
         row6l3.addWidget(self.realSpacePlot)
         
         ## Row 4: GLView
-        row6l4=QtGui.QHBoxLayout()
+        row6l4=QtWidgets.QHBoxLayout()
         row6l4.setAlignment(QtCore.Qt.AlignLeft)
         row6l.addLayout(row6l4)
         self.realSpace=gl.GLViewWidget()
@@ -94,46 +94,46 @@ class MainWindow(QtWidgets.QMainWindow):
         row6l4.addWidget(self.realSpace)
 
         # Row 6 right: graph (2D / 3D)
-        row6r=QtGui.QVBoxLayout()
+        row6r=QtWidgets.QVBoxLayout()
         row6r.setAlignment(QtCore.Qt.AlignTop)
         row6.addLayout(row6r)
 
         ## Row6-1: indices button
-        row6r1=QtGui.QHBoxLayout()
+        row6r1=QtWidgets.QHBoxLayout()
         row6r1.setAlignment(QtCore.Qt.AlignLeft)
         row6r.addLayout(row6r1)
 
-        label6r1A=QtGui.QLabel("kx index")
+        label6r1A=QtWidgets.QLabel("kx index")
         row6r1.addWidget(label6r1A)
-        self.kxIndex=QtGui.QSpinBox()
+        self.kxIndex=QtWidgets.QSpinBox()
         self.kxIndex.setSingleStep(1)
         self.kxIndex.setMinimum(0)
         row6r1.addWidget(self.kxIndex)
 
-        self.kxValue=QtGui.QLabel()
+        self.kxValue=QtWidgets.QLabel()
         row6r1.addWidget(self.kxValue)
 
-        label6r1B=QtGui.QLabel("ky index")
+        label6r1B=QtWidgets.QLabel("ky index")
         row6r1.addWidget(label6r1B)
-        self.kyIndex=QtGui.QSpinBox()
+        self.kyIndex=QtWidgets.QSpinBox()
         self.kyIndex.setSingleStep(1)
         self.kyIndex.setMinimum(0)
         row6r1.addWidget(self.kyIndex)
 
-        self.kyValue=QtGui.QLabel()
+        self.kyValue=QtWidgets.QLabel()
         row6r1.addWidget(self.kyValue)
 
-        label6r2B=QtGui.QLabel("Energy index")
+        label6r2B=QtWidgets.QLabel("Energy index")
         row6r1.addWidget(label6r2B)
-        self.eIndex=QtGui.QSpinBox()
+        self.eIndex=QtWidgets.QSpinBox()
         self.eIndex.setSingleStep(1)
         self.eIndex.setMinimum(0)
         row6r1.addWidget(self.eIndex)
-        self.eValue=QtGui.QLabel()
+        self.eValue=QtWidgets.QLabel()
         row6r1.addWidget(self.eValue)
         
         ## Row6-2: graph
-        self.graphTab=QtGui.QTabWidget()
+        self.graphTab=QtWidgets.QTabWidget()
         row6r.addWidget(self.graphTab, 3)
 
         ## 2D
@@ -160,7 +160,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plot.getAxis("bottom").setLabel(**labelStyle)
         self.plot.getAxis("left").setLabel(**labelStyle)
         self.plot.setLabel(axis="left", text="E-EF (eV)")
-        self.plot.setLabel(axis="left", text="Wavevector (a.u.^-1)")
+        self.plot.setLabel(axis="bottom", text="Wavevector (a.u.^-1)")
 
         self.plot.showGrid(x=True, y=True, alpha=1.0)
         self.plot.getAxis("bottom").setZValue(1)
@@ -176,10 +176,10 @@ class MainWindow(QtWidgets.QMainWindow):
         ## [3D] | [Ey] [xy]
         ##      |      [Ex]
 
-        row6_3d=QtGui.QHBoxLayout()
+        row6_3d=QtWidgets.QHBoxLayout()
         row6_3d.setAlignment(QtCore.Qt.AlignLeft)
 
-        tabWidget=QtGui.QWidget()
+        tabWidget=QtWidgets.QWidget()
         tabWidget.setLayout(row6_3d)
         self.graphTab.addTab(tabWidget, "3D")
         
@@ -298,7 +298,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plot3.keyPressEvent=changeKXYIndices
     
 
-app=QtGui.QApplication([])
+app=QtWidgets.QApplication([])
 # win: MainWindow object
 win=MainWindow()
 font=QtGui.QFont()

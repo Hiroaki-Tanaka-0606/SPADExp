@@ -21,7 +21,7 @@ Dispersion=None # dispersion calculated in the specified energy range (numpy arr
 
 def openFile(win, Disp, Elements):
     currentFile=win.filePath.text()
-    selectedFile, _filter=QtGui.QFileDialog.getOpenFileName(caption="Open file", directory=currentFile)
+    selectedFile, _filter=QtWidgets.QFileDialog.getOpenFileName(caption="Open file", directory=currentFile)
     if selectedFile!="":
         # valid
         win.filePath.setText(selectedFile)

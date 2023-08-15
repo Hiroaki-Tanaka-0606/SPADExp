@@ -41,12 +41,12 @@ def convertLCAO_p(px, py, pz, LCAO):
     # pp1 -1/2 sqrt(3/2pi) sin(T)(cos(P)+i*sin(P)) = -(px+i*py)/sqrt(2)
 
     # therefore,
-    # phi = LCAO(px)*px+LCAO(py)*py
-    # phi = LCAO(pm1)*pm1+LCAO(pp1)*pp1
-    # LCAO(pm1)+LCAO(pp1)=sqrt(2)LCAO(px)
-    # iLCAO(pm1)-iLCAO(pp1)=sqrt(2)LCAO(py)
-    # LCAO(pm1)=sqrt(2)(LCAO(px)-iLCAO(py))
-    # LCAO(pp1)=sqrt(2)(LCAO(px)+iLCAO(py))
+    # phi = LCAO(px) *px  + LCAO(py) *py
+    # phi = LCAO(pm1)*pm1 + LCAO(pp1)*pp1
+    #   LCAO(pm1)- LCAO(pp1)=sqrt(2)LCAO(px)
+    # -iLCAO(pm1)-iLCAO(pp1)=sqrt(2)LCAO(py)
+    # LCAO(pm1)= (LCAO(px)+iLCAO(py))/sqrt(2)
+    # LCAO(pp1)=-(LCAO(px)-iLCAO(py))/sqrt(2)
     
     LCAO[0]=(px+1j*py)/math.sqrt(2)
     LCAO[1]=pz

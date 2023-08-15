@@ -16,127 +16,127 @@ class MainWindow(QtWidgets.QMainWindow):
         super(MainWindow, self).__init__(*args, **kwargs)
         self.setWindowTitle("OpenMX orbitals")
         
-        vbox=QtGui.QVBoxLayout()
+        vbox=QtWidgets.QVBoxLayout()
         vbox.setContentsMargins(*Config.ContentsMargins)
         vbox.setAlignment(QtCore.Qt.AlignTop)
 
 
-        mainWidget=QtGui.QWidget()
+        mainWidget=QtWidgets.QWidget()
         mainWidget.setLayout(vbox)
         self.setCentralWidget(mainWidget)
 
         # Row 1: working directory
-        row1=QtGui.QHBoxLayout()
+        row1=QtWidgets.QHBoxLayout()
         row1.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row1)
 
-        dirPath=QtGui.QLabel()
+        dirPath=QtWidgets.QLabel()
         row1.addWidget(dirPath)
         dirPath.setText(("Directory: {0:s}").format(Config.workingDirectory))
 
         # Row 2: atomic number, PAO and VPS files
-        row2=QtGui.QHBoxLayout()
+        row2=QtWidgets.QHBoxLayout()
         row2.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row2)
 
         ## atomic number
-        zLabel=QtGui.QLabel("Atomic number")
+        zLabel=QtWidgets.QLabel("Atomic number")
         row2.addWidget(zLabel)
-        self.atomNumber=QtGui.QComboBox()
+        self.atomNumber=QtWidgets.QComboBox()
         self.atomNumber.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         row2.addWidget(self.atomNumber)
         for z, el in enumerate(Config.el_symbol):
             self.atomNumber.addItem(("{0:d}: {1:s}").format(z, el))
 
         ## PAO file
-        pLabel=QtGui.QLabel("PAO file")
+        pLabel=QtWidgets.QLabel("PAO file")
         row2.addWidget(pLabel)
-        self.paoFile=QtGui.QComboBox()
+        self.paoFile=QtWidgets.QComboBox()
         self.paoFile.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         row2.addWidget(self.paoFile)
 
         ## VPS file
-        vLabel=QtGui.QLabel("VPS file")
+        vLabel=QtWidgets.QLabel("VPS file")
         row2.addWidget(vLabel)
-        self.vpsFile=QtGui.QComboBox()
+        self.vpsFile=QtWidgets.QComboBox()
         self.vpsFile.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         row2.addWidget(self.vpsFile)
 
         # Row 3: analysis type & calculation button
-        row3=QtGui.QHBoxLayout()
+        row3=QtWidgets.QHBoxLayout()
         row3.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row3)
 
-        mLabel=QtGui.QLabel("Analysis type")
+        mLabel=QtWidgets.QLabel("Analysis type")
         row3.addWidget(mLabel)
 
-        self.analysisType=QtGui.QComboBox()
+        self.analysisType=QtWidgets.QComboBox()
         for analysisType in Config.analysisTypes:
             self.analysisType.addItem(analysisType)
         row3.addWidget(self.analysisType)
 
-        self.calcButton_PAO=QtGui.QPushButton("Calculate for PAO")
+        self.calcButton_PAO=QtWidgets.QPushButton("Calculate for PAO")
         row3.addWidget(self.calcButton_PAO)
         
-        self.calcButton_VPS=QtGui.QPushButton("Calculate for VPS")
+        self.calcButton_VPS=QtWidgets.QPushButton("Calculate for VPS")
         row3.addWidget(self.calcButton_VPS)
 
-        self.outToHdf5Button=QtGui.QPushButton("Output to the hdf5 file")
+        self.outToHdf5Button=QtWidgets.QPushButton("Output to the hdf5 file")
         row3.addWidget(self.outToHdf5Button)
 
-        self.databaseButton=QtGui.QPushButton("Create database")
+        self.databaseButton=QtWidgets.QPushButton("Create database")
         row3.addWidget(self.databaseButton)
 
 
         # Row 4: select orbitals
-        row4=QtGui.QHBoxLayout()
+        row4=QtWidgets.QHBoxLayout()
         row4.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row4)
         
-        self.orbitalTable=QtGui.QTableWidget()
+        self.orbitalTable=QtWidgets.QTableWidget()
         row4.addWidget(self.orbitalTable)
-        self.orbitalTable.horizontalHeader().setSectionResizeMode(QtGui.QHeaderView.ResizeToContents)
-        self.orbitalTable.verticalHeader().setSectionResizeMode(QtGui.QHeaderView.Stretch)
+        self.orbitalTable.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents)
+        self.orbitalTable.verticalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
         self.orbitalTable.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
 
         # Row 5: graph and matrix prefs
-        row5=QtGui.QHBoxLayout()
+        row5=QtWidgets.QHBoxLayout()
         row5.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row5)
 
-        fLabel=QtGui.QLabel("Radial function type")
+        fLabel=QtWidgets.QLabel("Radial function type")
         row5.addWidget(fLabel)
 
-        self.radialType=QtGui.QButtonGroup()
-        radial_r=QtGui.QRadioButton("R(r)")
+        self.radialType=QtWidgets.QButtonGroup()
+        radial_r=QtWidgets.QRadioButton("R(r)")
         self.radialType.addButton(radial_r)
         row5.addWidget(radial_r)
-        radial_p=QtGui.QRadioButton("P(r)=r R(r)")
+        radial_p=QtWidgets.QRadioButton("P(r)=r R(r)")
         radial_p.setChecked(True)
         self.radialType.addButton(radial_p)
         row5.addWidget(radial_p)
 
-        mLabel=QtGui.QLabel("Matrix")
+        mLabel=QtWidgets.QLabel("Matrix")
         row5.addWidget(mLabel)
-        self.matrixType=QtGui.QComboBox()
+        self.matrixType=QtWidgets.QComboBox()
         self.matrixType.addItem("The choices are presented after an analysis is selected")
         row5.addWidget(self.matrixType)
 
         # Row 6: graph and matrix
-        row6=QtGui.QHBoxLayout()
+        row6=QtWidgets.QHBoxLayout()
         self.orbitalGraph=pg.PlotWidget()
         self.orbitalGraph.addLegend()
         row6.addWidget(self.orbitalGraph)
         vbox.addLayout(row6)
 
-        self.matrix=QtGui.QTableWidget()
+        self.matrix=QtWidgets.QTableWidget()
         row6.addWidget(self.matrix)
-        self.matrix.horizontalHeader().setSectionResizeMode(QtGui.QHeaderView.ResizeToContents)
-        self.matrix.verticalHeader().setSectionResizeMode(QtGui.QHeaderView.ResizeToContents)
+        self.matrix.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents)
+        self.matrix.verticalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents)
         self.matrix.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
 
 
-app=QtGui.QApplication([])
+app=QtWidgets.QApplication([])
 # win: MainWindow object
 win=MainWindow()
 font=QtGui.QFont()
