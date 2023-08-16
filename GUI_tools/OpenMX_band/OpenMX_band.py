@@ -21,65 +21,65 @@ class MainWindow(QtWidgets.QMainWindow):
         font.setFamilies(Config.fontFamilies)
         font.setPixelSize(Config.fontSize_normal)
         
-        vbox=QtGui.QVBoxLayout()
+        vbox=QtWidgets.QVBoxLayout()
         vbox.setContentsMargins(*Config.ContentsMargins)
         vbox.setAlignment(QtCore.Qt.AlignTop)
 
 
-        mainWidget=QtGui.QWidget()
+        mainWidget=QtWidgets.QWidget()
         mainWidget.setLayout(vbox)
         self.setCentralWidget(mainWidget)
 
         # Row 1: Open file button
-        row1=QtGui.QHBoxLayout()
+        row1=QtWidgets.QHBoxLayout()
         row1.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row1)
-        self.openFileButton=QtGui.QPushButton("Open file")
+        self.openFileButton=QtWidgets.QPushButton("Open file")
         row1.addWidget(self.openFileButton)
 
-        self.filePath=QtGui.QLabel()
+        self.filePath=QtWidgets.QLabel()
         row1.addWidget(self.filePath)
 
         # Row 2: configuration
-        row2=QtGui.QHBoxLayout()
+        row2=QtWidgets.QHBoxLayout()
         row2.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row2)
 
         ## Energy min and max
-        label2A=QtGui.QLabel("E-EF (min and max, eV)")
+        label2A=QtWidgets.QLabel("E-EF (min and max, eV)")
         row2.addWidget(label2A)
-        self.EMin=QtGui.QLineEdit()
+        self.EMin=QtWidgets.QLineEdit()
         self.EMin.setText("-6.0")
-        self.EMax=QtGui.QLineEdit()
+        self.EMax=QtWidgets.QLineEdit()
         self.EMax.setText("+2.0")
         row2.addWidget(self.EMin)
         row2.addWidget(self.EMax)
 
         ## Gauss width 
-        label2B=QtGui.QLabel("dE (eV)")
+        label2B=QtWidgets.QLabel("dE (eV)")
         row2.addWidget(label2B)
-        self.dE=QtGui.QLineEdit()
+        self.dE=QtWidgets.QLineEdit()
         self.dE.setText("0.1")
         row2.addWidget(self.dE)
 
         ## pixel size (along the energy)
-        label2C=QtGui.QLabel("Pixel (eV)")
+        label2C=QtWidgets.QLabel("Pixel (eV)")
         row2.addWidget(label2C)
-        self.EPixel=QtGui.QLineEdit()
+        self.EPixel=QtWidgets.QLineEdit()
         self.EPixel.setText("0.05")
         row2.addWidget(self.EPixel)
 
         ## plot button
-        self.plotButton=QtGui.QPushButton("Plot")
+        self.plotButton=QtWidgets.QPushButton("Plot")
         row2.addWidget(self.plotButton)
 
 
         # Row 3 left: graph (2D / 3D)
-        row3=QtGui.QHBoxLayout()
+        row3=QtWidgets.QHBoxLayout()
         row3.setAlignment(QtCore.Qt.AlignLeft)
         vbox.addLayout(row3)
 
-        self.graphTab=QtGui.QTabWidget()
+        self.graphTab=QtWidgets.QTabWidget()
         row3.addWidget(self.graphTab, 3)
         
         ## 2D
@@ -115,10 +115,10 @@ class MainWindow(QtWidgets.QMainWindow):
         ## [3D] | [Ey] [xy]
         ##      |      [Ex]
 
-        row3_3d=QtGui.QHBoxLayout()
+        row3_3d=QtWidgets.QHBoxLayout()
         row3_3d.setAlignment(QtCore.Qt.AlignLeft)
 
-        tabWidget=QtGui.QWidget()
+        tabWidget=QtWidgets.QWidget()
         tabWidget.setLayout(row3_3d)
         self.graphTab.addTab(tabWidget, "3D")
         
@@ -243,91 +243,91 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plot3.keyPressEvent=changeKXYIndices
 
         # Row 3 right: properties
-        vbox2=QtGui.QVBoxLayout()
+        vbox2=QtWidgets.QVBoxLayout()
         vbox2.setAlignment(QtCore.Qt.AlignTop)
         row3.addLayout(vbox2, 1)
 
         ## row 1: k index
-        row3r1=QtGui.QHBoxLayout()
+        row3r1=QtWidgets.QHBoxLayout()
         row3r1.setAlignment(QtCore.Qt.AlignLeft)
         vbox2.addLayout(row3r1)
         
-        label3r1A=QtGui.QLabel("kx index")
+        label3r1A=QtWidgets.QLabel("kx index")
         row3r1.addWidget(label3r1A)
-        self.kxIndex=QtGui.QSpinBox()
+        self.kxIndex=QtWidgets.QSpinBox()
         self.kxIndex.setSingleStep(1)
         self.kxIndex.setMinimum(0)
         row3r1.addWidget(self.kxIndex)
 
-        self.kxValue=QtGui.QLabel()
+        self.kxValue=QtWidgets.QLabel()
         row3r1.addWidget(self.kxValue)
 
-        label3r1B=QtGui.QLabel("ky index")
+        label3r1B=QtWidgets.QLabel("ky index")
         row3r1.addWidget(label3r1B)
-        self.kyIndex=QtGui.QSpinBox()
+        self.kyIndex=QtWidgets.QSpinBox()
         self.kyIndex.setSingleStep(1)
         self.kyIndex.setMinimum(0)
         row3r1.addWidget(self.kyIndex)
 
-        self.kyValue=QtGui.QLabel()
+        self.kyValue=QtWidgets.QLabel()
         row3r1.addWidget(self.kyValue)
 
         ## row 2: band index and Constant energy index
-        row3r2=QtGui.QHBoxLayout()
+        row3r2=QtWidgets.QHBoxLayout()
         row3r2.setAlignment(QtCore.Qt.AlignLeft)
         vbox2.addLayout(row3r2)
         
-        label3r2A=QtGui.QLabel("Band index")
+        label3r2A=QtWidgets.QLabel("Band index")
         row3r2.addWidget(label3r2A)
-        self.bIndex=QtGui.QSpinBox()
+        self.bIndex=QtWidgets.QSpinBox()
         self.bIndex.setSingleStep(1)
         self.bIndex.setMinimum(0)
         row3r2.addWidget(self.bIndex)
-        self.bValue=QtGui.QLabel()
+        self.bValue=QtWidgets.QLabel()
         row3r2.addWidget(self.bValue)
 
-        label3r2B=QtGui.QLabel("Energy index")
+        label3r2B=QtWidgets.QLabel("Energy index")
         row3r2.addWidget(label3r2B)
-        self.eIndex=QtGui.QSpinBox()
+        self.eIndex=QtWidgets.QSpinBox()
         self.eIndex.setSingleStep(1)
         self.eIndex.setMinimum(0)
         row3r2.addWidget(self.eIndex)
-        self.eValue=QtGui.QLabel()
+        self.eValue=QtWidgets.QLabel()
         row3r2.addWidget(self.eValue)
 
         ## row 3: Up or Dn
-        row3r3=QtGui.QHBoxLayout()
+        row3r3=QtWidgets.QHBoxLayout()
         row3r3.setAlignment(QtCore.Qt.AlignLeft)
         vbox2.addLayout(row3r3)
 
-        self.UpDn=QtGui.QButtonGroup()
-        self.UpButton=QtGui.QRadioButton("Up")
-        self.DnButton=QtGui.QRadioButton("Dn")
+        self.UpDn=QtWidgets.QButtonGroup()
+        self.UpButton=QtWidgets.QRadioButton("Up")
+        self.DnButton=QtWidgets.QRadioButton("Dn")
         row3r3.addWidget(self.UpButton)
         row3r3.addWidget(self.DnButton)
         self.UpDn.addButton(self.UpButton)
         self.UpDn.addButton(self.DnButton)
 
         ## row 4: Atom
-        row3r4=QtGui.QHBoxLayout()
+        row3r4=QtWidgets.QHBoxLayout()
         row3r4.setAlignment(QtCore.Qt.AlignLeft)
         vbox2.addLayout(row3r4)
 
-        label3r4A=QtGui.QLabel("Atom")
+        label3r4A=QtWidgets.QLabel("Atom")
         row3r4.addWidget(label3r4A)
 
-        self.Atom=QtGui.QComboBox()
+        self.Atom=QtWidgets.QComboBox()
         self.Atom.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
         row3r4.addWidget(self.Atom)
 
         ## row 5: LCAO table
-        self.LCAOTable=QtGui.QTableWidget()
+        self.LCAOTable=QtWidgets.QTableWidget()
         vbox2.addWidget(self.LCAOTable)
         
 
 
 
-app=QtGui.QApplication([])
+app=QtWidgets.QApplication([])
 # win: MainWindow object
 win=MainWindow()
 font=QtGui.QFont()

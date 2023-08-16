@@ -105,11 +105,11 @@ def changeAnalysis(win):
         win.orbitalTable.setRowCount(PAO_after.PAO_Lmax+1)
         win.orbitalTable.setColumnCount(PAO_after.PAO_Mul)
         for l in range(0, PAO_after.PAO_Lmax+1):
-            win.orbitalTable.setVerticalHeaderItem(l, QtGui.QTableWidgetItem(Config.azimuthal[l]))
+            win.orbitalTable.setVerticalHeaderItem(l, QtWidgets.QTableWidgetItem(Config.azimuthal[l]))
             
         for p in range(0, PAO_after.PAO_Mul):
             for l in range(0, PAO_after.PAO_Lmax+1):
-                item=QtGui.QTableWidgetItem(Config.azimuthal[l]+str(p))
+                item=QtWidgets.QTableWidgetItem(Config.azimuthal[l]+str(p))
                 item.setBackground(Config.unselected_item)
                 win.orbitalTable.setItem(l, p, item)
 
@@ -169,11 +169,11 @@ def changeAnalysis(win):
         win.orbitalTable.setRowCount(Lmax+1)
         win.orbitalTable.setColumnCount(Mul)
         for l in range(0, Lmax+1):
-            win.orbitalTable.setVerticalHeaderItem(l, QtGui.QTableWidgetItem(Config.azimuthal[l]))
+            win.orbitalTable.setVerticalHeaderItem(l, QtWidgets.QTableWidgetItem(Config.azimuthal[l]))
             
         for p in range(0, Mul):
             for l in range(0, Lmax+1):
-                item=QtGui.QTableWidgetItem(Config.azimuthal[l]+str(p))
+                item=QtWidgets.QTableWidgetItem(Config.azimuthal[l]+str(p))
                 item.setBackground(Config.unselected_item)
                 win.orbitalTable.setItem(l, p, item)
 
@@ -233,11 +233,11 @@ def changeAnalysis(win):
         win.orbitalTable.setRowCount(Lmax+1)
         win.orbitalTable.setColumnCount(Mul)
         for l in range(0, Lmax+1):
-            win.orbitalTable.setVerticalHeaderItem(l, QtGui.QTableWidgetItem(Config.azimuthal[l]))
+            win.orbitalTable.setVerticalHeaderItem(l, QtWidgets.QTableWidgetItem(Config.azimuthal[l]))
             
         for p in range(0, Mul):
             for l in range(0, Lmax+1):
-                item=QtGui.QTableWidgetItem(Config.azimuthal[l]+str(p))
+                item=QtWidgets.QTableWidgetItem(Config.azimuthal[l]+str(p))
                 item.setBackground(Config.unselected_item)
                 win.orbitalTable.setItem(l, p, item)
 
@@ -291,7 +291,7 @@ def changeAnalysis(win):
         win.orbitalTable.setColumnCount(AO_fromVPS.max_N)
         Selected_orbitals=np.zeros((AO_fromVPS.maxL_pao+1, AO_fromVPS.max_N))
         for l in range(0, AO_fromVPS.maxL_pao+1):
-            win.orbitalTable.setVerticalHeaderItem(l, QtGui.QTableWidgetItem(Config.azimuthal[l]))
+            win.orbitalTable.setVerticalHeaderItem(l, QtWidgets.QTableWidgetItem(Config.azimuthal[l]))
 
             
         for n in range(1, AO_fromVPS.max_N+1):
@@ -304,7 +304,7 @@ def changeAnalysis(win):
                 elif n>=(PAO_fromVPS.valence_min[l] if len(PAO_fromVPS.valence_min)>l else l+1)+PAO_fromVPS.PAO_Mul:
                     item_str="["+ item_str+"]"
                     
-                item=QtGui.QTableWidgetItem(item_str)
+                item=QtWidgets.QTableWidgetItem(item_str)
                 item.setBackground(Config.unselected_item)
                 win.orbitalTable.setItem(l, n-1, item)
 
@@ -377,13 +377,13 @@ def changeAnalysis(win):
         win.orbitalTable.setColumnCount(PAO_after.PAO_Mul)
         
         for l in range(0, PAO_fromVPS.PAO_Lmax+1):
-            win.orbitalTable.setVerticalHeaderItem(l, QtGui.QTableWidgetItem(Config.azimuthal[l]))
+            win.orbitalTable.setVerticalHeaderItem(l, QtWidgets.QTableWidgetItem(Config.azimuthal[l]))
 
             
         for p in range(0, PAO_after.PAO_Mul):
             for l in range(0, PAO_after.PAO_Lmax+1):
                 item_str=Config.azimuthal[l]+str(p)
-                item=QtGui.QTableWidgetItem(item_str)
+                item=QtWidgets.QTableWidgetItem(item_str)
                 item.setBackground(Config.unselected_item)
                 win.orbitalTable.setItem(l, p, item)
                 
@@ -579,7 +579,7 @@ def changeMatrix(win):
             l=matrixIndex
             for i in range(0, PAO_after.PAO_Mul):
                 for j in range(0, PAO_after.PAO_Mul):
-                    item=QtGui.QTableWidgetItem(("{0:7.4f}\n{1:7.4f}").format(PAO_after.CCoes[l][i][j], Calc_CCoes[l][i][j]))
+                    item=QtWidgets.QTableWidgetItem(("{0:7.4f}\n{1:7.4f}").format(PAO_after.CCoes[l][i][j], Calc_CCoes[l][i][j]))
                     win.matrix.setItem(j, i, item)
                     error=PAO_after.CCoes[l][i][j]-Calc_CCoes[l][i][j]
                     if abs(error)>Config.Contraction_threshold:
@@ -589,7 +589,7 @@ def changeMatrix(win):
             l=matrixIndex-PAO_after.PAO_Lmax-1
             for i in range(0, PAO_after.PAO_Mul):
                 for j in range(0, PAO_after.PAO_Mul):
-                    item=QtGui.QTableWidgetItem(("{0:7.4f}").format(PAO_before.OrthNorm[l][i][j]))
+                    item=QtWidgets.QTableWidgetItem(("{0:7.4f}").format(PAO_before.OrthNorm[l][i][j]))
                     win.matrix.setItem(j, i, item)
                     error=PAO_before.OrthNorm[l][i][j]
                     if i==j:
@@ -601,7 +601,7 @@ def changeMatrix(win):
             l=matrixIndex-PAO_after.PAO_Lmax*2-2
             for i in range(0, PAO_after.PAO_Mul):
                 for j in range(0, PAO_after.PAO_Mul):
-                    item=QtGui.QTableWidgetItem(("{0:7.4f}").format(PAO_after.OrthNorm[l][i][j]))
+                    item=QtWidgets.QTableWidgetItem(("{0:7.4f}").format(PAO_after.OrthNorm[l][i][j]))
                     win.matrix.setItem(j, i, item)
                     error=PAO_after.OrthNorm[l][i][j]
                     if i==j:
@@ -619,7 +619,7 @@ def changeMatrix(win):
             win.matrix.setColumnCount(PAO_before.PAO_Mul)
             for i in range(0, PAO_before.PAO_Mul):
                 for j in range(0, PAO_fromVPS.PAO_Mul):
-                    item=QtGui.QTableWidgetItem(("{0:7.4f}").format(Calc_CCoes[l][i][j]))
+                    item=QtWidgets.QTableWidgetItem(("{0:7.4f}").format(Calc_CCoes[l][i][j]))
                     win.matrix.setItem(j, i, item)
         elif matrixIndex>=PAO_before.PAO_Lmax+1 and matrixIndex<=PAO_before.PAO_Lmax*2+1:
             # Orthonormalization matrix (before)
@@ -628,7 +628,7 @@ def changeMatrix(win):
             win.matrix.setRowCount(PAO_before.PAO_Mul)
             for i in range(0, PAO_before.PAO_Mul):
                 for j in range(0, PAO_before.PAO_Mul):
-                    item=QtGui.QTableWidgetItem(("{0:7.4f}").format(PAO_before.OrthNorm[l][i][j]))
+                    item=QtWidgets.QTableWidgetItem(("{0:7.4f}").format(PAO_before.OrthNorm[l][i][j]))
                     win.matrix.setItem(j, i, item)
                     error=PAO_before.OrthNorm[l][i][j]
                     if i==j:
@@ -642,7 +642,7 @@ def changeMatrix(win):
             win.matrix.setRowCount(PAO_fromVPS.PAO_Mul)
             for i in range(0, PAO_fromVPS.PAO_Mul):
                 for j in range(0, PAO_fromVPS.PAO_Mul):
-                    item=QtGui.QTableWidgetItem(("{0:7.4f}").format(PAO_fromVPS.OrthNorm[l][i][j]))
+                    item=QtWidgets.QTableWidgetItem(("{0:7.4f}").format(PAO_fromVPS.OrthNorm[l][i][j]))
                     win.matrix.setItem(j, i, item)
                     error=PAO_fromVPS.OrthNorm[l][i][j]
                     if i==j:
@@ -660,7 +660,7 @@ def changeMatrix(win):
             win.matrix.setColumnCount(PAO_after.PAO_Mul)
             for i in range(0, PAO_after.PAO_Mul):
                 for j in range(0, PAO_fromVPS.PAO_Mul):
-                    item=QtGui.QTableWidgetItem(("{0:7.4f}\n({1:7.4f})").format(Calc_CCoes[l][i][j],(PAO_after.CCoes[l][i][j] if j<PAO_after.PAO_Mul else 0)))
+                    item=QtWidgets.QTableWidgetItem(("{0:7.4f}\n({1:7.4f})").format(Calc_CCoes[l][i][j],(PAO_after.CCoes[l][i][j] if j<PAO_after.PAO_Mul else 0)))
                     win.matrix.setItem(j, i, item)
                     error=(PAO_after.CCoes[l][i][j] if j<PAO_after.PAO_Mul else 0)-Calc_CCoes[l][i][j]
                     if abs(error)>Config.Contraction_threshold:
@@ -672,7 +672,7 @@ def changeMatrix(win):
             win.matrix.setRowCount(PAO_after.PAO_Mul)
             for i in range(0, PAO_after.PAO_Mul):
                 for j in range(0, PAO_after.PAO_Mul):
-                    item=QtGui.QTableWidgetItem(("{0:7.4f}").format(PAO_after.OrthNorm[l][i][j]))
+                    item=QtWidgets.QTableWidgetItem(("{0:7.4f}").format(PAO_after.OrthNorm[l][i][j]))
                     win.matrix.setItem(j, i, item)
                     error=PAO_after.OrthNorm[l][i][j]
                     if i==j:
@@ -686,7 +686,7 @@ def changeMatrix(win):
             win.matrix.setRowCount(PAO_fromVPS.PAO_Mul)
             for i in range(0, PAO_fromVPS.PAO_Mul):
                 for j in range(0, PAO_fromVPS.PAO_Mul):
-                    item=QtGui.QTableWidgetItem(("{0:7.4f}").format(PAO_fromVPS.OrthNorm[l][i][j]))
+                    item=QtWidgets.QTableWidgetItem(("{0:7.4f}").format(PAO_fromVPS.OrthNorm[l][i][j]))
                     win.matrix.setItem(j, i, item)
                     error=PAO_fromVPS.OrthNorm[l][i][j]
                     if i==j:
@@ -704,7 +704,7 @@ def changeMatrix(win):
             win.matrix.setRowCount(PAO_fromVPS.PAO_Mul)
             for i in range(0, PAO_fromVPS.PAO_Mul):
                 for j in range(0, PAO_fromVPS.PAO_Mul):
-                    item=QtGui.QTableWidgetItem(("{0:7.4f}").format(PAO_fromVPS.OrthNorm[l][i][j]))
+                    item=QtWidgets.QTableWidgetItem(("{0:7.4f}").format(PAO_fromVPS.OrthNorm[l][i][j]))
                     win.matrix.setItem(j, i, item)
                     error=PAO_fromVPS.OrthNorm[l][i][j]
                     if i==j:
@@ -718,7 +718,7 @@ def changeMatrix(win):
             win.matrix.setRowCount(AO_fromVPS.max_N)
             for i in range(0, AO_fromVPS.max_N):
                 for j in range(0, AO_fromVPS.max_N):
-                    item=QtGui.QTableWidgetItem(("{0:7.4f}").format(AO_fromVPS.OrthNorm[l][i][j]))
+                    item=QtWidgets.QTableWidgetItem(("{0:7.4f}").format(AO_fromVPS.OrthNorm[l][i][j]))
                     win.matrix.setItem(j, i, item)
                     error=AO_fromVPS.OrthNorm[l][i][j]
                     if i==j:
