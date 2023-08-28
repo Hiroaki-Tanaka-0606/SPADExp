@@ -484,7 +484,8 @@ int main(int argc, const char** argv){
 
 	// data loaded from the output file
 	int numBands= (spinPol_i==2) ? totalOrbits*2 : totalOrbits;
-	int numBands_out= (spinPol_i==2) ? (maxN-minN+1)*2 : (maxN-minN+1);
+	//int numBands_out= (spinPol_i==2) ? (maxN-minN+1)*2 : (maxN-minN+1);
+	int numBands_out= maxN-minN+1;
 	double Band[total_count][numBands_out];
 	double BandUp[total_count][numBands_out];
 	double BandDn[total_count][numBands_out];
