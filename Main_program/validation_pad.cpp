@@ -162,6 +162,8 @@ int validation_PAD(){
 					write_log((char*)"Error: FPFS_Numerov = true and FPFS_bulk are incompatible");
 					status=0; goto FINALIZATION;
 				}
+				sprintf(sprintf_buffer, "%32s = %s", "FPFS_bulk_include_nonlocal", PA_FPFS_bulk_include_nonlocal?"true":"false");
+				write_log(sprintf_buffer);
 			}
 			/// FPFS_kRange
 			sprintf(sprintf_buffer, "%32s = %.3f", "FPFS_kRange", PA_FPFS_kRange);

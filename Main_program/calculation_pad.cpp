@@ -139,8 +139,8 @@ void calculate_PAD(){
 	r_data_1c(AtomG, "Labels", size1, length, (char**) atom_labels);
 	//// coordinates (in unit of atom_unit)
 	s_data_2d(AtomG, "Coordinates", &size1, &size2);
-	double atom_coordinates[size1][size2];
-	r_data_2d(AtomG, "Coordinates", size1, size2, (double**) atom_coordinates);
+	double** atom_coordinates=alloc_dmatrix(size1, size2);
+	r_data_2d(AtomG, "Coordinates", size1, size2, (double**) &atom_coordinates[0][0]);
 
 	write_log((char*)"----Atoms----");
 	for(i=0; i<atom_length; i++){
@@ -970,6 +970,9 @@ void calculate_PAD(){
 	int wfn_cutoff_index[atom_spec_length];   // [is]=radial cutoff index based on wfn_r
 	double* VPS_E_ave[atom_spec_length];      // [is][il] = projector energies averaged w.r.t. ij
 	double** VPS_nonloc_ave[atom_spec_length];// [is][il][ir] = averaged nonlocal potentials, ir corresponds to VPS_r
+	int VPS_r_length_reduced[atom_spec_length];       // for bulk nonlocal
+	double* VPS_r_reduced[atom_spec_length];          // for bulk nonlocal @cutoff
+	double** VPS_nonloc_ave_reduced[atom_spec_length];// for bulk nonlocal
 	double*** VKS0;                           // [ix][iy][iz] = Kohn-Sham potential for up spin (wo/ nonlocal)
 	double*** VKS1;                           // [ix][iy][iz] = Kohn-Sham potential for dn spin (wo/ nonlocal)
 	double* VKS0_r[atom_length];              // [ia][ir] (average) = radial Kohn-Sham potential for up spin ir ~ VPS_r
@@ -991,6 +994,7 @@ void calculate_PAD(){
 	double FPFS_bulk_max=PA_FPFS_bulk_max_ang/au_ang;
 	int FPFS_bulk_count=PA_FPFS_bulk_count;
 	double FPFS_bulk_height=(FPFS_bulk_max-FPFS_bulk_min)/(FPFS_bulk_count*1.0);
+	PA_FPFS_bulk_volume=FPFS_bulk_height*abs(atom_cell[1][0]*atom_cell[2][1]-atom_cell[1][1]*atom_cell[2][0]);
 	double FPFS_gz_length=2.0*M_PI/FPFS_bulk_height;
 	complex<double>* Vgg0_bulk;
 	double* Vgg0_abs_bulk;
@@ -1201,6 +1205,42 @@ void calculate_PAD(){
 				
 				for(int ir=0; ir<vps_cutoff_index[is]; ir++){
 					//printf("%7.4f %8.4f\n", VPS_r[is][ir], VPS_nonloc_ave[is][il][ir]);
+				}					
+			}
+			
+			// interpolation
+			if(PA_interpolate_wfn){
+				double vps_interpolate_dr=wfn_interpolate_dz;
+				VPS_r_length_reduced[is]=ceil(VPS_cutoff[is]/vps_interpolate_dr);
+				VPS_r_reduced[is]=new double[VPS_r_length_reduced[is]];
+				for(int ir=0; ir<VPS_r_length_reduced[is]; ir++){
+					VPS_r_reduced[is][ir]=(ir+0.5)*vps_interpolate_dr;
+				}
+				VPS_nonloc_ave_reduced[is]=new double*[VPS_l_length[is]];
+				for(int il=0; il<VPS_l_length[is]; il++){
+					VPS_nonloc_ave_reduced[is][il]=interpolate_wfn(VPS_r_length[is], &VPS_nonloc_ave[is][il][0], &VPS_r[is][0], VPS_r_length_reduced[is], vps_interpolate_dr);
+					/*
+					for(int ir=0; ir<VPS_r_length[is]; ir++){
+						printf("%f %f\n", VPS_r[is][ir], VPS_nonloc_ave[is][il][ir]);
+					}
+					printf("\n");
+					for(int ir=0; ir<VPS_r_length_reduced[is]; ir++){
+						printf("%f %f\n", VPS_r_reduced[is][ir], VPS_nonloc_ave_reduced[is][il][ir]);
+						}
+					*/
+				}
+			}else{
+				// simply copy
+				VPS_r_length_reduced[is]=vps_cutoff_index[is];
+				VPS_r_reduced[is]=new double[VPS_r_length_reduced[is]];
+				for(int ir=0; ir<VPS_r_length_reduced[is]; ir++){
+					VPS_r_reduced[is][ir]=VPS_r[is][ir];
+				}
+				VPS_nonloc_ave_reduced[is]=alloc_dmatrix(VPS_l_length[is], VPS_r_length_reduced[is]);
+				for(int il=0; il<VPS_l_length[is]; il++){
+					for(int ir=0; ir<VPS_r_length_reduced[is]; ir++){
+						VPS_nonloc_ave_reduced[is][il][ir]=VPS_nonloc_ave[is][il][ir];
+					}
 				}
 			}
 		}
@@ -1982,7 +2022,10 @@ void calculate_PAD(){
 						connection_c_pointer=&connection_c_dn;
 					}
 					calc_bulk_dispersion(k_point, PA_FPFS_bulk_kz_steps, FP_bulk_dispersion_kz, final_states_FP_g_size_bulk,
-															 final_states_FP_g_vec_bulk, Vgg_use, dispersion_use, bulk_matrix);
+															 final_states_FP_g_vec_bulk, Vgg_use, dispersion_use, bulk_matrix,
+															 atom_length, VPS_l_length, VPS_r_length_reduced,
+															 VPS_l, VPS_r_reduced, VPS_E_ave, VPS_nonloc_ave_reduced,
+															 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height);
 					/*
 						for(int ig=0; ig<final_states_FP_g_size_bulk; ig++){
 						for(int ikz=0; ikz<PA_FPFS_bulk_kz_steps; ikz++){
@@ -1994,7 +2037,10 @@ void calculate_PAD(){
 				  
 					calc_bulk_dispersion_complex(k_point, 0.0, FP_bulk_kappaz_count, kappaz_border_index, FP_bulk_dispersion_kappaz, 
 																			 final_states_FP_g_size_bulk, final_states_FP_g_bulk, final_states_FP_g_vec_bulk, Vgg_use,
-																			 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix);
+																			 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix,													 
+																			 atom_length, VPS_l_length, VPS_r_length_reduced,
+																			 VPS_l, VPS_r_reduced, VPS_E_ave, VPS_nonloc_ave_reduced,
+																			 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height);
 					/*
 						for(int ikappaz=0; ikappaz<FP_bulk_kappaz_count-1; ikappaz++){
 						for(int ib=0; ib<dispersion_c_count_pointer[ikappaz]; ib++){
@@ -2006,6 +2052,7 @@ void calculate_PAD(){
 						}
 						printf("\n");
 						}*/
+						
 					// BZ, positive kappaz
 					if(sp==0){
 						Vgg_use=Vgg0_matrix_bulk;
@@ -2020,7 +2067,10 @@ void calculate_PAD(){
 					}
 					calc_bulk_dispersion_complex(k_point, FPFS_gz_length*0.5, kappaz_border_index, kappaz_border_index, FP_bulk_dispersion_kappaz, 
 																			 final_states_FP_g_size_bulk, final_states_FP_g_bulk, final_states_FP_g_vec_bulk, Vgg_use,
-																			 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix);
+																			 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix,
+																			 atom_length, VPS_l_length, VPS_r_length_reduced,
+																			 VPS_l, VPS_r_reduced, VPS_E_ave, VPS_nonloc_ave_reduced,
+																			 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height);
 
 					// zero, negative kappaz
 					if(sp==0){
@@ -2036,7 +2086,10 @@ void calculate_PAD(){
 					}
 					calc_bulk_dispersion_complex(k_point, 0, kappaz_border_index, kappaz_border_index, FP_bulk_dispersion_mkappaz, 
 																			 final_states_FP_g_size_bulk, final_states_FP_g_bulk, final_states_FP_g_vec_bulk, Vgg_use,
-																			 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix);
+																			 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix,
+																			 atom_length, VPS_l_length, VPS_r_length_reduced,
+																			 VPS_l, VPS_r_reduced, VPS_E_ave, VPS_nonloc_ave_reduced,
+																			 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height);
 
 					// BZ, negative kappaz
 					if(sp==0){
@@ -2052,7 +2105,10 @@ void calculate_PAD(){
 					}
 					calc_bulk_dispersion_complex(k_point, FPFS_gz_length*0.5, kappaz_border_index, kappaz_border_index, FP_bulk_dispersion_mkappaz, 
 																			 final_states_FP_g_size_bulk, final_states_FP_g_bulk, final_states_FP_g_vec_bulk, Vgg_use,
-																			 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix);
+																			 dispersion_c_pointer, dispersion_c_count_pointer, connection_c_pointer, bulk_matrix,
+																			 atom_length, VPS_l_length, VPS_r_length_reduced,
+																			 VPS_l, VPS_r_reduced, VPS_E_ave, VPS_nonloc_ave_reduced,
+																			 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height);
 					//write_log((char*)"Bulk complex band calculation finished");
 
 					/*
@@ -2175,7 +2231,10 @@ void calculate_PAD(){
 																								dispersion_mc_use, dispersion_mc_count_use, connection_mc_use,
 																								dispersion_mc_BZ_use, dispersion_mc_BZ_count_use, connection_mc_BZ_use,
 																								&final_states_FP_bulk[i][j], &final_states_FP_bulk_kz[i][j], &final_states_FP_bulk_kappaz[i][j],
-																								bulk_matrix, bulk_VR);
+																								bulk_matrix, bulk_VR,
+																								atom_length, VPS_l_length, VPS_r_length_reduced,
+																								VPS_l, VPS_r_reduced, VPS_E_ave, VPS_nonloc_ave_reduced,
+																								atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height);
 					final_states_FP_bulk_count[i][j]=FP_bulk_count;
 					final_states_FP_bulk_coefs[i][j]=new complex<double>[FP_bulk_count];
 					// continue;
@@ -2435,7 +2494,7 @@ void calculate_PAD(){
 			}
 		}
 
-		if(!PA_ignore_core && !PA_ignore_nonlocal){
+		if(!PA_ignore_core && !PA_ignore_nonlocal && !PA_FPFS_bulk_include_nonlocal){
 			write_log((char*)"----Connection calculations between the core and valence----");
 #pragma omp parallel firstprivate(atom_length, PA_lp_max, PA_theta_points, PA_ext_set) private(j)
 #pragma omp for
@@ -2639,7 +2698,7 @@ void calculate_PAD(){
 		}
 
 		// nonlocal core part
-		if(!PA_ignore_core && !PA_ignore_nonlocal){
+		if(!PA_ignore_core && !PA_ignore_nonlocal && !PA_FPFS_bulk_include_nonlocal){
 			write_log((char*)"----Nonlocal part calculations----");
 #pragma omp parallel firstprivate(E_min_scale, org_indices_count, EF_Eh, Eh, PA_excitation_energy)
 #pragma omp for
@@ -3182,7 +3241,7 @@ void calculate_PAD(){
 										// prepare the spherical Bessel function
 										for(int ir=0; ir<wfn_length_use[is]; ir++){
 											//if(PA_ignore_core && wfn_r[is][ir]<VPS_cutoff[is]){
-											if(!empty_atoms[is] && ir<wfn_cutoff_index[is] && !PA_ignore_nonlocal){
+											if(!empty_atoms[is] && ir<wfn_cutoff_index[is] && !PA_ignore_nonlocal && !PA_FPFS_bulk_include_nonlocal){
 												sp_bessel_lp[ir]=0.0;
 											}else{
 												sp_bessel_lp[ir]=sp_bessel(lp, kpg_length*wfn_r_use[is][ir]);
@@ -3310,7 +3369,7 @@ void calculate_PAD(){
 							// jp1: j+1
 							// mp: of final state, mp=m+j
 							// mpplp: mp+lp=m+j+lp
-							if(!PA_ignore_core && !empty_atoms[is] && !PA_ignore_nonlocal){
+							if(!PA_ignore_core && !empty_atoms[is] && !PA_ignore_nonlocal && !PA_FPFS_bulk_include_nonlocal){
 								int ie=eigen_scale-E_min_scale;
 								
 								// connection check
@@ -3715,7 +3774,7 @@ void calculate_PAD(){
 	s_data_1c(SpecG, "Labels", &size1, &length);
 	w_data_1c(atomG_out, "Species", size1, length, (char**) atom_spec_label);
 
-	w_data_2d(atomG_out, "Coordinates", atom_length, 3, (double**) atom_coordinates);
+	w_data_2d(atomG_out, "Coordinates", atom_length, 3, (double**) &atom_coordinates[0][0]);
 	if(PA_weighting==true){
 		w_data_1d(atomG_out, "Weighting", atom_length, (double*) atom_weighting);
 	}
@@ -3895,7 +3954,7 @@ void calculate_PAD(){
 		s_data_1c(SpecG, "Labels", &size1, &length);
 		w_data_1c(atomG_out, "Species", size1, length, (char**) atom_spec_label);
 
-		w_data_2d(atomG_out, "Coordinates", atom_length, 3, (double**) atom_coordinates);
+		w_data_2d(atomG_out, "Coordinates", atom_length, 3, (double**) &atom_coordinates[0][0]);
 		if(PA_weighting==true){
 			w_data_1d(atomG_out, "Weighting", atom_length, (double*) atom_weighting);
 		}
@@ -3952,7 +4011,7 @@ void calculate_PAD(){
 		if(spin_i>0){
 			w_data_2d(PotG, "Vgg1_abs", Vgg_count, VKS_count[0], (double**)&Vgg1_abs[0][0]);
 		}
-		if(!PA_ignore_core && !PA_ignore_nonlocal){
+		if(!PA_ignore_core && !PA_ignore_nonlocal && !PA_FPFS_bulk_include_nonlocal){
 			for(ia=0; ia<atom_length; ia++){
 				is=atom_spec_index[ia];
 				sprintf(group_name, "%d_%s", ia+1, atom_spec_label[is]);

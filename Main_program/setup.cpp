@@ -175,6 +175,8 @@ void initialize(){
 	PA_ignore_nonlocal_set=false;
 	PA_FPFS_Numerov=false;
 	PA_FPFS_Numerov_set=false;
+	PA_FPFS_bulk_include_nonlocal=false;
+	PA_FPFS_bulk_include_nonlocal_set=false;
 	PA_FPFS_bulk_set=false;
 	PA_FPFS_bulk_min_ang=0.0;
 	PA_FPFS_bulk_max_ang=0.0;

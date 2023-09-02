@@ -1107,6 +1107,17 @@ int load_input(){
 				}
 			  PA_ignore_nonlocal_set=true; continue;
 			}
+			/// FPFS_bulk_include_nonlocal: bool
+			if(strcmp(keyword_buffer, "FPFS_bulk_include_nonlocal")==0){
+				if(PA_FPFS_bulk_include_nonlocal_set){
+					output_error(line_number, (char*)"keyword FPFS_bulk_include_nonlocal already appeared"); status=0; goto FINALIZATION;
+				}
+				parse_status=parse_bool(input_line_c, &PA_FPFS_bulk_include_nonlocal, value_buffer);
+				if(parse_status==0){
+					output_error(line_number, (char*)"invalid value of FPFS_bulk_include_nonlocal"); status=0; goto FINALIZATION;
+				}
+			  PA_FPFS_bulk_include_nonlocal_set=true; continue;
+			}
 			/// FPFS_Numerov: bool
 			if(strcmp(keyword_buffer, "FPFS_Numerov")==0){
 				if(PA_FPFS_Numerov_set){

@@ -213,8 +213,11 @@ bool PA_orth_correction;  // apply the orthgonality correction
 bool PA_orth_correction_set;
 bool PA_ignore_nonlocal;  // ignore the nonlocal part of the pseudopotential
 bool PA_ignore_nonlocal_set;
+bool PA_FPFS_bulk_include_nonlocal; // bulk band calculations include the nonlocal part
+bool PA_FPFS_bulk_include_nonlocal_set; 
 bool PA_FPFS_Numerov;  // perform the nonlocal wfn calculation using the Numerov method
 bool PA_FPFS_Numerov_set;
+double PA_FPFS_bulk_volume;
 //double PA_FPFS_margin;   // margin to determine the calculation range of local wfn if PA_calc_all_wfn=false
 //bool PA_FPFS_edge_smoothing; // perform the box smoothing of the edge values
 //bool PA_FPFS_edge_smoothing_set;

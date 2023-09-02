@@ -2089,8 +2089,111 @@ void prepare_matrix_bulk_complex(int g_count, complex<double>** mat, double Ekin
 		//printf("\n");
 	}
 }
-double determinant(int g_count, complex<double>** mat, double Ekin, double* k, double** g_vec, complex<double>** Vgg){
+// export_flag:
+// 0: do nothing
+// 1: calculate -> export to export_mat
+// 2: import from export_mat, do not calculate
+void add_nonlocal_term(int g_count, double** g_vec, complex<double>** mat, double* k_para, double kz_real,
+											 int atom_length, int* VPS_l_length, int* vps_cutoff_index,
+											 int** VPS_l, double** VPS_r, double** VPS_E_ave, double*** VPS_nonloc_ave,
+											 double** atom_coordinates, int* atom_spec_index,
+											 double FPFS_bulk_min, double FPFS_bulk_height, int export_flag, complex<double>** export_mat){
+	if(export_flag==2){
+		for(int ig1=0; ig1<g_count; ig1++){
+			for(int ig2=0; ig2<g_count; ig2++){
+				mat[ig2][ig1]+=export_mat[ig2][ig1];
+			}
+		}
+		return;
+	}
+	complex<double> p1jlp[12]={
+		complex<double>(1, 0), complex<double>(0, 1), complex<double>(-1, 0), complex<double>(0, -1),
+		complex<double>(1, 0), complex<double>(0, 1), complex<double>(-1, 0), complex<double>(0, -1),
+		complex<double>(1, 0), complex<double>(0, 1), complex<double>(-1, 0), complex<double>(0, -1)
+	};
+	double FPFS_bulk_max=FPFS_bulk_min+FPFS_bulk_height;
+	
+	complex<double>* Q=new complex<double>[g_count];
+	double kpg[3];
+	double atom_pos_bulk[3];
+	double kpg_length;
+	int inc=1;
+	complex<double> Ylm_k[6][11];
+	double* rj;
+
+	if(export_flag==1){
+		for(int ig1=0; ig1<g_count; ig1++){
+			for(int ig2=0; ig2<g_count; ig2++){
+				export_mat[ig2][ig1]=complex<double>(0, 0);
+			}
+		}
+	}
+	
+	for(int ia=0; ia<atom_length; ia++){
+		if(!(FPFS_bulk_min<=atom_coordinates[ia][2] && atom_coordinates[ia][2]<=FPFS_bulk_max)){
+			continue;
+		}
+		atom_pos_bulk[0]=atom_coordinates[ia][0];
+		atom_pos_bulk[1]=atom_coordinates[ia][1];
+		atom_pos_bulk[2]=atom_coordinates[ia][2]-FPFS_bulk_min;
+		
+		int is=atom_spec_index[ia];
+		rj=new double[vps_cutoff_index[is]];
+		for(int il=0; il<VPS_l_length[is]; il++){
+			// calculate Q = sum_m <Ylm bpl|phig>
+			int l=VPS_l[is][il];
+			for(int ig=0; ig<g_count; ig++){
+				Q[ig]=complex<double>(0, 0);
+				kpg[0]=k_para[0]+g_vec[ig][0];
+				kpg[1]=k_para[1]+g_vec[ig][1];
+				kpg[2]=kz_real  +g_vec[ig][2];
+				kpg_length=sqrt(inner_product(kpg, kpg));
+				spherical_harmonics(kpg, &Ylm_k[0][0]);
+				for(int m=-l; m<=l; m++){
+					Q[ig]+=conj(Ylm_k[l][l+m]);
+				}
+				double kpgt=inner_product(kpg, atom_pos_bulk);
+				//printf("kpg %f %f %f\n", kpg[0], kpg[1], kpg[2]);
+				for(int ir=0; ir<vps_cutoff_index[is]-1; ir++){
+					rj[ir]=VPS_r[is][ir]*sp_bessel(l, kpg_length*VPS_r[is][ir])*(VPS_r[is][ir+1]-VPS_r[is][ir]);
+					//printf("%f ", rj[ir]);
+				}
+				//printf("\n");
+				rj[vps_cutoff_index[is]-1]=0.0;
+				double integral=ddot_(&vps_cutoff_index[is], &VPS_nonloc_ave[is][il][0], &inc, &rj[0], &inc);
+				Q[ig]*=4*M_PI*p1jlp[l]*complex<double>(cos(kpgt), sin(kpgt))*integral;
+				//Q[ig]=integral;
+				//printf("Q[%4d] = (%8.3f %8.3f)\n", ig, Q[ig].real(), Q[ig].imag());
+			}
+			// mat+=2*E*Q*Q/V
+			for(int ig1=0; ig1<g_count; ig1++){
+				for(int ig2=0; ig2<g_count; ig2++){
+					complex<double> nonlocal_term=2.0*conj(Q[ig1])*Q[ig2]*VPS_E_ave[is][il];
+					mat[ig2][ig1]+=nonlocal_term/PA_FPFS_bulk_volume;
+					if(export_flag==1){
+						export_mat[ig2][ig1]+=nonlocal_term/PA_FPFS_bulk_volume;
+					}
+					// printf("Add (%f %f)\n", nonlocal_term.real(), nonlocal_term.imag());
+				}					
+			}
+		}
+		delete[] rj;
+	}
+	delete[] Q;
+}
+double determinant(int g_count, complex<double>** mat, double Ekin, double* k, double** g_vec, complex<double>** Vgg,
+									 int atom_length, int* VPS_l_length, int* vps_cutoff_index,
+									 int** VPS_l, double** VPS_r, double** VPS_E_ave, double*** VPS_nonloc_ave,
+									 double** atom_coordinates, int* atom_spec_index,
+									 double FPFS_bulk_min, double FPFS_bulk_height, int export_flag, complex<double>** export_mat){
 	prepare_matrix_bulk(g_count, mat, Ekin, k, g_vec, Vgg);
+	if(PA_FPFS_bulk_include_nonlocal){
+		add_nonlocal_term(g_count, g_vec, mat, k, k[2],
+											atom_length, VPS_l_length, vps_cutoff_index,
+											VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+											atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+											export_flag, export_mat);
+	}
 	int* ipiv=new int[g_count];
 	int info;
 	zgetrf_(&g_count, &g_count, &mat[0][0], &g_count, &ipiv[0], &info);
@@ -2111,8 +2214,19 @@ double determinant(int g_count, complex<double>** mat, double Ekin, double* k, d
 	return zdet.real();
 }
 
-double determinant_sign(int g_count, complex<double>** mat, double Ekin, double* k, double** g_vec, complex<double>** Vgg){
+double determinant_sign(int g_count, complex<double>** mat, double Ekin, double* k, double** g_vec, complex<double>** Vgg,
+												int atom_length, int* VPS_l_length, int* vps_cutoff_index,
+												int** VPS_l, double** VPS_r, double** VPS_E_ave, double*** VPS_nonloc_ave,
+												double** atom_coordinates, int* atom_spec_index,
+												double FPFS_bulk_min, double FPFS_bulk_height, int export_flag, complex<double>** export_mat){
 	prepare_matrix_bulk(g_count, mat, Ekin, k, g_vec, Vgg);
+	if(PA_FPFS_bulk_include_nonlocal){
+		add_nonlocal_term(g_count, g_vec, mat, k, k[2],
+											atom_length, VPS_l_length, vps_cutoff_index,
+											VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+											atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+											export_flag, export_mat);
+	}
 	int* ipiv=new int[g_count];
 	int info;
 	zgetrf_(&g_count, &g_count, &mat[0][0], &g_count, &ipiv[0], &info);
@@ -2132,8 +2246,19 @@ double determinant_sign(int g_count, complex<double>** mat, double Ekin, double*
 	return zdet.real();
 }
 
-complex<double> determinant_complex(int g_count, complex<double>** mat, double Ekin, double* k, complex<double> kz, double** g_vec, complex<double>** Vgg){
+complex<double> determinant_complex(int g_count, complex<double>** mat, double Ekin, double* k, complex<double> kz, double** g_vec, complex<double>** Vgg,
+																		int atom_length, int* VPS_l_length, int* vps_cutoff_index,
+																		int** VPS_l, double** VPS_r, double** VPS_E_ave, double*** VPS_nonloc_ave,
+																		double** atom_coordinates, int* atom_spec_index,
+																		double FPFS_bulk_min, double FPFS_bulk_height, int export_flag, complex<double>** export_mat){
 	prepare_matrix_bulk_complex(g_count, mat, Ekin, k, kz, g_vec, Vgg);
+	if(PA_FPFS_bulk_include_nonlocal){
+		add_nonlocal_term(g_count, g_vec, mat, k, kz.real(),
+											atom_length, VPS_l_length, vps_cutoff_index,
+											VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+											atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+											export_flag, export_mat);
+	}
 	int* ipiv=new int[g_count];
 	int info;
 	zgetrf_(&g_count, &g_count, &mat[0][0], &g_count, &ipiv[0], &info);
@@ -2266,7 +2391,11 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 														complex<double>** dispersion_c_BZ, int* dispersion_c_BZ_count, int** connection_c_BZ,
 														complex<double>** dispersion_mc, int* dispersion_mc_count, int** connection_mc,
 														complex<double>** dispersion_mc_BZ, int* dispersion_mc_BZ_count, int** connection_mc_BZ,
-														complex<double>*** final_states_pointer, double** kz_pointer, double** kappaz_pointer, complex<double>** mat, complex<double>** vr){
+														complex<double>*** final_states_pointer, double** kz_pointer, double** kappaz_pointer, complex<double>** mat, complex<double>** vr,
+														int atom_length, int* VPS_l_length, int* vps_cutoff_index,
+														int** VPS_l, double** VPS_r, double** VPS_E_ave, double*** VPS_nonloc_ave,
+														double** atom_coordinates, int* atom_spec_index,
+														double FPFS_bulk_min, double FPFS_bulk_height){
 	// printf("Ekin %10.6f\n", Ekin);
 	char* sprintf_buffer2=new char[Log_length+1];
 	int i, j;
@@ -2482,9 +2611,15 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 				double kz_left=kz_curr;
 				double kz_right=kz_next;
 				k_bloch[2]=kz_left;
-				double det_left=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
+				double det_left=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg,
+																				 atom_length, VPS_l_length, vps_cutoff_index,
+																				 VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																				 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height, 0, NULL);
 				k_bloch[2]=kz_right;
-				double det_right=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
+				double det_right=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg,
+																					atom_length, VPS_l_length, vps_cutoff_index,
+																					VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																					atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height, 0, NULL);
 
 				//printf("kz          %10.5f -- %10.5f\n", kz_left, kz_right);
 				//printf("Determinant %10.3e -- %10.3e\n", det_left, det_right);
@@ -2492,7 +2627,10 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 				while(kz_right-kz_left>1e-8){
 					double kz_center=(kz_left+kz_right)/2.0;
 					k_bloch[2]=kz_center;
-					double det_center=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg);
+					double det_center=determinant_sign(g_count, mat, Ekin, k_bloch, g_vec, Vgg,
+																						 atom_length, VPS_l_length, vps_cutoff_index,
+																						 VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																						 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height, 0, NULL);
 					if(det_left*det_center<0){
 						kz_right=kz_center;
 						det_right=det_center;
@@ -2563,6 +2701,16 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 	solution_count_complex[2]=0;
 	solution_count_complex[3]=0;
 
+	complex<double>** nonlocal_mat_left;
+	complex<double>** nonlocal_mat_right;
+	complex<double>** nonlocal_mat_center;
+	if(PA_FPFS_bulk_include_nonlocal){
+		nonlocal_mat_left=alloc_zmatrix(g_count);
+		nonlocal_mat_right=alloc_zmatrix(g_count);
+		nonlocal_mat_center=alloc_zmatrix(g_count);
+	}
+	bool nonlocal_mat_set;
+
 	complex<double>** dispersion_use;
 	int** connection_use;
 	int* dispersion_count_use;
@@ -2597,6 +2745,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		}else{
 			break;
 		}
+		nonlocal_mat_set=false;
 		for(int ikappaz=0; ikappaz<kappaz_count_temp-1; ikappaz++){
 			for(int ib=0; ib<dispersion_count_use[ikappaz]; ib++){
 				if(connection_use[ikappaz][ib]<0){
@@ -2619,22 +2768,43 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 					complex<double> kz_right(kz_r[ikzr], -kappaz_right);
 					complex<double> kz_center;
 				
-					complex<double> det_left=determinant_complex(g_count, mat, Ekin, k_bloch, kz_left, g_vec, Vgg);
-					complex<double> det_right=determinant_complex(g_count, mat, Ekin, k_bloch, kz_right, g_vec, Vgg);
+					complex<double> det_left=determinant_complex(g_count, mat, Ekin, k_bloch, kz_left, g_vec, Vgg,
+																											 atom_length, VPS_l_length, vps_cutoff_index,
+																											 VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																											 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+																											 nonlocal_mat_set?2:1, nonlocal_mat_center);
+					nonlocal_mat_set=true;
+					complex<double> det_right=determinant_complex(g_count, mat, Ekin, k_bloch, kz_right, g_vec, Vgg,
+																												atom_length, VPS_l_length, vps_cutoff_index,
+																												VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																												atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+																												2, nonlocal_mat_center);
 					complex<double> det_center;
 
 					while(kappaz_right-kappaz_left>1e-8){
 						kappaz_center=(kappaz_left+kappaz_right)*0.5;
 						kz_center=complex<double>(kz_r[ikzr], -kappaz_center);
-						det_center=determinant_complex(g_count, mat, Ekin, k_bloch, kz_center, g_vec, Vgg);
+						det_center=determinant_complex(g_count, mat, Ekin, k_bloch, kz_center, g_vec, Vgg,
+																					 atom_length, VPS_l_length, vps_cutoff_index,
+																					 VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																					 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+																					 2, nonlocal_mat_center);
 						if(det_left.real()*det_center.real()<0){
 							kappaz_right=kappaz_center;
 							kz_right=complex<double>(kz_r[ikzr], -kappaz_right);
-							det_right=determinant_complex(g_count, mat, Ekin, k_bloch, kz_right, g_vec, Vgg);
+							det_right=determinant_complex(g_count, mat, Ekin, k_bloch, kz_right, g_vec, Vgg,
+																						atom_length, VPS_l_length, vps_cutoff_index,
+																						VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																						atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+																						2, nonlocal_mat_center);
 						}else if(det_center.real()*det_right.real()<0){
 							kappaz_left=kappaz_center;
 							kz_left=complex<double>(kz_r[ikzr], -kappaz_center);
-							det_center=determinant_complex(g_count, mat, Ekin, k_bloch, kz_left, g_vec, Vgg);
+							det_center=determinant_complex(g_count, mat, Ekin, k_bloch, kz_left, g_vec, Vgg,
+																						 atom_length, VPS_l_length, vps_cutoff_index,
+																						 VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																						 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+																						 2, nonlocal_mat_center);
 						}else{
 							break;
 						}
@@ -2746,13 +2916,14 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		+solution_count_complex[2]+solution_count_complex[3];
 
 	// complex plane
-
+	// cout << "C plane" << endl;
 	complex<double>** kz_corner1=alloc_zmatrix(buffer_size, 4);
 	complex<double>** kz_corner2;
 	int kz_corner_index=0;
 	double* dispersion_kappaz_temp=new double[kappaz_border_index];
 	double dkz=dispersion_kappaz[1]-dispersion_kappaz[0];
 	for(int ikz=1; ikz<kz_count-1; ikz++){
+		// printf("ikz %d / %d\n", ikz, kz_count);
 		if(kz_count%2==0){
 			if(ikz==kz_count/2 || ikz==kz_count/2-1){
 				continue;
@@ -2810,6 +2981,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		}
 		double gap_ave=gap_sum/(1.0*count);
 		// printf("Area: %8.4f to %8.4f, gap=%10.6f\n", dispersion_kz[area_min], dispersion_kz[area_max], gap_ave);
+		nonlocal_mat_set=false;
 		double dkappaz_temp=gap_ave*PA_FPFS_cspace_size/(kappaz_border_index*sqrt(2.0*PA_excitation_energy/Eh));
 		for(int inp=0; inp<2; inp++){
 			for(int ikappaz=0; ikappaz<kappaz_border_index; ikappaz++){
@@ -2831,12 +3003,30 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 					kz_rb+=gz;
 				}
 				
-				complex<double> det_lb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lb, g_vec, Vgg);
-				complex<double> det_lt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lt, g_vec, Vgg);
-				complex<double> det_rt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rt, g_vec, Vgg);
-				complex<double> det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rb, g_vec, Vgg);
+				complex<double> det_lb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lb, g_vec, Vgg,
+																									 atom_length, VPS_l_length, vps_cutoff_index,
+																									 VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																									 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+																									 nonlocal_mat_set?2:1, nonlocal_mat_left);
+				complex<double> det_lt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lt, g_vec, Vgg,
+																									 atom_length, VPS_l_length, vps_cutoff_index,
+																									 VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																									 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+																									 2, nonlocal_mat_left);
+				complex<double> det_rt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rt, g_vec, Vgg,
+																									 atom_length, VPS_l_length, vps_cutoff_index,
+																									 VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																									 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+																									 nonlocal_mat_set?2:1, nonlocal_mat_right);
+				complex<double> det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rb, g_vec, Vgg,
+																									 atom_length, VPS_l_length, vps_cutoff_index,
+																									 VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																									 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+																									 2, nonlocal_mat_right);
+				nonlocal_mat_set=true;
 
 				if(encloseOrigin(det_lb, det_lt, det_rt, det_rb)){
+					// printf("Det: (%f %f) (%f %f) (%f %f) (%f %f)\n", det_lb.real(), det_lb.imag(), det_lt.real(), det_lt.imag(), det_rt.real(), det_rt.imag(), det_rb.real(), det_rt.imag());
 					if(kz_corner_index>=buffer_size){
 						write_log((char*)"Candidates are more than buffer size");
 						break;
@@ -2848,36 +3038,74 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 					kz_corner_index++;
 				}
 			}
-		}
-	}
+		} // end of for(inp)
+	} // end of for(kz)
 	int kz_corner_count=kz_corner_index;
 	if(kz_corner_count>0){
 		kz_corner2=alloc_zmatrix(kz_corner_count*4, 4);
 		while(dkz>1e-6){
+			// printf("Corner count: %d\n", kz_corner_count);
 			int is1, is2;
 			is2=0;
 			for(is1=0; is1<kz_corner_count; is1++){
+				// printf("is = %d / %d kz = %f %f\n", is1, kz_corner_count, kz_corner1[is1][0].real(), kz_corner1[is1][0].imag());
 				// find kz by bisection
 				complex<double> kz_lb=kz_corner1[is1][0];
 				complex<double> kz_lt=kz_corner1[is1][1];
 				complex<double> kz_rt=kz_corner1[is1][2];
 				complex<double> kz_rb=kz_corner1[is1][3];
-			
-				complex<double> det_lb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lb, g_vec, Vgg);
-				complex<double> det_lt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lt, g_vec, Vgg);
-				complex<double> det_rt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rt, g_vec, Vgg);
-				complex<double> det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rb, g_vec, Vgg);
+				complex<double> det_lb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lb, g_vec, Vgg,
+																									 atom_length, VPS_l_length, vps_cutoff_index,
+																									 VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																									 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+																									 1, nonlocal_mat_left);
+				complex<double> det_lt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lt, g_vec, Vgg,
+																									 atom_length, VPS_l_length, vps_cutoff_index,
+																									 VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																									 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+																									 2, nonlocal_mat_left);
+				complex<double> det_rt=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rt, g_vec, Vgg,
+																									 atom_length, VPS_l_length, vps_cutoff_index,
+																									 VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																									 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+																									 1, nonlocal_mat_right);
+				complex<double> det_rb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rb, g_vec, Vgg,
+																									 atom_length, VPS_l_length, vps_cutoff_index,
+																									 VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																									 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+																									 2, nonlocal_mat_right);
+				// printf("Det: (%f %f) (%f %f) (%f %f) (%f %f)\n", det_lb.real(), det_lb.imag(), det_lt.real(), det_lt.imag(), det_rt.real(), det_rt.imag(), det_rb.real(), det_rt.imag());
 			
 				complex<double> kz_lc=(kz_lb+kz_lt)*0.5;
 				complex<double> kz_cb=(kz_lb+kz_rb)*0.5;
 				complex<double> kz_cc=(kz_lb+kz_rt)*0.5;
 				complex<double> kz_ct=(kz_lt+kz_rt)*0.5;
 				complex<double> kz_rc=(kz_rb+kz_rt)*0.5;
-				complex<double> det_lc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lc, g_vec, Vgg);
-				complex<double> det_cb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_cb, g_vec, Vgg);
-				complex<double> det_cc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_cc, g_vec, Vgg);
-				complex<double> det_ct=determinant_complex(g_count, mat, Ekin, k_bloch, kz_ct, g_vec, Vgg);
-				complex<double> det_rc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rc, g_vec, Vgg);
+				complex<double> det_lc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_lc, g_vec, Vgg,
+																									 atom_length, VPS_l_length, vps_cutoff_index,
+																									 VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																									 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+																									 2, nonlocal_mat_left);
+				complex<double> det_cb=determinant_complex(g_count, mat, Ekin, k_bloch, kz_cb, g_vec, Vgg,
+																									 atom_length, VPS_l_length, vps_cutoff_index,
+																									 VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																									 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+																									 1, nonlocal_mat_center);
+				complex<double> det_cc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_cc, g_vec, Vgg,
+																									 atom_length, VPS_l_length, vps_cutoff_index,
+																									 VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																									 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+																									 2, nonlocal_mat_center);
+				complex<double> det_ct=determinant_complex(g_count, mat, Ekin, k_bloch, kz_ct, g_vec, Vgg,
+																									 atom_length, VPS_l_length, vps_cutoff_index,
+																									 VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																									 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+																									 2, nonlocal_mat_center);
+				complex<double> det_rc=determinant_complex(g_count, mat, Ekin, k_bloch, kz_rc, g_vec, Vgg,
+																									 atom_length, VPS_l_length, vps_cutoff_index,
+																									 VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+																									 atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+																									 2, nonlocal_mat_right);
 
 				if(encloseOrigin(det_lb, det_lc, det_cc, det_cb)){
 					kz_corner2[is2][0]=kz_lb;			
@@ -2917,7 +3145,7 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 				break;
 			}
 			dkz*=0.5;
-		}
+		} // end of while
 
 		int index_offset=solution_count_real+solution_count_complex_sum;
 		for(int is=0; is<kz_corner_count; is++){
@@ -2986,6 +3214,12 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 	for(int is=0; is<solution_count_real; is++){
 		k_bloch[2]=solution_kz[is];
 		prepare_matrix_bulk(g_count, mat, 0.0, k_bloch, g_vec, Vgg);
+		if(PA_FPFS_bulk_include_nonlocal){
+			add_nonlocal_term(g_count, g_vec, mat, k_bloch, k_bloch[2],
+												atom_length, VPS_l_length, vps_cutoff_index,
+												VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+												atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height, 0, NULL);
+		}
 
 		if(lwork==-1){
 			zheev_(&compute, &uplo, &g_count, &mat[0][0], &g_count, &w[0], &work_dummy, &lwork, &rwork[0], &info);
@@ -3011,6 +3245,12 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 			k_bloch[2]=solution_kz_alt[is];
 			
 			prepare_matrix_bulk(g_count, mat, 0.0, k_bloch, g_vec, Vgg);
+			if(PA_FPFS_bulk_include_nonlocal){
+				add_nonlocal_term(g_count, g_vec, mat, k_bloch, k_bloch[2],
+													atom_length, VPS_l_length, vps_cutoff_index,
+													VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+													atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height, 0, NULL);
+			}
 			zheev_(&compute, &uplo, &g_count, &mat[0][0], &g_count, &w[0], &work[0], &lwork, &rwork[0], &info);
 			if(info!=0){
 				write_log((char*)"zheev failed");
@@ -3041,6 +3281,12 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 		k_bloch[2]=0.0;
 		complex<double> kz(solution_kz[is], -solution_kappaz[is]);
 		prepare_matrix_bulk_complex(g_count, mat, 0.0, k_bloch, kz, g_vec, Vgg);
+		if(PA_FPFS_bulk_include_nonlocal){
+			add_nonlocal_term(g_count, g_vec, mat, k_bloch, kz.real(),
+												atom_length, VPS_l_length, vps_cutoff_index,
+												VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+												atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height, 0, NULL);
+		}
 		if(lwork==-1){
 			zgeev_(&nocompute, &compute, &g_count, &mat[0][0], &g_count, &wc[0], NULL, &ld, &vr[0][0], &g_count, &work_dummy, &lwork, &rwork2[0], &info);
 			if(info!=0){
@@ -3066,6 +3312,12 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 			if(solution_alt_use[is]){
 				complex<double> kz(0.0, -solution_kappaz_alt[is]);
 				prepare_matrix_bulk_complex(g_count, mat, 0.0, k_bloch, kz, g_vec, Vgg);
+				if(PA_FPFS_bulk_include_nonlocal){
+					add_nonlocal_term(g_count, g_vec, mat, k_bloch, kz.real(),
+														atom_length, VPS_l_length, vps_cutoff_index,
+														VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+														atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height, 0, NULL);
+				}
 				zgeev_(&nocompute, &compute, &g_count, &mat[0][0], &g_count, &wc[0], NULL, &ld, &vr[0][0], &g_count, &work[0], &lwork, &rwork2[0], &info);
 				if(info!=0){
 					write_log((char*)"zgeev failed");
@@ -3135,6 +3387,11 @@ int solve_final_states_bulk(double Ekin, double* k_para, double gz, int g_count,
 	delete[] lmax_listed;
 	delete[] lmax_band;
 	delete[] dispersion_kappaz_temp;
+	if(PA_FPFS_bulk_include_nonlocal){
+		delete_zmatrix(nonlocal_mat_left);
+		delete_zmatrix(nonlocal_mat_right);
+		delete_zmatrix(nonlocal_mat_center);
+	}
 	return solution_count;
 	
 }
@@ -3149,8 +3406,10 @@ double* interpolate_wfn(int wfn_length, double* wfn, double* r, int wfn_length_r
 	}
 	for(int ir=0; ir<wfn_length; ir++){
 		int index=floor(r[ir]/dr);
-		wfn_reduced[index]+=wfn[ir];
-		wfn_count[index]++;
+		if(index>=0 && index<wfn_length_reduced){
+			wfn_reduced[index]+=wfn[ir];
+			wfn_count[index]++;
+		}
 	}
 	for(int ir=0; ir<wfn_length_reduced; ir++){
 		if(wfn_count[ir]>0){
@@ -3179,7 +3438,7 @@ double* interpolate_wfn(int wfn_length, double* wfn, double* r, int wfn_length_r
 			}
 		}
 	}
-	
+  
 	delete[] wfn_count;
 	/*
 	for(int ir=0; ir<wfn_length; ir++){
@@ -3194,7 +3453,11 @@ double* interpolate_wfn(int wfn_length, double* wfn, double* r, int wfn_length_r
 }
 
 
-void calc_bulk_dispersion(double* k_para, int kz_count, double* kz, int g_count, double** g_vec, complex<double>** Vgg, double** eigen, complex<double>** mat){
+void calc_bulk_dispersion(double* k_para, int kz_count, double* kz, int g_count, double** g_vec, complex<double>** Vgg, double** eigen, complex<double>** mat,													
+													int atom_length, int* VPS_l_length, int* vps_cutoff_index,
+													int** VPS_l, double** VPS_r, double** VPS_E_ave, double*** VPS_nonloc_ave,
+													double** atom_coordinates, int* atom_spec_index,
+													double FPFS_bulk_min, double FPFS_bulk_height){
 	int i, j;
 	// prepare matrix
 	//double** g_vec=new double*[g_count];
@@ -3229,9 +3492,16 @@ void calc_bulk_dispersion(double* k_para, int kz_count, double* kz, int g_count,
 	complex<double>* work;
 
 	for(int ikz=0; ikz<kz_count; ikz++){
+		//printf("ikz=%4d/%4d start\n", ikz, kz_count);
 		k_bloch[2]=kz[ikz];
 		
 		prepare_matrix_bulk(g_count, mat, 0.0, k_bloch, g_vec, Vgg);
+		if(PA_FPFS_bulk_include_nonlocal){
+			add_nonlocal_term(g_count, g_vec, mat, k_bloch, k_bloch[2],
+												atom_length, VPS_l_length, vps_cutoff_index,
+												VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+												atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height, 0, NULL);
+		}
 		if(lwork==-1){
 			zheev_(&nocompute, &uplo, &g_count, &mat[0][0], &g_count, &w[0], &work_dummy, &lwork, &rwork[0], &info);
 			if(info!=0){
@@ -3259,7 +3529,11 @@ void calc_bulk_dispersion(double* k_para, int kz_count, double* kz, int g_count,
 	
 }
 
-void calc_bulk_dispersion_complex(double* k_para, double kz_r, int kappaz_count, int kappaz_border_index, double* kappaz_list, int g_count, int** g_index, double** g_vec, complex<double>** Vgg, complex<double>*** eigen_pointer, int* eigen_count, int*** connection_pointer, complex<double>** mat){
+void calc_bulk_dispersion_complex(double* k_para, double kz_r, int kappaz_count, int kappaz_border_index, double* kappaz_list, int g_count, int** g_index, double** g_vec, complex<double>** Vgg, complex<double>*** eigen_pointer, int* eigen_count, int*** connection_pointer, complex<double>** mat,
+												int atom_length, int* VPS_l_length, int* vps_cutoff_index,
+												int** VPS_l, double** VPS_r, double** VPS_E_ave, double*** VPS_nonloc_ave,
+												double** atom_coordinates, int* atom_spec_index,
+												double FPFS_bulk_min, double FPFS_bulk_height){
 	char* sprintf_buffer2=new char[Log_length+1];
 	int i,j;
 	double k_bloch[3];
@@ -3283,19 +3557,36 @@ void calc_bulk_dispersion_complex(double* k_para, double kz_r, int kappaz_count,
 	complex<double>* dispersion_real=new complex<double>[g_count];
 	int dispersion_real_count;
 	int row_size;
+
+	complex<double>** nonlocal_matrix;
+	if(PA_FPFS_bulk_include_nonlocal){
+		nonlocal_matrix=alloc_zmatrix(g_count);
+	}
 	for(int ikappaz=0; ikappaz<kappaz_count; ikappaz++){
+		//printf("ikappaz=%4d/%4d start\n", ikappaz, kappaz_count);
+		
 		kz=complex<double>(kz_r, -kappaz_list[ikappaz]);
+		//printf("kz = (%f %f)\n", kz.real(), kz.imag());
+					 
 		prepare_matrix_bulk_complex(g_count, mat, 0.0, k_bloch, kz, g_vec, Vgg);
+		if(PA_FPFS_bulk_include_nonlocal){
+			add_nonlocal_term(g_count, g_vec, mat, k_bloch, kz_r,
+												atom_length, VPS_l_length, vps_cutoff_index,
+												VPS_l, VPS_r, VPS_E_ave, VPS_nonloc_ave,
+												atom_coordinates, atom_spec_index, FPFS_bulk_min, FPFS_bulk_height,
+												ikappaz==0?1:2, nonlocal_matrix);
+		}
+		
+		//if(ikz==kz_count/2){
 		/*
-			if(ikz==kz_count/2){
 			for(int ig1=0; ig1<g_count; ig1++){
 			for(int ig2=0; ig2<g_count; ig2++){
 			printf("(%8.4f %8.4f) ", mat[ig2][ig1].real(), mat[ig2][ig1].imag());
 			}
 			printf("\n");
 			}
-			printf("\n");
-			}*/
+			printf("\n");*/
+			//}
 		if(lwork==-1){
 			zgeev_(&nocompute, &nocompute, &g_count, &mat[0][0], &g_count, &w[0], NULL, &ld, NULL, &ld, &work_dummy, &lwork, &rwork[0], &info);
 			if(info!=0){
@@ -3345,6 +3636,9 @@ void calc_bulk_dispersion_complex(double* k_para, double kz_r, int kappaz_count,
 
 		// sort
 		sort_ascend(dispersion_real_count, (*eigen_pointer)[ikappaz]);
+	}
+	if(PA_FPFS_bulk_include_nonlocal){
+		delete_zmatrix(nonlocal_matrix);
 	}
 
 	// initialize connection_pointer
