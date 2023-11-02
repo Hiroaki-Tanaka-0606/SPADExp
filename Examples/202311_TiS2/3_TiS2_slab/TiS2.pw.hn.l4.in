@@ -1,0 +1,25 @@
+&Control
+Calculation PAD
+Log_file /path/to/log/file
+Console_log true
+Output_file /path/to/output/file
+/
+&PAD
+Input_file /path/to/hdf5/file
+E_min -2
+E_max 0.5
+E_pixel 0.01
+dE 0.1
+Initial_state PAO
+Final_state PW
+Polarization Linear
+Theta 40
+Phi 0
+Atomic_orbitals_file /path/to/PAO_and_AO_after_opt.hdf5
+Weighting True
+Weighting_shape Sqrt
+Weighting_axis 0 0 1
+Weighting_origin 244.885
+Weighting_width -22.78
+Extend 70 0 40 0
+/

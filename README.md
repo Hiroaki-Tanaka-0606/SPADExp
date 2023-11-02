@@ -38,4 +38,4 @@ E-mail: hiroaki-tanaka_at_issp.u-tokyo.ac.jp (replace \_at\_ with @)
 - ADPACK [Japanese](http://www.openmx-square.org/adpack_man2.2_jp/adpack2_2_jp.html) [English](http://www.openmx-square.org/adpack_man2.2/adpack2_2.html)
 - [HDF5](https://www.hdfgroup.org/)
 - Paper about SPADExp [J. Electron Spectrosc. **264**, 147297 (2023)](https://www.sciencedirect.com/science/article/pii/S0368204823000142)
-- Paper using SPADExp [to be appeared in arXiv]
+- Paper using SPADExp: ARPES study on 2H-NbS2 and hBN [arXiv:2308.00999](https://arxiv.org/abs/2308.00999)
