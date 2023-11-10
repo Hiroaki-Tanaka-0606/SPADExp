@@ -388,11 +388,14 @@ void calculate_PAD(){
 	
 	// 2. load initial state
 	write_log((char*)"----Load initial states----");
-	/// interpolate wave functions	
-	Group PotentialG(OutputG.openGroup("Potential"));
-	int VKS_count_for_wfn[3];
-	r_att_1i(PotentialG, "Count", 3, &VKS_count_for_wfn[0]);
-	double wfn_interpolate_dz=sqrt(inner_product(atom_cell[0], atom_cell[0]))/VKS_count_for_wfn[0]*PA_interpolate_wfn_coef;
+	/// interpolate wave functions
+	double wfn_interpolate_dz=0.0;
+	if(PA_interpolate_wfn){
+	  Group PotentialG(OutputG.openGroup("Potential"));
+	  int VKS_count_for_wfn[3];
+	  r_att_1i(PotentialG, "Count", 3, &VKS_count_for_wfn[0]);
+	  wfn_interpolate_dz=sqrt(inner_product(atom_cell[0], atom_cell[0]))/VKS_count_for_wfn[0]*PA_interpolate_wfn_coef;
+	}
   
 	double*** wfn_phi_rdr=new double**[atom_spec_length]; // [is][io][r]
 	double*** wfn_phi_PAO=new double**[atom_spec_length]; // [is][io][r] for FPFS
