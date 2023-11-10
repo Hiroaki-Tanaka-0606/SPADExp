@@ -1,0 +1,5 @@
+&inputpp
+outdir='/path/to/workdir'
+prefix='pwscf'
+seedname='TiS2_HSE'
+/
