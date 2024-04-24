@@ -26,11 +26,11 @@ linkOption2 = -l hdf5_hl_cpp -l hdf5_cpp -l hdf5_hl -l hdf5 -Wl,-rpath,$(hdf5)/l
 
 option = -L${MKLROOT} -lmkl_scalapack_lp64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lmkl_blacs_openmpi_lp64 -liomp5 -lpthread -lm -ldl -lgfortran -fopenmp $(linkOption1) $(linkOption2)
 
-target = SPADExp_main.o setup.o load_input.o parse_inputs.o log.o validation_Thomas_Fermi.o calculation_Thomas_Fermi.o validation_atomic_wfn.o calculation_atomic_wfn.o validation_scf_atom.o calculation_scf_atom.o validation_phase_shift.o calculation_phase_shift.o validation_pad.o calculation_pad.o HDF5_tools.o physical_tools.o sphere_lebedev_rule.o allocation_tools.o
+target = SPADExp_main.o setup.o load_input.o parse_inputs.o log.o validation_Thomas_Fermi.o calculation_Thomas_Fermi.o validation_atomic_wfn.o calculation_atomic_wfn.o validation_scf_atom.o calculation_scf_atom.o validation_phase_shift.o calculation_phase_shift.o validation_pad.o calculation_pad.o HDF5_tools.o physical_tools.o sphere_lebedev_rule.o allocation_tools.o resolve_connection.o
 
 target_FPFS = FPFS_analysis_main.o HDF5_tools.o physical_tools.o log.o
 
-all: SPADExp.o FPFS_analysis.o
+all: SPADExp.o # FPFS_analysis.o
 
 SPADExp.o: $(target)
 	$(CXX) $(target) $(option) -o SPADExp.o
